@@ -2,6 +2,9 @@ cron:
 - description: cleanup member records
   url: /cleanup
   schedule: every 24 hours
+- description: cache domain users
+  url: /cron/cache_users
+  schedule: every 59 minutes
 - description: email suspended users
   url: /areyoustillthere
   schedule: every monday 15:00

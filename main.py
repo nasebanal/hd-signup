@@ -44,12 +44,12 @@ else:
 
 is_prod = not is_dev
 
-def fetch_usernames(use_cache=True):
+def fetch_usernames(use_cache=True, deadline=10):
     usernames = memcache.get('usernames')
     if usernames and use_cache:
         return usernames
     else:
-        resp = urlfetch.fetch('http://%s/users' % DOMAIN_HOST, deadline=10)
+        resp = urlfetch.fetch('http://%s/users' % DOMAIN_HOST, deadline=deadline)
         if resp.status_code == 200:
             usernames = [m.lower() for m in simplejson.loads(resp.content)]
             if not memcache.set('usernames', usernames, 3600*24):
@@ -279,7 +279,7 @@ class CreateUserTask(webapp.RequestHandler):
         except Exception, e:
             return fail(e)
         
-        usernames = fetch_usernames(False)
+        usernames = fetch_usernames(False, deadline=120)
         if username in usernames:
             membership.username = username
             membership.put()
@@ -675,6 +675,13 @@ Please contact <a href=\"mailto:%(treasurer)s\">%(treasurer)s</a> so they can ma
             return
           url = "https://spreedly.com/"+SPREEDLY_ACCOUNT+"/subscriber_accounts/"+account.spreedly_token
           self.redirect(url)
+
+class CacheUsersCron(webapp.RequestHandler):
+    def get(self):
+        self.post()
+        
+    def post(self): 
+        fetch_usernames(use_cache=True, deadline=120)
           
 
 def main():
@@ -699,6 +706,7 @@ def main():
         ('/update', UpdateHandler),
         ('/tasks/create_user', CreateUserTask),
         ('/tasks/clean_row', CleanupTask),
+        ('/cron/cache_users', CacheUsersCron),
         ('/tasks/areyoustillthere_mail', AreYouStillThereMail),
         
         
