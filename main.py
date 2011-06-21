@@ -17,7 +17,7 @@ import sys
 ORG_NAME = 'Hacker Dojo'
 APP_NAME = 'hd-signup'
 EMAIL_FROM = "Dojo Signup <no-reply@%s.appspotmail.com>" % APP_NAME
-EMAIL_FROM_AYST = "Brian Klug <brian.klug@hackerdojo.com>" % APP_NAME
+EMAIL_FROM_AYST = "Brian Klug <brian.klug@hackerdojo.com>"
 DAYS_FOR_KEY = 30
 INTERNAL_DEV_EMAIL = "Internal Dev <internal-dev@hackerdojo.com>"
 DOMAIN_HOST = 'domain.hackerdojo.com'
@@ -283,14 +283,6 @@ class CreateUserTask(webapp.RequestHandler):
             return retry(3600)
         except Exception, e:
             return fail(e)
-        
-        usernames = fetch_usernames(False)
-        if username in usernames:
-            membership.username = username
-            membership.put()
-        else:
-            logging.warn("CreateUserTask: Username did not show up after creating, retrying")
-            return retry()
 
 class UnsubscribeHandler(webapp.RequestHandler):
     def get(self, id):
