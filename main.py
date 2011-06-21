@@ -260,6 +260,8 @@ class CreateUserTask(webapp.RequestHandler):
         if not membership.spreedly_token:
             logging.warn("CreateUserTask: No spreedly token yet, retrying")
             return retry(300)
+
+        logging.info("CreateUserTask: About to create user "+membership.username)
             
         try:
             username, password = memcache.get(hashlib.sha1(membership.hash+SPREEDLY_APIKEY).hexdigest()).split(':')
@@ -274,6 +276,8 @@ class CreateUserTask(webapp.RequestHandler):
                 'last_name': membership.last_name,
                 'secret': keymaster.get(DOMAIN_USER),
             }), deadline=10)
+            membership.username = username
+            membership.put()
             logging.warn("CreateUserTask: I think that worked")
         except urlfetch.DownloadError, e:
             logging.warn("CreateUserTask: API response error or timeout, retrying")
@@ -283,6 +287,8 @@ class CreateUserTask(webapp.RequestHandler):
             return retry(3600)
         except Exception, e:
             return fail(e)
+
+
 
 class UnsubscribeHandler(webapp.RequestHandler):
     def get(self, id):
