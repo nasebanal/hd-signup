@@ -44,15 +44,15 @@ else:
 
 is_prod = not is_dev
 
-def fetch_usernames(use_cache=True, deadline=10):
+def fetch_usernames(use_cache=True):
     usernames = memcache.get('usernames')
     if usernames and use_cache:
         return usernames
     else:
-        resp = urlfetch.fetch('http://%s/users' % DOMAIN_HOST, deadline=deadline)
+        resp = urlfetch.fetch('http://%s/users' % DOMAIN_HOST, deadline=10)
         if resp.status_code == 200:
             usernames = [m.lower() for m in simplejson.loads(resp.content)]
-            if not memcache.set('usernames', usernames, 3600*24):
+            if not memcache.set('usernames', usernames, 60*60*24):
                 logging.error("Memcache set failed.")
             return usernames
 
@@ -270,6 +270,7 @@ class CreateUserTask(webapp.RequestHandler):
                 'last_name': membership.last_name,
                 'secret': keymaster.get(DOMAIN_USER),
             }), deadline=10)
+            logging.warn("CreateUserTask: I think that worked")
         except urlfetch.DownloadError, e:
             logging.warn("CreateUserTask: API response error or timeout, retrying")
             return retry()
@@ -279,7 +280,7 @@ class CreateUserTask(webapp.RequestHandler):
         except Exception, e:
             return fail(e)
         
-        usernames = fetch_usernames(False, deadline=120)
+        usernames = fetch_usernames(False)
         if username in usernames:
             membership.username = username
             membership.put()
@@ -681,7 +682,7 @@ class CacheUsersCron(webapp.RequestHandler):
         self.post()
         
     def post(self): 
-        fetch_usernames(use_cache=True, deadline=120)
+        fetch_usernames(use_cache=False)
           
 
 def main():
