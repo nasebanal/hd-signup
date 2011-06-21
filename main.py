@@ -17,6 +17,7 @@ import sys
 ORG_NAME = 'Hacker Dojo'
 APP_NAME = 'hd-signup'
 EMAIL_FROM = "Dojo Signup <no-reply@%s.appspotmail.com>" % APP_NAME
+EMAIL_FROM_AYST = "Brian Klug <brian.klug@hackerdojo.com>" % APP_NAME
 DAYS_FOR_KEY = 30
 INTERNAL_DEV_EMAIL = "Internal Dev <internal-dev@hackerdojo.com>"
 DOMAIN_HOST = 'domain.hackerdojo.com'
@@ -474,7 +475,6 @@ class AreYouStillThereHandler(webapp.RequestHandler):
         self.post()
         
     def post(self):
-        return # cron is implemented, this is not ready yet
         countdown = 0
         for membership in Membership.all().filter('status =', "suspended"):
           if not membership.unsubscribe_reason and membership.spreedly_token and "Deleted" not in membership.last_name:
@@ -485,15 +485,15 @@ class AreYouStillThereHandler(webapp.RequestHandler):
 class AreYouStillThereMail(webapp.RequestHandler):
     def post(self): 
         user = Membership.get_by_id(int(self.request.get('user')))
-        subject = "Hacker Dojo Membership"
+        subject = "Hacker Dojo Membership: ACTION REQUIRED"
         body = render('templates/areyoustillthere.txt', locals())
         to = "%s <%s>" % (user.full_name(), user.email)
         bcc = "%s <%s>" % ("Brian Klug", "brian.klug@hackerdojo.com")
         if user.username:
             cc="%s <%s@hackerdojo.com>" % (user.full_name(), user.username),
-            mail.send_mail(sender=EMAIL_FROM, to=to, subject=subject, body=body, bcc=bcc, cc=cc)
+            mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc, cc=cc)
         else:
-            mail.send_mail(sender=EMAIL_FROM, to=to, subject=subject, body=body, bcc=bcc)
+            mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc)
         
         
 class CleanupHandler(webapp.RequestHandler):
