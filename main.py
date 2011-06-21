@@ -261,7 +261,6 @@ class CreateUserTask(webapp.RequestHandler):
             logging.warn("CreateUserTask: No spreedly token yet, retrying")
             return retry(300)
 
-        logging.info("CreateUserTask: About to create user "+membership.username)
             
         try:
             username, password = memcache.get(hashlib.sha1(membership.hash+SPREEDLY_APIKEY).hexdigest()).split(':')
@@ -269,6 +268,7 @@ class CreateUserTask(webapp.RequestHandler):
             return fail(Exception("Account information expired for %s" % membership.email))
             
         try:
+            logging.info("CreateUserTask: About to create user "+username)
             resp = urlfetch.fetch('http://%s/users' % DOMAIN_HOST, method='POST', payload=urllib.urlencode({
                 'username': username,
                 'password': password,
