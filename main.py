@@ -177,18 +177,21 @@ class MainHandler(webapp.RequestHandler):
 class AccountHandler(webapp.RequestHandler):
     def get(self, hash):
         membership = Membership.get_by_hash(hash)
-        # steal this part to detect if they registered with hacker dojo email above
-        first_part = re.compile(r'[^\w]').sub('', membership.first_name.split(' ')[0]) # First word of first name
-        last_part = re.compile(r'[^\w]').sub('', membership.last_name)
-        if len(first_part)+len(last_part) >= 15:
-            last_part = last_part[0] # Just last initial
-        username = '.'.join([first_part, last_part]).lower()
-        if username in fetch_usernames():
-            username = membership.email.split('@')[0].lower()
-        if self.request.get('u'):
-            pick_username = True
-        message = escape(self.request.get('message'))
-        self.response.out.write(render('templates/account.html', locals()))
+        if membership:
+          # steal this part to detect if they registered with hacker dojo email above
+          first_part = re.compile(r'[^\w]').sub('', membership.first_name.split(' ')[0]) # First word of first name
+          last_part = re.compile(r'[^\w]').sub('', membership.last_name)
+          if len(first_part)+len(last_part) >= 15:
+              last_part = last_part[0] # Just last initial
+          username = '.'.join([first_part, last_part]).lower()
+          if username in fetch_usernames():
+              username = membership.email.split('@')[0].lower()
+          if self.request.get('u'):
+              pick_username = True
+          message = escape(self.request.get('message'))
+          self.response.out.write(render('templates/account.html', locals()))
+        else:
+          self.response.out.write("404 Not Found")
     
     def post(self, hash):
         username = self.request.get('username')
@@ -398,10 +401,10 @@ class UpdateHandler(webapp.RequestHandler):
                 member.put()
                 # TODO: After a few months (now() = 06.13.2011), only suspend/restore if status CHANGED
                 # As of right now, we can't trust previous status, so lets take action on each call to /update
-                if member.status == 'active':
+                if member.status == 'active' and member.username:
                     logging.info("Restoring User: "+member.username)
                     self.restore(member.username)
-                if member.status == 'suspended':
+                if member.status == 'suspended' and member.username:
                     logging.info("Suspending User: "+member.username)
                     self.suspend(member.username)
 
