@@ -166,7 +166,7 @@ class MainHandler(webapp.RequestHandler):
                 if self.request.get('paypal') == '1':
                     membership.status = 'paypal'
                 membership.hash = hashlib.md5(membership.email).hexdigest()
-                membership.referrer = self.request.get('referrer')
+                membership.referrer = self.request.get('referrer').replace('\n', ' ')
                 membership.put()
             
             # if there is a membership, redirect here
@@ -396,7 +396,9 @@ class UpdateHandler(webapp.RequestHandler):
                     member.unsubscribe_reason = None
                 member.spreedly_token = subscriber['token']
                 member.plan = subscriber['feature-level'] or member.plan
-                member.email = subscriber['email']
+                if not subscriber['email']:
+                  subscriber['email'] = "noemail@hackerdojo.com"
+                member.email = subscriber['email']                
                 member.put()
                 # TODO: After a few months (now() = 06.13.2011), only suspend/restore if status CHANGED
                 # As of right now, we can't trust previous status, so lets take action on each call to /update
@@ -425,6 +427,17 @@ class MemberListHandler(webapp.RequestHandler):
       signup_users = Membership.all().order("last_name").fetch(1000);
       self.response.out.write(render('templates/memberlist.html', locals()))
 
+class JoinReasonListHandler(webapp.RequestHandler):
+    def get(self):
+      user = users.get_current_user()
+      if not user:
+        self.redirect(users.create_login_url('/joinreasonlist'))
+      if users.is_current_user_admin():
+        all_users = Membership.all().order("created").fetch(1000)
+        self.response.out.write(render('templates/joinreasonlist.html', locals()))
+      else:
+        self.response.out.write("Need admin access")
+  
 class SuspendedHandler(webapp.RequestHandler):
     def get(self):
       user = users.get_current_user()
@@ -702,6 +715,7 @@ def main():
         ('/account/(.+)', AccountHandler),
         ('/upgrade/needaccount', NeedAccountHandler),
         ('/success/(.+)', SuccessHandler),
+        ('/joinreasonlist', JoinReasonListHandler),
         ('/memberlist', MemberListHandler),
         ('/areyoustillthere', AreYouStillThereHandler),
         ('/unsubscribe/(.*)', UnsubscribeHandler),

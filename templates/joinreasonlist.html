@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block content %}
+
+
+<h2>How did you hear about us?</h2>
+
+<style>
+.log td {border-bottom:1px solid #ccc; border-right:1px solid #ccc; font-size:12px; padding:2px}
+table.log {border-left:1px solid #ccc; border-top:1px solid #ccc; margin-top:0}
+.log .header {font-weight:bold;}
+h3 {margin-top:3em}
+.bad {background:#fdd}
+#wrapper {width:80%}
+</style>
+
+<table class="log" width="100%" cellspacing="0" cellpadding="0" border="0">
+<tr class="header">
+  <td>Date</td>
+  <td>Name</td>
+  <td>Status</td>
+  <td>Join Reason</td>
+</tr>
+
+{% for u in all_users %}  
+  <tr>
+    <td>{{ u.created|date }}</td>
+    <td><a href="https://appengine.google.com/datastore/edit?app_id=hd-signup&key={{u.key}}">{{ u.last_name }}, {{ u.first_name }}</a></td>
+    <td>{{ u.status }}</td>
+    <td>{{ u.referrer}}</td>
+  </tr>
+{% endfor %}
+</table>
+
+{% endblock %}
