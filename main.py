@@ -130,11 +130,11 @@ class MainHandler(webapp.RequestHandler):
             
             # this just runs a check twice. (there is no OR in GQL)
             # first name, last name
-            existing_member = db.GqlQuery("SELECT * FROM Membership WHERE first_name = '%s' AND last_name = '%s'" % (first_name, last_name)).get()
+            existing_member = db.GqlQuery("SELECT * FROM Membership WHERE first_name = :first_name AND last_name = :last_name", first_name=first_name, last_name=last_name).get()
             if existing_member:
                 membership = existing_member
             # email
-            existing_member = db.GqlQuery("SELECT * FROM Membership WHERE email = '%s'" % email).get()
+            existing_member = db.GqlQuery("SELECT * FROM Membership WHERE email = :email", email=email).get()
             if existing_member:
                 membership = existing_member
 
@@ -147,7 +147,7 @@ class MainHandler(webapp.RequestHandler):
                 username = email.split('@')[0].lower()
             
             # username@hackerdojo.com
-            existing_member = db.GqlQuery("SELECT * FROM Membership WHERE email = '%s@hackerdojo.com'" % username).get()
+            existing_member = db.GqlQuery("SELECT * FROM Membership WHERE email = :email", email='%s@hackerdojo.com' % username).get()
             if existing_member:
                 membership = existing_member
             
