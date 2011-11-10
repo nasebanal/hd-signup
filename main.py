@@ -41,7 +41,7 @@ if is_dev:
 else:
     SPREEDLY_ACCOUNT = 'hackerdojo'
     SPREEDLY_APIKEY = keymaster.get('spreedly:hackerdojo')
-    PLAN_IDS = {'full': '1987', 'hardship': '2537', 'supporter': '1988', 'family': '3659', 'minor': '3660', 'full-check': '6479', 'hardship-check': '6480', 'worktrade': '6608' }
+    PLAN_IDS = {'full': '1987', 'hardship': '2537', 'supporter': '1988', 'family': '3659', 'minor': '3660', 'full-check': '6479', 'hardship-check': '6480', 'worktrade': '6608', 'comped': '15451' }
 
 is_prod = not is_dev
 
@@ -199,8 +199,8 @@ class AccountHandler(webapp.RequestHandler):
         password = self.request.get('password')
         if password != self.request.get('password_confirm'):
             self.redirect(self.request.path + "?message=Passwords don't match")
-        elif len(password) < 6:
-            self.redirect(self.request.path + "?message=Password must be 6 characters or longer")
+        elif len(password) < 8:
+            self.redirect(self.request.path + "?message=Password must be 8 characters or longer")
         else:
             membership = Membership.get_by_hash(hash)
             if membership.username:
@@ -278,7 +278,7 @@ class CreateUserTask(webapp.RequestHandler):
             }), deadline=10)
             membership.username = username
             membership.put()
-            logging.warn("CreateUserTask: I think that worked")
+            logging.warn("CreateUserTask: I think that worked: "+resp.content)
         except urlfetch.DownloadError, e:
             logging.warn("CreateUserTask: API response error or timeout, retrying")
             return retry()
