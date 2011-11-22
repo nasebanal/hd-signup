@@ -489,7 +489,7 @@ class AreYouStillThereHandler(webapp.RequestHandler):
         countdown = 0
         for membership in Membership.all().filter('status =', "suspended"):
           if not membership.unsubscribe_reason and membership.spreedly_token and "Deleted" not in membership.last_name:
-            countdown += 90
+            countdown += 1200 # One e-mail every 20 min = 72 e-mails a day (100 is free appengine limit)
             self.response.out.write("Are you still there "+membership.email+ "?<br/>")
             taskqueue.add(url='/tasks/areyoustillthere_mail', params={'user': membership.key().id()}, countdown=countdown)
 
