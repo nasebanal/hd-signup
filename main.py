@@ -427,6 +427,17 @@ class MemberListHandler(webapp.RequestHandler):
       signup_users = Membership.all().order("last_name").fetch(1000);
       self.response.out.write(render('templates/memberlist.html', locals()))
 
+class LeaveReasonListHandler(webapp.RequestHandler):
+    def get(self):
+      user = users.get_current_user()
+      if not user:
+        self.redirect(users.create_login_url('/leavereasonlist'))
+      if users.is_current_user_admin():
+        all_users = Membership.all().order("-updated").fetch(1000)
+        self.response.out.write(render('templates/leavereasonlist.html', locals()))
+      else:
+        self.response.out.write("Need admin access")
+  
 class JoinReasonListHandler(webapp.RequestHandler):
     def get(self):
       user = users.get_current_user()
@@ -716,6 +727,7 @@ def main():
         ('/upgrade/needaccount', NeedAccountHandler),
         ('/success/(.+)', SuccessHandler),
         ('/joinreasonlist', JoinReasonListHandler),
+        ('/leavereasonlist', LeaveReasonListHandler),
         ('/memberlist', MemberListHandler),
         ('/areyoustillthere', AreYouStillThereHandler),
         ('/unsubscribe/(.*)', UnsubscribeHandler),
