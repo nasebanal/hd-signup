@@ -427,6 +427,31 @@ class MemberListHandler(webapp.RequestHandler):
       signup_users = Membership.all().order("last_name").fetch(1000);
       self.response.out.write(render('templates/memberlist.html', locals()))
 
+class DebugHandler(webapp.RequestHandler):
+    def get(self):
+      user = users.get_current_user()
+      if not user:
+        self.redirect(users.create_login_url('/debug_users'))
+      if users.is_current_user_admin():
+        if not self.request.get("from"):
+          all_users = Membership.all()
+          x = all_users.count()
+          self.response.out.write("There are ")
+          self.response.out.write(x)
+          self.response.out.write(" user records.  Use GET params 'from' and 'to' to analyze.")
+        else:
+          fr = self.request.get("from")
+          to = self.request.get("to")
+          for i in range(int(fr),int(to)):
+            a = Membership.all().fetch(1,i)[0]
+            self.response.out.write("<p>")
+            self.response.out.write(a.key().id())
+            self.response.out.write(" - ")
+            self.response.out.write(a.username)
+      else:
+        self.response.out.write("Need admin access")
+
+
 class LeaveReasonListHandler(webapp.RequestHandler):
     def get(self):
       user = users.get_current_user()
@@ -720,6 +745,7 @@ def main():
         ('/api/suspended', APISuspendedHandler),
         ('/cleanup', CleanupHandler),
         ('/profile', ProfileHandler),
+        ('/debug_users', DebugHandler),
         ('/key', KeyHandler),
         ('/pref', PrefHandler),
         ('/modify', ModifyHandler),
