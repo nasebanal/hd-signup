@@ -649,10 +649,10 @@ This might be a mistake, in which case we apologize. </p>
                 return
             delta = datetime.utcnow() - account.created
             if delta.days < DAYS_FOR_KEY:
-                error = """<p>You have been a member for %(days)s days.  
+                error = """<p>You have been a member for %(deltadays)s days.  
 After %(days)s days you qualify for a key.  Check back in %(delta)s days!</p>
 <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Membership+create+date+not+correct\">%(signup_email)s</a>.</p>
-""" % {'days': DAYS_FOR_KEY, 'delta': DAYS_FOR_KEY-delta.days, 'signup_email': SIGNUP_HELP_EMAIL}
+""" % {'deltadays': delta.days, 'days': DAYS_FOR_KEY, 'delta': DAYS_FOR_KEY-delta.days, 'signup_email': SIGNUP_HELP_EMAIL}
                 self.response.out.write(render('templates/error.html', locals()))
                 return    
             bc = BadgeChange.all().filter('username =', account.username).fetch(100)
