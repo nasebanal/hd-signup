@@ -19,3 +19,6 @@ handlers:
   login: admin
 - url: .*
   script: main.py
+
+builtins:
+- remote_api: on

@@ -1,5 +1,6 @@
 import wsgiref.handlers
 import datetime, time, hashlib, urllib, urllib2, re, os
+from google.appengine.ext import deferred
 from google.appengine.ext import db
 from google.appengine.ext import webapp
 from google.appengine.api import urlfetch, mail, memcache, users, taskqueue
@@ -63,7 +64,34 @@ def render(path, local_vars):
     template_vars = {'is_prod': is_prod, 'org_name': ORG_NAME, 'analytics_id': GOOGLE_ANALYTICS_ID, 'domain': APPS_DOMAIN}
     template_vars.update(local_vars)
     return template.render(path, template_vars)
-    
+
+
+class RFIDSwipe(db.Model):
+    username = db.StringProperty()
+    rfid_tag = db.StringProperty()
+    created = db.DateTimeProperty(auto_now_add=True)
+    success = db.BooleanProperty()
+
+class RFIDSwipeHandler(webapp.RequestHandler):
+    def get(self):
+        if self.request.get('maglock:key') != keymaster.get('maglock:key'):
+            self.response.out.write("Access denied")
+        else:
+            username = self.request.get('username')
+            rfid_tag = self.request.get('rfid_tag')
+            m = Membership.all().filter('username ==', username).get()
+            if "active" in m.status:
+               success = True
+            else:
+               success = False       
+            rs = RFIDSwipe(username=username, rfid_tag=rfid_tag, success=success)
+            rs.put()
+            if "brian.klug" in username:
+              mail.send_mail(sender="brian.klug@hackerdojo.com", to="brian.klug@hackerdojo.com",
+                 subject="[Direct] RFID Entry: " + m.username, body="Lobby entry at "+str(rs.created))
+              deferred.defer(mail.send_mail, sender="brian.klug@hackerdojo.com", to="brian.klug@hackerdojo.com",
+                 subject="[Deferred] RFID Entry: " + m.username, body="Lobby entry at "+str(rs.created), _queue="emailthrottle")
+            self.response.out.write("OK")
 
 class BadgeChange(db.Model):
     created = db.DateTimeProperty(auto_now_add=True)
@@ -749,6 +777,7 @@ def main():
     application = webapp.WSGIApplication([
         ('/', MainHandler),
         ('/api/rfid', RFIDHandler),
+        ('/api/rfidswipe', RFIDSwipeHandler),
         ('/userlist', AllHandler),
         ('/suspended', SuspendedHandler),
         ('/api/linked', LinkedHandler),
