@@ -78,15 +78,16 @@ class RFIDSwipeHandler(webapp.RequestHandler):
             self.response.out.write("Access denied")
         else:
             rfid_tag = self.request.get('rfid_tag')
-            m = Membership.all().filter('rfid_tag ==', rfid_tag).get()
-            if m:
-              username = m.username
-              if "active" in m.status:
-                 success = True
-              else:
-                 success = False
-                 subject = "Reactivate your RFID key now - renew your Hacker Dojo Subscription!"
-                 body = """
+            if rfid_tag:
+                m = Membership.all().filter('rfid_tag ==', rfid_tag).get()
+                if m:
+                  username = m.username
+                  if "active" in m.status:
+                     success = True
+                  else:
+                     success = False
+                     subject = "Reactivate your RFID key now - renew your Hacker Dojo Subscription!"
+                     body = """
 Hi %s,
 
 It looks like you just tried using your RFID key to open the doors to Hacker Dojo.
@@ -98,17 +99,17 @@ One teeny tiny issue, it looks like your membership has lapsed!  This can happen
 With warmest regards,
 The Lobby Door
 """ % (m.first_name,m.subscribe_url())
-                 deferred.defer(mail.send_mail, sender="Maglock <brian.klug@hackerdojo.com>", to=m.email,
-                 subject=subject, body=body, _queue="emailthrottle")    
-            else:
-              username = "unknown ("+rfid_tag+")"
-              success = False   
-            rs = RFIDSwipe(username=username, rfid_tag=rfid_tag, success=success)
-            rs.put()
-            if "mark.hutsell" in email or "some.other.evilguy" in email:
-              deferred.defer(mail.send_mail, sender="Maglock <brian.klug@hackerdojo.com>", to="Emergency Paging System <page@hackerdojo.com>",
-                 subject="RFID Entry: " + m.username, body="Lobby entry", _queue="emailthrottle")
-              urlfetch.fetch("http://www.dustball.com/call/call.php?str=RFID+Entry+"+username)
+                     deferred.defer(mail.send_mail, sender="Maglock <brian.klug@hackerdojo.com>", to=m.email,
+                     subject=subject, body=body, _queue="emailthrottle")    
+                else:
+                  username = "unknown ("+rfid_tag+")"
+                  success = False   
+                rs = RFIDSwipe(username=username, rfid_tag=rfid_tag, success=success)
+                rs.put()
+                if "mark.hutsell" in email or "some.other.evilguy" in email:
+                  deferred.defer(mail.send_mail, sender="Maglock <brian.klug@hackerdojo.com>", to="Emergency Paging System <page@hackerdojo.com>",
+                     subject="RFID Entry: " + m.username, body="Lobby entry", _queue="emailthrottle")
+                  urlfetch.fetch("http://www.dustball.com/call/call.php?str=RFID+Entry+"+username)
             self.response.out.write("OK")
 
 class BadgeChange(db.Model):
