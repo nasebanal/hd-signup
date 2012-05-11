@@ -106,7 +106,7 @@ The Lobby Door
                   success = False   
                 rs = RFIDSwipe(username=username, rfid_tag=rfid_tag, success=success)
                 rs.put()
-                if "mark.hutsell" in email or "some.other.evilguy" in email:
+                if "mark.hutsell" in username or "some.other.evilguy" in username:
                   deferred.defer(mail.send_mail, sender="Maglock <brian.klug@hackerdojo.com>", to="Emergency Paging System <page@hackerdojo.com>",
                      subject="RFID Entry: " + m.username, body="Lobby entry", _queue="emailthrottle")
                   urlfetch.fetch("http://www.dustball.com/call/call.php?str=RFID+Entry+"+username)
