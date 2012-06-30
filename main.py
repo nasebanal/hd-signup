@@ -42,7 +42,7 @@ if is_dev:
 else:
     SPREEDLY_ACCOUNT = 'hackerdojo'
     SPREEDLY_APIKEY = keymaster.get('spreedly:hackerdojo')
-    PLAN_IDS = {'full': '1987', 'hardship': '2537', 'supporter': '1988', 'family': '3659', 'worktrade': '6608', 'comped': '15451', 'threecomp': '18158', 'yearly':'18552', 'fiveyear': '18853', 'theilcomp': '19616' }
+    PLAN_IDS = {'full': '1987', 'hardship': '2537', 'supporter': '1988', 'family': '3659', 'worktrade': '6608', 'comped': '15451', 'threecomp': '18158', 'yearly':'18552', 'fiveyear': '18853', 'thielcomp': '19616' }
 
 # Old plans: 'minor': '3660', 'full-check': '6479', 'hardship-check': '6480', 
 
