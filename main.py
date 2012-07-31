@@ -146,7 +146,11 @@ class Membership(db.Model):
         return "https://spreedly.com/%s/subscribers/%s" % (SPREEDLY_ACCOUNT, self.key().id())
 
     def subscribe_url(self):
-        return "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, PLAN_IDS[self.plan])
+        try:
+            url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, PLAN_IDS[self.plan])
+        except KeyError:
+            url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, PLAN_IDS["full"])          
+        return url
 
     def unsubscribe_url(self):
         return "http://signup.hackerdojo.com/unsubscribe/%i" % (self.key().id())
