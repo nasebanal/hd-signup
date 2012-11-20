@@ -108,7 +108,7 @@ The Lobby Door
                 rs.put()
                 if "mark.hutsell" in username or "some.other.evilguy" in username:
                   deferred.defer(mail.send_mail, sender="Maglock <brian.klug@hackerdojo.com>", to="Emergency Paging System <page@hackerdojo.com>",
-                     subject="RFID Entry: " + m.username, body="Lobby entry", _queue="emailthrottle")
+                     subject="RFID Entry: " + username, body="Lobby entry", _queue="emailthrottle")
                   urlfetch.fetch("http://www.dustball.com/call/call.php?str=RFID+Entry+"+username)
             self.response.out.write("OK")
 
@@ -477,7 +477,7 @@ class MemberListHandler(webapp.RequestHandler):
       user = users.get_current_user()
       if not user:
         self.redirect(users.create_login_url('/memberlist'))
-      signup_users = Membership.all().order("last_name").fetch(1000);
+      signup_users = Membership.all().order("last_name").fetch(10000);
       self.response.out.write(render('templates/memberlist.html', locals()))
 
 class DebugHandler(webapp.RequestHandler):
