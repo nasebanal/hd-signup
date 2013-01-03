@@ -19,6 +19,7 @@ h3 {margin-top:3em}
   <td>Name</td>
   <td>Username</td>
   <td>Status</td>
+  <td>Twitter</td>
 </tr>
 
 {% for u in signup_users %}  
@@ -27,6 +28,7 @@ h3 {margin-top:3em}
     <td>{{ u.last_name }}, {{ u.first_name }}</td>
     <td>{{ u.username }}</td>
     <td>{% ifequal u.status "active" %}current{% else %}expired{% endifequal %}</td>
+    <td><a href="http://twitter.com/{{u.twitter}}">{{u.twitter}}</a></td>
   </tr>
 {% endif %}
 {% endfor %}

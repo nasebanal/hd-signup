@@ -123,6 +123,7 @@ class Membership(db.Model):
     first_name = db.StringProperty(required=True)
     last_name = db.StringProperty(required=True)
     email = db.StringProperty(required=True)
+    twitter = db.StringProperty(required=False)
     plan  = db.StringProperty(required=True)
     status  = db.StringProperty() # None, active, suspended
     referrer  = db.StringProperty()
@@ -173,12 +174,13 @@ class MainHandler(webapp.RequestHandler):
     def post(self):
         first_name = self.request.get('first_name')
         last_name = self.request.get('last_name')
-        email = self.request.get('email').lower()
+        twitter = self.request.get('twitter').lower().strip().strip('@')
+        email = self.request.get('email').lower().strip()
         plan = self.request.get('plan', 'full')
         
         if not first_name or not last_name or not email:
             self.response.out.write(render('templates/main.html', {
-                'plan': plan, 'message': "Sorry, we need all three fields."}))
+                'plan': plan, 'message': "Sorry, we need name and e-mail address."}))
         else:
             
             # this just runs a check twice. (there is no OR in GQL)
@@ -215,7 +217,7 @@ class MainHandler(webapp.RequestHandler):
             #    existing_member.delete()
             if membership is None:
                 membership = Membership(
-                    first_name=first_name, last_name=last_name, email=email, plan=plan)
+                    first_name=first_name, last_name=last_name, email=email, plan=plan, twitter=twitter)
                 if self.request.get('paypal') == '1':
                     membership.status = 'paypal'
                 membership.hash = hashlib.md5(membership.email).hexdigest()
@@ -795,6 +797,42 @@ class CacheUsersCron(webapp.RequestHandler):
     def post(self): 
         fetch_usernames(use_cache=False)
           
+class GetTwitterHandler(webapp.RequestHandler):
+    def get(self):
+      user = users.get_current_user()
+      if not user:
+        self.redirect(users.create_login_url('/api/gettwitter'))
+      if users.is_current_user_admin():
+        need_twitter_users = Membership.all().filter('status =', 'active').fetch(1000)
+        countdown = 0
+        for u in need_twitter_users:
+          if u.username and not u.twitter:
+            self.response.out.write(u.username)
+            taskqueue.add(url='/tasks/twitter_mail', params={'user': u.key().id()}, countdown=countdown)
+            countdown += 1
+      else:
+        self.response.out.write("Need admin access")
+
+            
+
+class TwitterMail(webapp.RequestHandler):
+    def post(self): 
+        user = Membership.get_by_id(int(self.request.get('user')))
+        subject = "What's your twitter handle?"
+        base = self.request.host
+        body = render('templates/twittermail.txt', locals())
+        to = "%s <%s@hackerdojo.com>" % (user.full_name(), user.username)
+        bcc = "%s <%s>" % ("Brian Klug", "brian.klug@hackerdojo.com")
+        mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc, html=body)
+    
+class SetTwitterHandler(webapp.RequestHandler):
+    def get(self):
+      if self.request.get('user'):
+        m = Membership.get(self.request.get('user'))
+        m.twitter = self.request.get('twitter').lower().strip().strip('@')
+        m.put()
+        self.response.out.write("<p>Thanks!  All set now.  <p>We'll send out more information in a week or two.")
+ 
 
 def main():
     application = webapp.WSGIApplication([
@@ -821,10 +859,13 @@ def main():
         ('/areyoustillthere', AreYouStillThereHandler),
         ('/unsubscribe/(.*)', UnsubscribeHandler),
         ('/update', UpdateHandler),
+        ('/api/gettwitter', GetTwitterHandler),
+        ('/api/settwitter', SetTwitterHandler),
         ('/tasks/create_user', CreateUserTask),
         ('/tasks/clean_row', CleanupTask),
         ('/cron/cache_users', CacheUsersCron),
         ('/tasks/areyoustillthere_mail', AreYouStillThereMail),
+        ('/tasks/twitter_mail', TwitterMail),
         
         
         ], debug=True)
