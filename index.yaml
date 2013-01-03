@@ -24,3 +24,8 @@ indexes:
   properties:
   - name: status
   - name: unsubscribe_reason
+
+- kind: Membership
+  properties:
+  - name: status
+  - name: username

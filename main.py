@@ -832,6 +832,18 @@ class SetTwitterHandler(webapp.RequestHandler):
         m.twitter = self.request.get('twitter').lower().strip().strip('@')
         m.put()
         self.response.out.write("<p>Thanks!  All set now.  <p>We'll send out more information in a week or two.")
+
+class CSVHandler(webapp.RequestHandler):
+    def get(self):
+      self.response.headers['Content-type'] = "text/csv; charset=utf-8"
+      self.response.headers['Content-disposition'] = "attachment;filename=HackerDojoMembers.csv"
+      if keymaster.get('csvkey') == self.request.get('csvkey'): 
+        users = Membership.all().filter('status =', 'active').filter('username !=', '').fetch(1000)
+        for u in users:
+          twitter = ''
+          if u.twitter:
+            twitter = u.twitter
+          self.response.out.write(u.first_name+","+u.last_name+","+u.username+"@hackerdojo.com,"+twitter+"\r\n")
  
 
 def main():
@@ -859,6 +871,7 @@ def main():
         ('/areyoustillthere', AreYouStillThereHandler),
         ('/unsubscribe/(.*)', UnsubscribeHandler),
         ('/update', UpdateHandler),
+        ('/api/membercsv', CSVHandler),
         ('/api/gettwitter', GetTwitterHandler),
         ('/api/settwitter', SetTwitterHandler),
         ('/tasks/create_user', CreateUserTask),
