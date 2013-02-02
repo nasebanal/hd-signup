@@ -129,6 +129,7 @@ class Membership(db.Model):
     referrer  = db.StringProperty()
     username = db.StringProperty()
     rfid_tag = db.StringProperty()
+    extra_599main = db.StringProperty()
     auto_signin = db.StringProperty()
     unsubscribe_reason = db.TextProperty()
     
@@ -513,7 +514,7 @@ class LeaveReasonListHandler(webapp.RequestHandler):
       if not user:
         self.redirect(users.create_login_url('/leavereasonlist'))
       if users.is_current_user_admin():
-        all_users = Membership.all().order("-updated").fetch(1000)
+        all_users = Membership.all().order("-updated").fetch(10000)
         self.response.out.write(render('templates/leavereasonlist.html', locals()))
       else:
         self.response.out.write("Need admin access")
@@ -524,7 +525,7 @@ class JoinReasonListHandler(webapp.RequestHandler):
       if not user:
         self.redirect(users.create_login_url('/joinreasonlist'))
       if users.is_current_user_admin():
-        all_users = Membership.all().order("created").fetch(1000)
+        all_users = Membership.all().order("created").fetch(10000)
         self.response.out.write(render('templates/joinreasonlist.html', locals()))
       else:
         self.response.out.write("Need admin access")
@@ -535,7 +536,7 @@ class SuspendedHandler(webapp.RequestHandler):
       if not user:
         self.redirect(users.create_login_url('/suspended'))
       if users.is_current_user_admin():
-        suspended_users = Membership.all().filter('status =', 'suspended').filter('last_name !=', 'Deleted').fetch(1000)
+        suspended_users = Membership.all().filter('status =', 'suspended').filter('last_name !=', 'Deleted').fetch(10000)
         tokened_users = []
         for user in suspended_users:
             if user.spreedly_token:
@@ -556,8 +557,8 @@ class AllHandler(webapp.RequestHandler):
       if not user:
         self.redirect(users.create_login_url('/userlist'))
       if users.is_current_user_admin():
-        signup_users = Membership.all().fetch(1000)
-        active_users = Membership.all().filter('status =', 'active').fetch(1000)
+        signup_users = Membership.all().fetch(10000)
+        active_users = Membership.all().filter('status =', 'active').fetch(10000)
         signup_usernames = [m.username for m in signup_users]
         domain_usernames = fetch_usernames()
         signup_usernames = set(signup_usernames) - set([None])
@@ -761,7 +762,11 @@ class RFIDHandler(webapp.RequestHandler):
           self.response.out.write(")");
       else:
         if self.request.get('maglock:key') == keymaster.get('maglock:key'):
-          self.response.out.write(simplejson.dumps([ {"rfid_tag" : m.rfid_tag, "username" : m.username } for m in Membership.all().filter('rfid_tag !=', None).filter('status =', 'active')]))
+          if self.request.get('machine'):       
+            members = Membership.all().filter('rfid_tag !=', None).filter('status =', 'active').filter("extra_"+self.request.get('machine')+' =',"True")
+          else:
+            members = Membership.all().filter('rfid_tag !=', None).filter('status =', 'active')
+          self.response.out.write(simplejson.dumps([ {"rfid_tag" : m.rfid_tag, "username" : m.username } for m in members]))
         else:
           self.response.out.write("Access denied")
 
@@ -803,7 +808,7 @@ class GetTwitterHandler(webapp.RequestHandler):
       if not user:
         self.redirect(users.create_login_url('/api/gettwitter'))
       if users.is_current_user_admin():
-        need_twitter_users = Membership.all().filter('status =', 'active').fetch(1000)
+        need_twitter_users = Membership.all().filter('status =', 'active').fetch(10000)
         countdown = 0
         for u in need_twitter_users:
           if u.username and not u.twitter:
@@ -833,12 +838,31 @@ class SetTwitterHandler(webapp.RequestHandler):
         m.put()
         self.response.out.write("<p>Thanks!  All set now.  <p>We'll send out more information in a week or two.")
 
+class SetExtraHandler(webapp.RequestHandler):
+    def get(self):
+      user = users.get_current_user()
+      if not user:
+        self.redirect(users.create_login_url('/api/setextra'))
+      if users.is_current_user_admin():
+        user = Membership.all().filter('status =', 'active').filter('username =', self.request.get('username')).get()
+        if user:
+          user.__setattr__("extra_"+self.request.get('key'), self.request.get('value'))
+          user.put()
+          self.response.out.write("OK")
+        else:
+          self.response.out.write("User not found")
+      else:
+        self.response.out.write("Need admin access")
+
+
+
+
 class CSVHandler(webapp.RequestHandler):
     def get(self):
       self.response.headers['Content-type'] = "text/csv; charset=utf-8"
       self.response.headers['Content-disposition'] = "attachment;filename=HackerDojoMembers.csv"
       if keymaster.get('csvkey') == self.request.get('csvkey'): 
-        users = Membership.all().filter('status =', 'active').filter('username !=', '').fetch(1000)
+        users = Membership.all().filter('status =', 'active').filter('username !=', '').fetch(10000)
         for u in users:
           twitter = ''
           if u.twitter:
@@ -873,6 +897,7 @@ def main():
         ('/update', UpdateHandler),
         ('/api/membercsv', CSVHandler),
         ('/api/gettwitter', GetTwitterHandler),
+        ('/api/setextra', SetExtraHandler),
         ('/api/settwitter', SetTwitterHandler),
         ('/tasks/create_user', CreateUserTask),
         ('/tasks/clean_row', CleanupTask),

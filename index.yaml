@@ -12,6 +12,18 @@ indexes:
 
 - kind: Membership
   properties:
+  - name: 599main
+  - name: status
+  - name: rfid_tag
+
+- kind: Membership
+  properties:
+  - name: extra_599main
+  - name: status
+  - name: rfid_tag
+
+- kind: Membership
+  properties:
   - name: status
   - name: last_name
 
