@@ -1,5 +1,9 @@
 {% extends 'base.html' %}
 {% block content %}
+<link rel="stylesheet" href="http://code.jquery.com/ui/1.10.2/themes/smoothness/jquery-ui.css" />
+<script src="http://code.jquery.com/jquery-1.9.1.js"></script>
+<script src="http://code.jquery.com/ui/1.10.2/jquery-ui.js"></script>
+
 <h4>
   <span class="step"><span>1</span> Member Info &rarr; </span>
   <span class="step inactive"><span>2</span> Create Account &rarr; </span>
@@ -15,6 +19,7 @@
   <tr><td class="label">Last name:<sup>*</sup></td><td><input type="text" name="last_name" /></td></tr>
   <tr><td class="label">Email:<sup>*</sup></td><td><input type="text" name="email" /></td></tr>
   <tr><td class="label">Twitter:</td><td><input type="text" name="twitter" /></td></tr>
+  <tr><td class="label">Referred by:</td><td><input type="text" id="refer" name="refer" /></td></tr>
   {% if message %}<tr><td>&nbsp;</td><td style="color: red; font-size: smaller;">{{ message }}</td></tr>{% endif %}
 </table>
 <div style="font-size: smaller; margin-left: 216px;">How did you hear about us?<br />
@@ -25,6 +30,62 @@
 <div style="background-color: lightyellow; border: 1px solid goldenrod; padding: 10px; margin-top: 40px;">We're so glad you're joining our wonderful non-profit organization to help foster hacker community! Remember, not everything is perfect yet and things move a little slower in a mostly volunteer organization, but we're constantly improving.<br /><br />
 You'll soon be a member, and you'll have the power to vote, but more importantly, the <strong>power to act</strong> to make Hacker Dojo better. We're looking forward to having you as part of the community.</div>
 
+<input type="hidden" name="referuserid" id="referuserid" />
 
 </form>
+
+<style>
+  .ui-autocomplete {
+    max-height: 200px;
+    overflow-y: auto;
+    /* prevent horizontal scrollbar */
+    overflow-x: hidden;
+  }
+  /* IE 6 doesn't support max-height
+   * we use height instead, but this forces the menu to always be this tall
+   */
+  * html .ui-autocomplete {
+    height: 200px;
+  }
+</style>
+
+<script>
+$(function() {
+  var users = [
+    {% for u in active_users %}  
+      {
+        value: "{{u.username}}",
+        label: "{{u.first_name}} {{u.last_name}}",
+        icon: "{{u.icon}}"
+      },
+    {% endfor %}
+    {
+      value: "None",
+      label: "None, Nobody, Other, N/A",
+      icon: "http://0.gravatar.com/avatar/none"
+    },
+  ];
+
+  $( "#refer" ).autocomplete({
+    minLength: 0,
+    source: users,
+    focus: function( event, ui ) {
+      $( "#refer" ).val( ui.item.label );
+      return false;
+    },
+    select: function( event, ui ) {
+      $( "#refer" ).val( ui.item.label );
+      $( "#referuserid" ).val( ui.item.value );
+      return false;
+    }
+  })
+  .data( "ui-autocomplete" )._renderItem = function( ul, item ) {
+    return $( "<li>" )
+      .append( "<a><img src='"+item.icon+"' border=0 valign=middle height=24 width=24> " + item.label +"</a>" )
+      .appendTo( ul );
+  };
+});
+</script>
+
+
 {% endblock %}

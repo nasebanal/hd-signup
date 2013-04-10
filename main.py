@@ -126,6 +126,7 @@ class Membership(db.Model):
     twitter = db.StringProperty(required=False)
     plan  = db.StringProperty(required=True)
     status  = db.StringProperty() # None, active, suspended
+    referuserid = db.StringProperty()
     referrer  = db.StringProperty()
     username = db.StringProperty()
     rfid_tag = db.StringProperty()
@@ -138,6 +139,9 @@ class Membership(db.Model):
     created = db.DateTimeProperty(auto_now_add=True)
     updated = db.DateTimeProperty(auto_now=True)
     
+    def icon(self):
+        return "http://www.gravatar.com/avatar/" + hashlib.md5(self.email.lower()).hexdigest()          
+
     def full_name(self):
         return '%s %s' % (self.first_name, self.last_name)
     
@@ -156,7 +160,6 @@ class Membership(db.Model):
 
     def unsubscribe_url(self):
         return "http://signup.hackerdojo.com/unsubscribe/%i" % (self.key().id())
-        
     
     @classmethod
     def get_by_email(cls, email):
@@ -168,11 +171,15 @@ class Membership(db.Model):
 
 class MainHandler(webapp.RequestHandler):
     def get(self):
+        signup_users = Membership.all().fetch(10000)
+        active_users = Membership.all().filter('status =', 'active').order("username").fetch(10000)
         self.response.out.write(render('templates/main.html', {
             'plan': self.request.get('plan', 'full'),
+            'active_users': active_users,
             'paypal': self.request.get('paypal')}))
     
     def post(self):
+        referuserid = self.request.get('referuserid')
         first_name = self.request.get('first_name')
         last_name = self.request.get('last_name')
         twitter = self.request.get('twitter').lower().strip().strip('@')
@@ -218,7 +225,7 @@ class MainHandler(webapp.RequestHandler):
             #    existing_member.delete()
             if membership is None:
                 membership = Membership(
-                    first_name=first_name, last_name=last_name, email=email, plan=plan, twitter=twitter)
+                    first_name=first_name, last_name=last_name, email=email, plan=plan, twitter=twitter, referuserid=referuserid)
                 if self.request.get('paypal') == '1':
                     membership.status = 'paypal'
                 membership.hash = hashlib.md5(membership.email).hexdigest()

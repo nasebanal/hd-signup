@@ -7,6 +7,13 @@
   <span class="step"><span>4</span> Done!</span>
 </h4>
 <div style="margin-left: 50px; padding-top: 10px;">
+{% if member.username %}
+<hr>
+<center>Your username is: <b>{{ member.username }}</b></center>
+<hr>
+{% endif %}
+
+
 {{ success_html }}
 </div>
 {% endblock %}
