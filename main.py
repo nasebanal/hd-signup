@@ -5,8 +5,8 @@ from google.appengine.ext import db
 from google.appengine.ext import webapp
 from google.appengine.api import urlfetch, mail, memcache, users, taskqueue
 from google.appengine.ext.webapp import template
-from django.utils import simplejson
-from django.utils.html import escape
+import json
+from cgi import escape
 from pprint import pprint
 from datetime import datetime, date, time
 import logging
@@ -55,7 +55,7 @@ def fetch_usernames(use_cache=True):
     else:
         resp = urlfetch.fetch('http://%s/users' % DOMAIN_HOST, deadline=10)
         if resp.status_code == 200:
-            usernames = [m.lower() for m in simplejson.loads(resp.content)]
+            usernames = [m.lower() for m in json.loads(resp.content)]
             if not memcache.set('usernames', usernames, 60*60*24):
                 logging.error("Memcache set failed.")
             return usernames
@@ -140,23 +140,23 @@ class Membership(db.Model):
     updated = db.DateTimeProperty(auto_now=True)
     
     def icon(self):
-        return "http://www.gravatar.com/avatar/" + hashlib.md5(self.email.lower()).hexdigest()          
+        return str("http://www.gravatar.com/avatar/" + hashlib.md5(self.email.lower()).hexdigest())
 
     def full_name(self):
-        return '%s %s' % (self.first_name, self.last_name)
+        return str('%s %s' % (self.first_name, self.last_name))
     
     def spreedly_url(self):
-        return "https://spreedly.com/%s/subscriber_accounts/%s" % (SPREEDLY_ACCOUNT, self.spreedly_token)
+        return str("https://spreedly.com/%s/subscriber_accounts/%s" % (SPREEDLY_ACCOUNT, self.spreedly_token))
 
     def spreedly_admin_url(self):
-        return "https://spreedly.com/%s/subscribers/%s" % (SPREEDLY_ACCOUNT, self.key().id())
+        return str("https://spreedly.com/%s/subscribers/%s" % (SPREEDLY_ACCOUNT, self.key().id()))
 
     def subscribe_url(self):
         try:
             url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, PLAN_IDS[self.plan])
         except KeyError:
             url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, PLAN_IDS["full"])          
-        return url
+        return str(url)
 
     def unsubscribe_url(self):
         return "http://signup.hackerdojo.com/unsubscribe/%i" % (self.key().id())
@@ -234,9 +234,9 @@ class MainHandler(webapp.RequestHandler):
             
             # if there is a membership, redirect here
             if membership.status != "active":
-              self.redirect('/account/%s' % membership.hash)
+              self.redirect(str('/account/%s' % membership.hash))
             else:
-              self.redirect("https://www.spreedly.com/%s/subscriber_accounts/%s" % (SPREEDLY_ACCOUNT, membership.spreedly_token))
+              self.redirect(str("https://www.spreedly.com/%s/subscriber_accounts/%s" % (SPREEDLY_ACCOUNT, membership.spreedly_token)))
             
 class AccountHandler(webapp.RequestHandler):
     def get(self, hash):
@@ -261,13 +261,13 @@ class AccountHandler(webapp.RequestHandler):
         username = self.request.get('username')
         password = self.request.get('password')
         if password != self.request.get('password_confirm'):
-            self.redirect(self.request.path + "?message=Passwords don't match")
+            self.redirect(str(self.request.path + "?message=Passwords don't match"))
         elif len(password) < 8:
-            self.redirect(self.request.path + "?message=Password must be 8 characters or longer")
+            self.redirect(str(self.request.path + "?message=Password must be 8 characters or longer"))
         else:
             membership = Membership.get_by_hash(hash)
             if membership.username:
-                self.redirect(self.request.path + "?message=You already have a user account")
+                self.redirect(str(self.request.path + "?message=You already have a user account"))
                 return
             
             # Yes, storing their username and password temporarily so we can make their account later
@@ -276,7 +276,7 @@ class AccountHandler(webapp.RequestHandler):
             
             if membership.status == 'active':
                 taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': membership.hash})
-                self.redirect('http://%s/success/%s' % (self.request.host, membership.hash))
+                self.redirect(str('http://%s/success/%s' % (self.request.host, membership.hash)))
             else:
                 customer_id = membership.key().id()
                 
@@ -297,8 +297,8 @@ class AccountHandler(webapp.RequestHandler):
                     'email': membership.email, 'return_url': 'http://%s/success/%s' % (self.request.host, membership.hash)})
                 # check if they are active already since we didn't create a new member above
                 # apparently the URL will be different
-                self.redirect("https://spreedly.com/%s/subscribers/%s/subscribe/%s/%s?%s" % 
-                    (SPREEDLY_ACCOUNT, customer_id, PLAN_IDS[membership.plan], username, query_str))
+                self.redirect(str("https://spreedly.com/%s/subscribers/%s/subscribe/%s/%s?%s" % 
+                    (SPREEDLY_ACCOUNT, customer_id, PLAN_IDS[membership.plan], username, query_str)))
 
             
 class CreateUserTask(webapp.RequestHandler):
@@ -384,7 +384,7 @@ class SuccessHandler(webapp.RequestHandler):
                     to="%s <%s>" % (member.full_name(), member.email),
                     subject="Welcome to Hacker Dojo, %s!" % member.first_name,
                     body=render('templates/welcome.txt', locals()))
-                self.redirect(self.request.path)
+                self.redirect(str(self.request.path))
             else:
                 success_html = urlfetch.fetch(SUCCESS_HTML_URL).content
                 success_html = success_html.replace('joining!', 'joining, %s!' % member.first_name)
@@ -399,11 +399,11 @@ class NeedAccountHandler(webapp.RequestHandler):
     def post(self):
         email = self.request.get('email').lower()
         if not email:
-            self.redirect(self.request.path)
+            self.redirect(str(self.request.path))
         else:
             member = Membership.all().filter('email =', email).filter('status =', 'active').get()
             if not member:
-                self.redirect(self.request.path + '?message=There is no active record of that email.')
+                self.redirect(str(self.request.path + '?message=There is no active record of that email.'))
             else:
                 mail.send_mail(sender=EMAIL_FROM,
                     to="%s <%s>" % (member.full_name(), member.email),
@@ -476,11 +476,11 @@ class UpdateHandler(webapp.RequestHandler):
             
 class LinkedHandler(webapp.RequestHandler):
     def get(self):
-        self.response.out.write(simplejson.dumps([m.username for m in Membership.all().filter('username !=', None)]))
+        self.response.out.write(json.dumps([m.username for m in Membership.all().filter('username !=', None)]))
 
 class APISuspendedHandler(webapp.RequestHandler):
     def get(self):
-        self.response.out.write(simplejson.dumps([[m.fullname(), m.username] for m in Membership.all().filter('status =', 'suspended')]))
+        self.response.out.write(json.dumps([[m.fullname(), m.username] for m in Membership.all().filter('status =', 'suspended')]))
 
 class MemberListHandler(webapp.RequestHandler):
     def get(self):
@@ -637,7 +637,7 @@ class ProfileHandler(webapp.RequestHandler):
           self.redirect(users.create_login_url('/profile'))
           return
       else:
-          account = Membership.all().filter('username =', user.nickname()).get()
+          account = Membership.all().filter('username =', user.nickname().split("@")[0]).get()
           email = '%s@%s' % (account.username, APPS_DOMAIN)
           gravatar_url = "http://www.gravatar.com/avatar/" + hashlib.md5(email.lower()).hexdigest()          
           self.response.out.write(render('templates/profile.html', locals()))
@@ -649,10 +649,10 @@ class PrefHandler(webapp.RequestHandler):
           self.redirect(users.create_login_url('/pref'))
           return
       else:
-          account = Membership.all().filter('username =', user.nickname()).get()
+          account = Membership.all().filter('username =', user.nickname().split("@")[0]).get()
           if not account:
             error = "<p>Error - couldn't find your account.</p>"
-            error += "<pre>Nick: "+str(user.nickname())
+            error += "<pre>Nick: "+str(user.nickname().split("@")[0])
             error += "<pre>Email: "+str(user.email())
             error += "<pre>Account: "+str(account)
             if account:
@@ -667,7 +667,7 @@ class PrefHandler(webapp.RequestHandler):
       if not user:
           self.redirect(users.create_login_url('/pref'))
           return
-      account = Membership.all().filter('username =', user.nickname()).get()
+      account = Membership.all().filter('username =', user.nickname().split("@")[0]).get()
       if not account:
             error = "<p>Error #1983, which should never happen."
             self.response.out.write(render('templates/error.html', locals()))
@@ -686,7 +686,7 @@ class KeyHandler(webapp.RequestHandler):
             self.redirect(users.create_login_url('/key'))
             return
         else:
-            account = Membership.all().filter('username =', user.nickname()).get()
+            account = Membership.all().filter('username =', user.nickname().split("@")[0]).get()
             if not account or not account.spreedly_token:
                 error = """<p>It appears that you have an account on @%(domain)s, but you do not have a corresponding account in the signup application.</p>
 <p>How to remedy:</p>
@@ -695,7 +695,7 @@ class KeyHandler(webapp.RequestHandler):
 <pre>Nick: %(nick)s</pre>
 <pre>Email: %(email)s</pre>
 <pre>Account: %(account)s</pre>
-""" % {'domain': APPS_DOMAIN, 'signup_email': SIGNUP_HELP_EMAIL, 'nick': user.nickname(), 'email': user.email(), 'account': account}
+""" % {'domain': APPS_DOMAIN, 'signup_email': SIGNUP_HELP_EMAIL, 'nick': user.nickname().split("@")[0], 'email': user.email(), 'account': account}
                 if account:
                     error += "<pre>Token: %s</pre>" % account.spreedly_token
             
@@ -726,7 +726,7 @@ After %(days)s days you qualify for a key.  Check back in %(delta)s days!</p>
       if not user:
           self.redirect(users.create_login_url('/key'))
           return
-      account = Membership.all().filter('username =', user.nickname()).get()
+      account = Membership.all().filter('username =', user.nickname().split("@")[0]).get()
       if not account or not account.spreedly_token or account.status != "active":
             error = "<p>Error #1982, which should never happen."
             self.response.out.write(render('templates/error.html', locals()))
@@ -762,9 +762,9 @@ class RFIDHandler(webapp.RequestHandler):
         if m:
           email = '%s@%s' % (m.username, APPS_DOMAIN)
           gravatar_url = "http://www.gravatar.com/avatar/" + hashlib.md5(email.lower()).hexdigest()
-          self.response.out.write(simplejson.dumps({"gravatar": gravatar_url,"auto_signin":m.auto_signin, "status" : m.status, "name" : m.first_name + " " + m.last_name, "rfid_tag" : m.rfid_tag, "username" : m.username }))
+          self.response.out.write(json.dumps({"gravatar": gravatar_url,"auto_signin":m.auto_signin, "status" : m.status, "name" : m.first_name + " " + m.last_name, "rfid_tag" : m.rfid_tag, "username" : m.username }))
         else:
-          self.response.out.write(simplejson.dumps({}))
+          self.response.out.write(json.dumps({}))
         if self.request.get('callback'):
           self.response.out.write(")");
       else:
@@ -773,18 +773,18 @@ class RFIDHandler(webapp.RequestHandler):
             members = Membership.all().filter('rfid_tag !=', None).filter('status =', 'active').filter("extra_"+self.request.get('machine')+' =',"True")
           else:
             members = Membership.all().filter('rfid_tag !=', None).filter('status =', 'active')
-          self.response.out.write(simplejson.dumps([ {"rfid_tag" : m.rfid_tag, "username" : m.username } for m in members]))
+          self.response.out.write(json.dumps([ {"rfid_tag" : m.rfid_tag, "username" : m.username } for m in members]))
         else:
           self.response.out.write("Access denied")
 
 class ModifyHandler(webapp.RequestHandler):
     def get(self):
-      Membership.all().filter('email =', user.email()).get()
-      if not user:
+      user = users.get_current_user()
+      account = Membership.all().filter('username =', user.nickname().split("@")[0]).get()
+      if not account:
           self.redirect(users.create_login_url('/modify'))
           return
       else:
-          account = Membership.all().filter('username =', user.nickname()).get()
           if not account or not account.spreedly_token:
             error = """<p>Sorry, your %(name)s account does not appear to be linked to a Spreedly account.  
 Please contact <a href=\"mailto:%(treasurer)s\">%(treasurer)s</a> so they can manually update your account.
@@ -792,7 +792,7 @@ Please contact <a href=\"mailto:%(treasurer)s\">%(treasurer)s</a> so they can ma
             self.response.out.write(render('templates/error.html', locals()))
             return
           url = "https://spreedly.com/"+SPREEDLY_ACCOUNT+"/subscriber_accounts/"+account.spreedly_token
-          self.redirect(url)
+          self.redirect(str(url))
 
 class GenLinkHandler(webapp.RequestHandler):
     def get(self,key):
@@ -877,8 +877,7 @@ class CSVHandler(webapp.RequestHandler):
           self.response.out.write(u.first_name+","+u.last_name+","+u.username+"@hackerdojo.com,"+twitter+"\r\n")
  
 
-def main():
-    application = webapp.WSGIApplication([
+app = webapp.WSGIApplication([
         ('/', MainHandler),
         ('/api/rfid', RFIDHandler),
         ('/api/rfidswipe', RFIDSwipeHandler),
@@ -914,7 +913,4 @@ def main():
         
         
         ], debug=True)
-    wsgiref.handlers.CGIHandler().run(application)
 
-if __name__ == '__main__':
-    main()
