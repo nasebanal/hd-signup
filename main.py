@@ -158,6 +158,10 @@ class Membership(db.Model):
             url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, PLAN_IDS["full"])          
         return str(url)
 
+    def force_full_subscribe_url(self):
+        url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, PLAN_IDS["full"])          
+        return str(url)
+
     def unsubscribe_url(self):
         return "http://signup.hackerdojo.com/unsubscribe/%i" % (self.key().id())
     
@@ -271,7 +275,7 @@ class AccountHandler(webapp.RequestHandler):
                 return
             
             # Yes, storing their username and password temporarily so we can make their account later
-            memcache.set(hashlib.sha1(membership.hash+SPREEDLY_APIKEY).hexdigest(), 
+            memcache.set(str(hashlib.sha1(str(membership.hash)+SPREEDLY_APIKEY).hexdigest()), 
                 '%s:%s' % (username, password), time=3600)
             
             if membership.status == 'active':
@@ -565,20 +569,37 @@ class AllHandler(webapp.RequestHandler):
         self.redirect(users.create_login_url('/userlist'))
       if users.is_current_user_admin():
         signup_users = Membership.all().fetch(10000)
-        active_users = Membership.all().filter('status =', 'active').fetch(10000)
-        signup_usernames = [m.username for m in signup_users]
-        domain_usernames = fetch_usernames()
-        signup_usernames = set(signup_usernames) - set([None])
-        signup_usernames = [m.lower() for m in signup_usernames]
-        active_usernames = [m.username for m in active_users]
-        active_usernames = set(active_usernames) - set([None])
-        active_usernames = [m.lower() for m in active_usernames]
-        users_not_on_domain = set(signup_usernames) - set(domain_usernames)
-        users_not_on_signup = set(domain_usernames) - set(active_usernames)
+#        active_users = Membership.all().filter('status =', 'active').fetch(10000)
+#        signup_usernames = [m.username for m in signup_users]
+#        domain_usernames = fetch_usernames()
+#        signup_usernames = set(signup_usernames) - set([None])
+#        signup_usernames = [m.lower() for m in signup_usernames]
+#        active_usernames = [m.username for m in active_users]
+#        active_usernames = set(active_usernames) - set([None])
+#        active_usernames = [m.lower() for m in active_usernames]
+#        users_not_on_domain = set(signup_usernames) - set(domain_usernames)
+#        users_not_on_signup = set(domain_usernames) - set(active_usernames)
         signup_users = sorted(signup_users, key=lambda user: user.last_name.lower())        
         self.response.out.write(render('templates/users.html', locals()))
       else:
         self.response.out.write("Need admin access")
+
+class HardshipHandler(webapp.RequestHandler):
+    def get(self):
+      user = users.get_current_user()
+      if not user:
+        self.redirect(users.create_login_url('/userlist'))
+      if users.is_current_user_admin():
+        active_users = Membership.all().filter('status =', 'active').filter('plan =', 'hardship').fetch(10000)
+        active_users = sorted(active_users, key=lambda user: user.created) 
+        subject = "About your Hacker Dojo membership"
+        body1 = "\n\nWe hope you have enjoyed your discounted membership at Hacker Dojo.  As you\nknow, we created the hardship program to give temporary financial support to help\nmembers get started at the Dojo.  Our records show you began the program\non "
+        body2 = ", and we hope you feel that you have benefited.\n\nBeginning with your next month's term, we ask that you please sign up at\nour regular rate:\n"
+        body3 = "\n\nThank you for supporting the Dojo!"
+        self.response.out.write(render('templates/hardship.html', locals()))
+      else:
+        self.response.out.write("Need admin access")
+
       
 class AreYouStillThereHandler(webapp.RequestHandler):
     def get(self):
@@ -897,6 +918,7 @@ app = webapp.WSGIApplication([
         ('/success/(.+)', SuccessHandler),
         ('/joinreasonlist', JoinReasonListHandler),
         ('/leavereasonlist', LeaveReasonListHandler),
+        ('/hardshiplist', HardshipHandler),
         ('/memberlist', MemberListHandler),
         ('/areyoustillthere', AreYouStillThereHandler),
         ('/unsubscribe/(.*)', UnsubscribeHandler),

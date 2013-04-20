@@ -2,7 +2,7 @@
 {% block content %}
 
 
-<h2>User List</h2>
+<h2>Hardship</h2>
 
 <style>
 .log td {border-bottom:1px solid #ccc; border-right:1px solid #ccc; font-size:12px; padding:2px}
@@ -14,22 +14,20 @@ h3 {margin-top:3em}
 
 <table class="log" width="100%" cellspacing="0" cellpadding="0" border="0">
 <tr class="header">
+  <td>Date</td>
   <td>Name</td>
   <td>Username</td>
   <td>Plan</td>
-  <td>Status</td>
-  <td>Spreedly</td>
-  <td>RFID</td>
+  <td>Linky linky</td>
 </tr>
 
-{% for u in signup_users %}  
+{% for u in active_users %}  
   <tr>
+    <td>{{ u.created }}</td>
     <td><a href="https://appengine.google.com/datastore/edit?app_id=hd-signup&key={{u.key}}">{{ u.last_name }}, {{ u.first_name }}</a></td>
     <td {% if not u.username%}class="bad"{% endif %}>{{ u.username }}</td>
     <td><a href="/genlink/{{u.key.id}}">{{ u.plan }}</a></td>
-    <td {% if not u.status %}class="bad"{% endif %}>{{ u.status }}</td>
-    <td {% if not u.spreedly_token %}class="bad"{% endif %}>{% if u.spreedly_token %}Yes{% else %}No{% endif %}</td>
-    <td>{{ u.rfid_tag }}</td>
+    <td><a href="mailto:{{u.email|urlencode}}?Subject={{subject|urlencode}}&Body=Hi+{{u.first_name}},{{body1|urlencode}}{{u.created|urlencode}}{{body2|urlencode}}{{u.force_full_subscribe_url|urlencode}}{{body3|urlencode}}">mailto:</a></td>
   </tr>
 {% endfor %}
 </table>
