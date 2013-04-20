@@ -7,7 +7,7 @@
   <span class="step inactive"><span>4</span> Done!</span>
 </h4>
 <div style="margin-left: 50px; padding-top: 10px;">
-	<form action="{{self.request.path}}" method="post">
+	<form action="{{account_url}}" method="post">
 	<table>
 		{% if message %}<tr><td>&nbsp;</td><td style="color: red; font-size: smaller;">{{ message }}</td></tr>{% endif %}
 	  <tr><td class="label">Username:</td><td>{% if pick_username %}<input type="text" name="username" value="{{username}}" />{% else %}<strong>{{ username }}</strong><input type="hidden" name="username" value="{{username}}" />{% endif %} @{{domain}}</td></tr>

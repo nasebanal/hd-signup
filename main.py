@@ -30,19 +30,23 @@ SIGNUP_HELP_EMAIL = 'signupops@hackerdojo.com'
 TREASURER_EMAIL = 'treasurer@hackerdojo.com'
 GOOGLE_ANALYTICS_ID = 'UA-11332872-2'
 
+is_dev = False
+
 try:
     is_dev = os.environ['SERVER_SOFTWARE'].startswith('Dev')
 except:
     is_dev = False
 
+SPREEDLY_ACCOUNT = 'hackerdojo'
+SPREEDLY_APIKEY = keymaster.get('spreedly:hackerdojo')
+PLAN_IDS = {'full': '1987', 'hardship': '2537', 'supporter': '1988', 'family': '3659', 'worktrade': '6608', 'comped': '15451', 'threecomp': '18158', 'yearly':'18552', 'fiveyear': '18853', 'thielcomp': '19616' }
+
+
 if is_dev:
     SPREEDLY_ACCOUNT = 'hackerdojotest'
     SPREEDLY_APIKEY = keymaster.get('spreedly:hackerdojotest')
     PLAN_IDS = {'full': '1957'}
-else:
-    SPREEDLY_ACCOUNT = 'hackerdojo'
-    SPREEDLY_APIKEY = keymaster.get('spreedly:hackerdojo')
-    PLAN_IDS = {'full': '1987', 'hardship': '2537', 'supporter': '1988', 'family': '3659', 'worktrade': '6608', 'comped': '15451', 'threecomp': '18158', 'yearly':'18552', 'fiveyear': '18853', 'thielcomp': '19616' }
+
 
 # Old plans: 'minor': '3660', 'full-check': '6479', 'hardship-check': '6480', 
 
@@ -238,7 +242,20 @@ class MainHandler(webapp.RequestHandler):
             
             # if there is a membership, redirect here
             if membership.status != "active":
-              self.redirect(str('/account/%s' % membership.hash))
+              #self.redirect(str('/account/%s' % membership.hash))
+              # HRD compatible hack, code taken from AccountHandler::get()
+              first_part = re.compile(r'[^\w]').sub('', membership.first_name.split(' ')[0]) # First word of first name
+              last_part = re.compile(r'[^\w]').sub('', membership.last_name)
+              if len(first_part)+len(last_part) >= 15:
+                  last_part = last_part[0] # Just last initial
+              username = '.'.join([first_part, last_part]).lower()
+              if username in fetch_usernames():
+                  username = membership.email.split('@')[0].lower()
+              if self.request.get('u'):
+                  pick_username = True
+              message = escape(self.request.get('message'))
+              account_url = str('/account/%s' % membership.hash)
+              self.response.out.write(render('templates/account.html', locals()))
             else:
               self.redirect(str("https://www.spreedly.com/%s/subscriber_accounts/%s" % (SPREEDLY_ACCOUNT, membership.spreedly_token)))
             
@@ -257,6 +274,7 @@ class AccountHandler(webapp.RequestHandler):
           if self.request.get('u'):
               pick_username = True
           message = escape(self.request.get('message'))
+          account_url = str('/account/%s' % membership.hash)
           self.response.out.write(render('templates/account.html', locals()))
         else:
           self.response.out.write("404 Not Found")
@@ -449,6 +467,7 @@ class UpdateHandler(webapp.RequestHandler):
         s = spreedly.Spreedly(SPREEDLY_ACCOUNT, token=SPREEDLY_APIKEY)
         for id in subscriber_ids:
             subscriber = s.subscriber_details(sub_id=int(id))
+            logging.debug("customer_id: "+ subscriber['customer-id'])
             member = Membership.get_by_id(int(subscriber['customer-id']))
             if member:
                 if member.status == 'paypal':
@@ -643,11 +662,14 @@ class CleanupHandler(webapp.RequestHandler):
 class CleanupTask(webapp.RequestHandler):
     def post(self): 
         user = Membership.get_by_id(int(self.request.get('user')))
-        mail.send_mail(sender=EMAIL_FROM,
+        try:
+          mail.send_mail(sender=EMAIL_FROM,
              to=user.email,
              subject="Hi again -- from Hacker Dojo!",
              body="Hi "+user.first_name+",\n\nOur fancy membership system noted that you started filling out the Membership Signup form, but didn't complete it.\n\nWell -- We'd love to have you as a member!\n\n Hacker Dojo has grown by leaps and bounds in recent years.  Give us a try?\n\nIf you would like to become a member of Hacker Dojo, just complete the signup process at http://signup.hackerdojo.com\n\nIf you don't want to sign up -- please give us anonymous feedback so we know how we can do better!  URL: http://bit.ly/jJAGYM\n\n Cheers!\nHacker Dojo\n\nPS: Please ignore this e-mail if you already signed up -- you might have started signing up twice or something :)\nPSS: This is an automated e-mail and we're now deleting your e-mail address from the signup application"
-        )
+          )
+        except:  
+          noop = True
         user.delete()
         
         
