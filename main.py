@@ -30,27 +30,23 @@ SIGNUP_HELP_EMAIL = 'signupops@hackerdojo.com'
 TREASURER_EMAIL = 'treasurer@hackerdojo.com'
 GOOGLE_ANALYTICS_ID = 'UA-11332872-2'
 
-is_dev = False
 
-try:
-    is_dev = os.environ['SERVER_SOFTWARE'].startswith('Dev')
-except:
-    is_dev = False
+class Config():
+    def __init__(self):
+        try:
+            self.is_dev = os.environ['SERVER_SOFTWARE'].startswith('Dev')
+        except:
+            self.is_dev = False  
+        self.is_prod = not self.is_dev
+        if self.is_dev:
+            self.SPREEDLY_ACCOUNT = 'hackerdojotest'
+            self.SPREEDLY_APIKEY = keymaster.get('spreedly:hackerdojotest')
+            self.PLAN_IDS = {'full': '1957'}
+        else:
+            self.SPREEDLY_ACCOUNT = 'hackerdojo'
+            self.SPREEDLY_APIKEY = keymaster.get('spreedly:hackerdojo')
+            self.PLAN_IDS = {'full': '1987', 'hardship': '2537', 'supporter': '1988', 'family': '3659', 'worktrade': '6608', 'comped': '15451', 'threecomp': '18158', 'yearly':'18552', 'fiveyear': '18853', 'thielcomp': '19616'}
 
-SPREEDLY_ACCOUNT = 'hackerdojo'
-SPREEDLY_APIKEY = keymaster.get('spreedly:hackerdojo')
-PLAN_IDS = {'full': '1987', 'hardship': '2537', 'supporter': '1988', 'family': '3659', 'worktrade': '6608', 'comped': '15451', 'threecomp': '18158', 'yearly':'18552', 'fiveyear': '18853', 'thielcomp': '19616' }
-
-
-if is_dev:
-    SPREEDLY_ACCOUNT = 'hackerdojotest'
-    SPREEDLY_APIKEY = keymaster.get('spreedly:hackerdojotest')
-    PLAN_IDS = {'full': '1957'}
-
-
-# Old plans: 'minor': '3660', 'full-check': '6479', 'hardship-check': '6480', 
-
-is_prod = not is_dev
 
 def fetch_usernames(use_cache=True):
     usernames = memcache.get('usernames')
@@ -65,10 +61,17 @@ def fetch_usernames(use_cache=True):
             return usernames
 
 def render(path, local_vars):
-    template_vars = {'is_prod': is_prod, 'org_name': ORG_NAME, 'analytics_id': GOOGLE_ANALYTICS_ID, 'domain': APPS_DOMAIN}
+    c = Config()
+    template_vars = {'is_prod': c.is_prod, 'org_name': ORG_NAME, 'analytics_id': GOOGLE_ANALYTICS_ID, 'domain': APPS_DOMAIN}
     template_vars.update(local_vars)
     return template.render(path, template_vars)
 
+class UsedCode(db.Model):
+    email = db.StringProperty()
+    created = db.DateTimeProperty(auto_now_add=True)
+    code = db.StringProperty()
+    extra = db.StringProperty()
+    completed = db.DateTimeProperty()
 
 class RFIDSwipe(db.Model):
     username = db.StringProperty()
@@ -150,20 +153,24 @@ class Membership(db.Model):
         return str('%s %s' % (self.first_name, self.last_name))
     
     def spreedly_url(self):
-        return str("https://spreedly.com/%s/subscriber_accounts/%s" % (SPREEDLY_ACCOUNT, self.spreedly_token))
+        c = Config()
+        return str("https://spreedly.com/%s/subscriber_accounts/%s" % (c.SPREEDLY_ACCOUNT, self.spreedly_token))
 
     def spreedly_admin_url(self):
-        return str("https://spreedly.com/%s/subscribers/%s" % (SPREEDLY_ACCOUNT, self.key().id()))
+        c = Config()
+        return str("https://spreedly.com/%s/subscribers/%s" % (c.SPREEDLY_ACCOUNT, self.key().id()))
 
     def subscribe_url(self):
+        c = Config()
         try:
-            url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, PLAN_IDS[self.plan])
+            url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (c.SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, c.PLAN_IDS[self.plan])
         except KeyError:
-            url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, PLAN_IDS["full"])          
+            url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (c.SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, c.PLAN_IDS["full"])          
         return str(url)
 
     def force_full_subscribe_url(self):
-        url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, PLAN_IDS["full"])          
+        c = Config()
+        url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (c.SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, c.PLAN_IDS["full"])          
         return str(url)
 
     def unsubscribe_url(self):
@@ -237,7 +244,10 @@ class MainHandler(webapp.RequestHandler):
                 if self.request.get('paypal') == '1':
                     membership.status = 'paypal'
                 membership.hash = hashlib.md5(membership.email).hexdigest()
-                membership.referrer = self.request.get('referrer').replace('\n', ' ')
+                if 'C22B' in self.request.get('referrer').upper():
+                    membership.referrer = re.sub("[^0-9A-F]", "", self.request.get('referrer').upper())
+                else:
+                    membership.referrer = self.request.get('referrer').replace('\n', ' ')
                 membership.put()
             
             # if there is a membership, redirect here
@@ -257,7 +267,8 @@ class MainHandler(webapp.RequestHandler):
               account_url = str('/account/%s' % membership.hash)
               self.response.out.write(render('templates/account.html', locals()))
             else:
-              self.redirect(str("https://www.spreedly.com/%s/subscriber_accounts/%s" % (SPREEDLY_ACCOUNT, membership.spreedly_token)))
+              c = Config()
+              self.redirect(str("https://www.spreedly.com/%s/subscriber_accounts/%s" % (c.SPREEDLY_ACCOUNT, membership.spreedly_token)))
             
 class AccountHandler(webapp.RequestHandler):
     def get(self, hash):
@@ -282,6 +293,7 @@ class AccountHandler(webapp.RequestHandler):
     def post(self, hash):
         username = self.request.get('username')
         password = self.request.get('password')
+        c = Config()
         if password != self.request.get('password_confirm'):
             self.redirect(str(self.request.path + "?message=Passwords don't match"))
         elif len(password) < 8:
@@ -293,7 +305,7 @@ class AccountHandler(webapp.RequestHandler):
                 return
             
             # Yes, storing their username and password temporarily so we can make their account later
-            memcache.set(str(hashlib.sha1(str(membership.hash)+SPREEDLY_APIKEY).hexdigest()), 
+            memcache.set(str(hashlib.sha1(str(membership.hash)+c.SPREEDLY_APIKEY).hexdigest()), 
                 '%s:%s' % (username, password), time=3600)
             
             if membership.status == 'active':
@@ -303,24 +315,58 @@ class AccountHandler(webapp.RequestHandler):
                 customer_id = membership.key().id()
                 
                 # This code is weird...
-                if "maker00000" in membership.referrer.lower():
-                    headers = {'Authorization': "Basic %s" % base64.b64encode('%s:X' % SPREEDLY_APIKEY),
+                if "C22B" in membership.referrer:
+
+                    if len(membership.referrer) !=16:
+                        error = "<p>Error: code must be 16 digits."
+                        error += "<p>Please contact "+ SIGNUP_HELP_EMAIL+" if you believe this message is in error and we can help!"
+                        error += "<p><a href='/'>Start again</a>"
+                        self.response.out.write(render('templates/error.html', locals()))
+                        return
+
+                    serial = membership.referrer[4:8]
+                    hash = membership.referrer[8:16]
+                    confirmation_hash = hashlib.sha1(serial+keymaster.get('code:hash')).hexdigest()[:8].upper()
+
+                    if hash != confirmation_hash:
+                        error = "<p>Error: this code was invavlid: "+ membership.referrer
+                        error += "<p>Please contact "+ SIGNUP_HELP_EMAIL+" if you believe this message is in error and we can help!"
+                        error += "<p><a href='/'>Start again</a>"
+                        uc = UsedCode(code=membership.referrer,email=membership.email,extra="invalid code")
+                        uc.put()
+                        self.response.out.write(render('templates/error.html', locals()))
+                        return
+
+                    previous = UsedCode.all().filter('code =', membership.referrer).get()
+                    if previous:
+                        error = "<p>Error: this code has already been used: "+ membership.referrer
+                        error += "<p>Please contact "+ SIGNUP_HELP_EMAIL+" if you believe this message is in error and we can help!"
+                        error += "<p><a href='/'>Start again</a>"
+                        uc = UsedCode(code=membership.referrer,email=membership.email,extra="2nd+ attempt")
+                        uc.put()
+                        self.response.out.write(render('templates/error.html', locals()))
+                        return
+
+                    headers = {'Authorization': "Basic %s" % base64.b64encode('%s:X' % c.SPREEDLY_APIKEY),
                         'Content-Type':'application/xml'}
                     # Create subscriber
                     data = "<subscriber><customer-id>%s</customer-id><email>%s</email></subscriber>" % (customer_id, membership.email)
-                    resp = urlfetch.fetch("https://spreedly.com/api/v4/%s/subscribers.xml" % (SPREEDLY_ACCOUNT), 
+                    resp = urlfetch.fetch("https://spreedly.com/api/v4/%s/subscribers.xml" % (c.SPREEDLY_ACCOUNT), 
                             method='POST', payload=data, headers = headers, deadline=5)
                     # Credit
-                    data = "<credit><amount>30.00</amount></credit>"
-                    resp = urlfetch.fetch("https://spreedly.com/api/v4/%s/subscribers/%s/credits.xml" % (SPREEDLY_ACCOUNT, customer_id), 
+                    data = "<credit><amount>95.00</amount></credit>"
+                    resp = urlfetch.fetch("https://spreedly.com/api/v4/%s/subscribers/%s/credits.xml" % (c.SPREEDLY_ACCOUNT, customer_id), 
                             method='POST', payload=data, headers=headers, deadline=5)
+
+                    uc = UsedCode(code=membership.referrer,email=membership.email,extra='OK')
+                    uc.put()
                 
                 query_str = urllib.urlencode({'first_name': membership.first_name, 'last_name': membership.last_name, 
                     'email': membership.email, 'return_url': 'http://%s/success/%s' % (self.request.host, membership.hash)})
                 # check if they are active already since we didn't create a new member above
                 # apparently the URL will be different
                 self.redirect(str("https://spreedly.com/%s/subscribers/%s/subscribe/%s/%s?%s" % 
-                    (SPREEDLY_ACCOUNT, customer_id, PLAN_IDS[membership.plan], username, query_str)))
+                    (c.SPREEDLY_ACCOUNT, customer_id, c.PLAN_IDS[membership.plan], username, query_str)))
 
             
 class CreateUserTask(webapp.RequestHandler):
@@ -339,6 +385,7 @@ class CreateUserTask(webapp.RequestHandler):
             else:
                 fail(Exception("Too many retries for %s" % self.request.get('hash')))
         
+        c = Config()
         membership = Membership.get_by_hash(self.request.get('hash'))
         if membership is None or membership.username:
             return
@@ -348,7 +395,7 @@ class CreateUserTask(webapp.RequestHandler):
 
             
         try:
-            username, password = memcache.get(hashlib.sha1(membership.hash+SPREEDLY_APIKEY).hexdigest()).split(':')
+            username, password = memcache.get(hashlib.sha1(membership.hash+c.SPREEDLY_APIKEY).hexdigest()).split(':')
         except (AttributeError, ValueError):
             return fail(Exception("Account information expired for %s" % membership.email))
             
@@ -399,6 +446,7 @@ class UnsubscribeHandler(webapp.RequestHandler):
 class SuccessHandler(webapp.RequestHandler):
     def get(self, hash):
         member = Membership.get_by_hash(hash)
+        c = Config()
         if member:
             if self.request.query_string == 'email':
                 spreedly_url = member.spreedly_url()
@@ -410,7 +458,7 @@ class SuccessHandler(webapp.RequestHandler):
             else:
                 success_html = urlfetch.fetch(SUCCESS_HTML_URL).content
                 success_html = success_html.replace('joining!', 'joining, %s!' % member.first_name)
-                is_prod = not is_dev
+                is_prod = c.is_prod
                 self.response.out.write(render('templates/success.html', locals()))
 
 class NeedAccountHandler(webapp.RequestHandler):
@@ -464,7 +512,8 @@ class UpdateHandler(webapp.RequestHandler):
     
     def post(self, ids=None):
         subscriber_ids = self.request.get('subscriber_ids').split(',')
-        s = spreedly.Spreedly(SPREEDLY_ACCOUNT, token=SPREEDLY_APIKEY)
+        c = Config()
+        s = spreedly.Spreedly(c.SPREEDLY_ACCOUNT, token=c.SPREEDLY_APIKEY)
         for id in subscriber_ids:
             subscriber = s.subscriber_details(sub_id=int(id))
             logging.debug("customer_id: "+ subscriber['customer-id'])
@@ -725,6 +774,7 @@ class PrefHandler(webapp.RequestHandler):
 class KeyHandler(webapp.RequestHandler):
     def get(self):
         user = users.get_current_user()
+        c = Config()
         if not user:
             self.redirect(users.create_login_url('/key'))
             return
@@ -745,7 +795,7 @@ class KeyHandler(webapp.RequestHandler):
                 self.response.out.write(render('templates/error.html', locals()))
                 return
             if account.status != "active":
-                url = "https://spreedly.com/"+SPREEDLY_ACCOUNT+"/subscriber_accounts/"+account.spreedly_token
+                url = "https://spreedly.com/"+c.SPREEDLY_ACCOUNT+"/subscriber_accounts/"+account.spreedly_token
                 error = """<p>Your Spreedly account status does not appear to me marked as active.  
 This might be a mistake, in which case we apologize. </p>
 <p>To investigate your account, you may go here: <a href=\"%(url)s\">%(url)s</a> </p>
@@ -823,6 +873,7 @@ class RFIDHandler(webapp.RequestHandler):
 class ModifyHandler(webapp.RequestHandler):
     def get(self):
       user = users.get_current_user()
+      c = Config()
       account = Membership.all().filter('username =', user.nickname().split("@")[0]).get()
       if not account:
           self.redirect(users.create_login_url('/modify'))
@@ -834,14 +885,15 @@ Please contact <a href=\"mailto:%(treasurer)s\">%(treasurer)s</a> so they can ma
 """ % {'treasurer': TREASURER_EMAIL, 'name': ORG_NAME}
             self.response.out.write(render('templates/error.html', locals()))
             return
-          url = "https://spreedly.com/"+SPREEDLY_ACCOUNT+"/subscriber_accounts/"+account.spreedly_token
+          url = "https://spreedly.com/"+c.SPREEDLY_ACCOUNT+"/subscriber_accounts/"+account.spreedly_token
           self.redirect(str(url))
 
 class GenLinkHandler(webapp.RequestHandler):
     def get(self,key):
-        sa = SPREEDLY_ACCOUNT
+        c = Config()
+        sa = c.SPREEDLY_ACCOUNT
         u = Membership.get_by_id(int(key))
-        plans = PLAN_IDS
+        plans = c.PLAN_IDS
         self.response.out.write(render('templates/genlink.html', locals()))
         
 
