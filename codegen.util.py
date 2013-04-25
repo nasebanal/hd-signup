@@ -1,7 +1,8 @@
 # This program generates the credit-card style coupon codes
 
-import hashlib
+import hashlib, re
 
-for serial in range(7001,8001):
-   hash = hashlib.sha1(str(serial)+getsecret('code:hash')).hexdigest()[:8].upper()
-   print "C22B "+str(serial)+" "+hash[0:4]+" "+hash[4:8]
+for serial in range(7000,8000):
+   hash = hashlib.sha1(str(serial)+get_secret("code:hash")).hexdigest()
+   hash = re.sub('[a-f]','',hash)[:8]
+   print "1337 "+str(serial)+" "+hash[0:4]+" "+hash[4:8]

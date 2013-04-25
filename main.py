@@ -244,8 +244,8 @@ class MainHandler(webapp.RequestHandler):
                 if self.request.get('paypal') == '1':
                     membership.status = 'paypal'
                 membership.hash = hashlib.md5(membership.email).hexdigest()
-                if 'C22B' in self.request.get('referrer').upper():
-                    membership.referrer = re.sub("[^0-9A-F]", "", self.request.get('referrer').upper())
+                if '1337' in self.request.get('referrer').upper():
+                    membership.referrer = re.sub("[^0-9]", "", self.request.get('referrer').upper())
                 else:
                     membership.referrer = self.request.get('referrer').replace('\n', ' ')
                 membership.put()
@@ -309,13 +309,13 @@ class AccountHandler(webapp.RequestHandler):
                 '%s:%s' % (username, password), time=3600)
             
             if membership.status == 'active':
-                taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': membership.hash})
+                taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': membership.hash}, countdown=3)
                 self.redirect(str('http://%s/success/%s' % (self.request.host, membership.hash)))
             else:
                 customer_id = membership.key().id()
                 
-                # This code is weird...
-                if "C22B" in membership.referrer:
+                # This code is not weird...
+                if "1337" in membership.referrer:
 
                     if len(membership.referrer) !=16:
                         error = "<p>Error: code must be 16 digits."
@@ -326,7 +326,7 @@ class AccountHandler(webapp.RequestHandler):
 
                     serial = membership.referrer[4:8]
                     hash = membership.referrer[8:16]
-                    confirmation_hash = hashlib.sha1(serial+keymaster.get('code:hash')).hexdigest()[:8].upper()
+                    confirmation_hash = re.sub('[a-f]','',hashlib.sha1(serial+keymaster.get('code:hash')).hexdigest())[:8]
 
                     if hash != confirmation_hash:
                         error = "<p>Error: this code was invavlid: "+ membership.referrer
@@ -377,7 +377,7 @@ class CreateUserTask(webapp.RequestHandler):
                 to=INTERNAL_DEV_EMAIL,
                 subject="[%s] CreateUserTask failure" % APP_NAME,
                 body=str(exception))
-        def retry(countdown=None):
+        def retry(countdown=3):
             retries = int(self.request.get('retries', 0)) + 1
             if retries <= 5:
                 taskqueue.add(url='/tasks/create_user', method='POST', countdown=countdown,
@@ -526,7 +526,7 @@ class UpdateHandler(webapp.RequestHandler):
                         body=member.email)
                 member.status = 'active' if subscriber['active'] == 'true' else 'suspended'
                 if member.status == 'active' and not member.username:
-                    taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': member.hash})
+                    taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': member.hash}, countdown=3)
                 if member.status == 'active' and member.unsubscribe_reason:
                     member.unsubscribe_reason = None
                 member.spreedly_token = subscriber['token']
