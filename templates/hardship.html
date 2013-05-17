@@ -10,6 +10,7 @@ table.log {border-left:1px solid #ccc; border-top:1px solid #ccc; margin-top:0}
 .log .header {font-weight:bold;}
 h3 {margin-top:3em}
 .bad {background:#fdd}
+#content {width:900px}
 </style>
 
 <table class="log" width="100%" cellspacing="0" cellpadding="0" border="0">
@@ -19,6 +20,7 @@ h3 {margin-top:3em}
   <td>Username</td>
   <td>Plan</td>
   <td>Linky linky</td>
+  <td>Comment</td>
 </tr>
 
 {% for u in active_users %}  
@@ -28,6 +30,7 @@ h3 {margin-top:3em}
     <td {% if not u.username%}class="bad"{% endif %}>{{ u.username }}</td>
     <td><a href="/genlink/{{u.key.id}}">{{ u.plan }}</a></td>
     <td><a href="mailto:{{u.email|urlencode}}?Subject={{subject|urlencode}}&Body=Hi+{{u.first_name}},{{body1|urlencode}}{{u.created|urlencode}}{{body2|urlencode}}{{u.force_full_subscribe_url|urlencode}}{{body3|urlencode}}">mailto:</a></td>
+   <td><form style="margin:0; padding:0" method=GET action="/api/seths"><input type=text value="{{u.hardship_comment}}" style="width:150px" name=comment><input type=hidden name=user value={{u.key}}><input type=submit value="Save"></form>
   </tr>
 {% endfor %}
 </table>

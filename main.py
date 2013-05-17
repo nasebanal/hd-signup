@@ -140,6 +140,7 @@ class Membership(db.Model):
     extra_599main = db.StringProperty()
     auto_signin = db.StringProperty()
     unsubscribe_reason = db.TextProperty()
+    hardship_comment = db.TextProperty()
     
     spreedly_token = db.StringProperty()
     
@@ -310,6 +311,8 @@ class AccountHandler(webapp.RequestHandler):
             
             if membership.status == 'active':
                 taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': membership.hash}, countdown=3)
+                taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': membership.hash}, countdown=30)
+                taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': membership.hash}, countdown=90)
                 self.redirect(str('http://%s/success/%s' % (self.request.host, membership.hash)))
             else:
                 customer_id = membership.key().id()
@@ -400,17 +403,20 @@ class CreateUserTask(webapp.RequestHandler):
             return fail(Exception("Account information expired for %s" % membership.email))
             
         try:
-            logging.info("CreateUserTask: About to create user "+username)
+            logging.info("CreateUserTask: About to create user: "+username)
+            logging.info("CreateUserTask: Password: "+ password)
+            logging.info("CreateUserTask: First: "+ membership.first_name)
+            logging.info("CreateUserTask: Last: "+ membership.last_name)
             resp = urlfetch.fetch('http://%s/users' % DOMAIN_HOST, method='POST', payload=urllib.urlencode({
                 'username': username,
                 'password': password,
                 'first_name': membership.first_name,
                 'last_name': membership.last_name,
                 'secret': keymaster.get(DOMAIN_USER),
-            }), deadline=10)
+            }), deadline=120)
             membership.username = username
             membership.put()
-            logging.warn("CreateUserTask: I think that worked: "+resp.content)
+            logging.warn("CreateUserTask: I think that worked: HTTP "+resp.status_code)
         except urlfetch.DownloadError, e:
             logging.warn("CreateUserTask: API response error or timeout, retrying")
             return retry()
@@ -527,6 +533,8 @@ class UpdateHandler(webapp.RequestHandler):
                 member.status = 'active' if subscriber['active'] == 'true' else 'suspended'
                 if member.status == 'active' and not member.username:
                     taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': member.hash}, countdown=3)
+                    taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': member.hash}, countdown=30)
+                    taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': member.hash}, countdown=90)
                 if member.status == 'active' and member.unsubscribe_reason:
                     member.unsubscribe_reason = None
                 member.spreedly_token = subscriber['token']
@@ -656,7 +664,7 @@ class HardshipHandler(webapp.RequestHandler):
     def get(self):
       user = users.get_current_user()
       if not user:
-        self.redirect(users.create_login_url('/userlist'))
+        self.redirect(users.create_login_url('/hardshiplist'))
       if users.is_current_user_admin():
         active_users = Membership.all().filter('status =', 'active').filter('plan =', 'hardship').fetch(10000)
         active_users = sorted(active_users, key=lambda user: user.created) 
@@ -940,6 +948,14 @@ class SetTwitterHandler(webapp.RequestHandler):
         m.put()
         self.response.out.write("<p>Thanks!  All set now.  <p>We'll send out more information in a week or two.")
 
+class SetHSHandler(webapp.RequestHandler):
+    def get(self):
+      if self.request.get('user'):
+        m = Membership.get(self.request.get('user'))
+        m.hardship_comment = self.request.get('comment').strip()
+        m.put()
+        self.response.out.write("<p>Set.")
+
 class SetExtraHandler(webapp.RequestHandler):
     def get(self):
       user = users.get_current_user()
@@ -1001,6 +1017,7 @@ app = webapp.WSGIApplication([
         ('/api/gettwitter', GetTwitterHandler),
         ('/api/setextra', SetExtraHandler),
         ('/api/settwitter', SetTwitterHandler),
+        ('/api/seths', SetHSHandler),
         ('/tasks/create_user', CreateUserTask),
         ('/tasks/clean_row', CleanupTask),
         ('/cron/cache_users', CacheUsersCron),
