@@ -138,6 +138,7 @@ class Membership(db.Model):
     username = db.StringProperty()
     rfid_tag = db.StringProperty()
     extra_599main = db.StringProperty()
+    extra_dnd = db.BooleanProperty(default=False)
     auto_signin = db.StringProperty()
     unsubscribe_reason = db.TextProperty()
     hardship_comment = db.TextProperty()
@@ -232,8 +233,15 @@ class MainHandler(webapp.RequestHandler):
             
             try:
                 membership
+                if membership.extra_dnd == True:
+                    self.response.out.write("Error #237.  Please contact signupops@hackerdojo.com")
+                    return
+                if membership.status == "suspended":
+                    c = Config()
+                    self.redirect(str("https://www.spreedly.com/%s/subscriber_accounts/%s" % (c.SPREEDLY_ACCOUNT, membership.spreedly_token)))              
             except NameError:
                 membership = None
+
                 
             # old code below
             #existing_member = Membership.get_by_email(email)
@@ -311,8 +319,6 @@ class AccountHandler(webapp.RequestHandler):
             
             if membership.status == 'active':
                 taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': membership.hash}, countdown=3)
-                taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': membership.hash}, countdown=30)
-                taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': membership.hash}, countdown=90)
                 self.redirect(str('http://%s/success/%s' % (self.request.host, membership.hash)))
             else:
                 customer_id = membership.key().id()
@@ -403,20 +409,21 @@ class CreateUserTask(webapp.RequestHandler):
             return fail(Exception("Account information expired for %s" % membership.email))
             
         try:
-            logging.info("CreateUserTask: About to create user: "+username)
-            logging.info("CreateUserTask: Password: "+ password)
-            logging.info("CreateUserTask: First: "+ membership.first_name)
-            logging.info("CreateUserTask: Last: "+ membership.last_name)
-            resp = urlfetch.fetch('http://%s/users' % DOMAIN_HOST, method='POST', payload=urllib.urlencode({
+            url = 'http://%s/users' % DOMAIN_HOST
+            payload = urllib.urlencode({
                 'username': username,
                 'password': password,
                 'first_name': membership.first_name,
                 'last_name': membership.last_name,
-                'secret': keymaster.get(DOMAIN_USER),
-            }), deadline=120)
+                'secret': keymaster.get('api'),
+            })
+            logging.info("CreateUserTask: About to create user: "+username)
+            logging.info("CreateUserTask: URL: "+url)
+            logging.info("CreateUserTask: Payload: "+payload)
+            resp = urlfetch.fetch(url, method='POST', payload=payload, deadline=120)
             membership.username = username
             membership.put()
-            logging.warn("CreateUserTask: I think that worked: HTTP "+resp.status_code)
+            logging.warn("CreateUserTask: I think that worked: HTTP "+str(resp.status_code))
         except urlfetch.DownloadError, e:
             logging.warn("CreateUserTask: API response error or timeout, retrying")
             return retry()
@@ -497,7 +504,7 @@ class UpdateHandler(webapp.RequestHandler):
                 body=str(exception))
             logging.error("User suspension failure: "+str(exception))
         try:
-            resp = urlfetch.fetch('http://%s/suspend/%s' % (DOMAIN_HOST,username), method='POST', deadline=10, payload=urllib.urlencode({'secret': keymaster.get(DOMAIN_USER)}))
+            resp = urlfetch.fetch('http://%s/suspend/%s' % (DOMAIN_HOST,username), method='POST', deadline=10, payload=urllib.urlencode({'secret': keymaster.get('api')}))
         except Exception, e:
             return fail(e)
 
@@ -509,7 +516,7 @@ class UpdateHandler(webapp.RequestHandler):
                 body=str(exception))
             logging.error("User restore failure: "+str(exception))
         try:
-            resp = urlfetch.fetch('http://%s/restore/%s' % (DOMAIN_HOST,username), method='POST', deadline=10, payload=urllib.urlencode({'secret': keymaster.get(DOMAIN_USER)}))
+            resp = urlfetch.fetch('http://%s/restore/%s' % (DOMAIN_HOST,username), method='POST', deadline=10, payload=urllib.urlencode({'secret': keymaster.get('api')}))
         except Exception, e:
             return fail(e)
 
@@ -533,8 +540,6 @@ class UpdateHandler(webapp.RequestHandler):
                 member.status = 'active' if subscriber['active'] == 'true' else 'suspended'
                 if member.status == 'active' and not member.username:
                     taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': member.hash}, countdown=3)
-                    taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': member.hash}, countdown=30)
-                    taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': member.hash}, countdown=90)
                 if member.status == 'active' and member.unsubscribe_reason:
                     member.unsubscribe_reason = None
                 member.spreedly_token = subscriber['token']
@@ -684,7 +689,7 @@ class AreYouStillThereHandler(webapp.RequestHandler):
     def post(self):
         countdown = 0
         for membership in Membership.all().filter('status =', "suspended"):
-          if not membership.unsubscribe_reason and membership.spreedly_token and "Deleted" not in membership.last_name:
+          if not membership.unsubscribe_reason and membership.spreedly_token and "Deleted" not in membership.last_name and membership.extra_dnd != True:
             countdown += 1200 # One e-mail every 20 min = 72 e-mails a day (100 is free appengine limit)
             self.response.out.write("Are you still there "+membership.email+ "?<br/>")
             taskqueue.add(url='/tasks/areyoustillthere_mail', params={'user': membership.key().id()}, countdown=countdown)
@@ -964,7 +969,12 @@ class SetExtraHandler(webapp.RequestHandler):
       if users.is_current_user_admin():
         user = Membership.all().filter('status =', 'active').filter('username =', self.request.get('username')).get()
         if user:
-          user.__setattr__("extra_"+self.request.get('key'), self.request.get('value'))
+          v = self.request.get('value')
+          if v=="True":
+              v = True
+          if v=="False":
+              v = False
+          user.__setattr__("extra_"+self.request.get('key'), v)
           user.put()
           self.response.out.write("OK")
         else:
