@@ -967,7 +967,7 @@ class SetExtraHandler(webapp.RequestHandler):
       if not user:
         self.redirect(users.create_login_url('/api/setextra'))
       if users.is_current_user_admin():
-        user = Membership.all().filter('status =', 'active').filter('username =', self.request.get('username')).get()
+        user = Membership.all().filter('username =', self.request.get('username')).get()
         if user:
           v = self.request.get('value')
           if v=="True":

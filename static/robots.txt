@@ -1,2 +1,10 @@
 User-agent: *
 Allow: /
+Disallow: /api
+Disallow: /genlink
+Disallow: /success
+Disallow: /unsubscribe
+Disallow: /tasks
+Disallow: /cron
+Disallow: /upgrade
+Disallow: /account
