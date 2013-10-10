@@ -700,7 +700,7 @@ class AreYouStillThereMail(webapp.RequestHandler):
         subject = "Hacker Dojo Membership: ACTION REQUIRED"
         body = render('templates/areyoustillthere.txt', locals())
         to = "%s <%s>" % (user.full_name(), user.email)
-        bcc = "%s <%s>" % ("Brian Klug", "brian.klug@hackerdojo.com")
+        bcc = "%s <%s>" % ("Billing System", "robot@hackerdojo.com")
         if user.username:
             cc="%s <%s@hackerdojo.com>" % (user.full_name(), user.username),
             mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc, cc=cc)
@@ -995,7 +995,14 @@ class CSVHandler(webapp.RequestHandler):
           twitter = ''
           if u.twitter:
             twitter = u.twitter
-          self.response.out.write(u.first_name+","+u.last_name+","+u.username+"@hackerdojo.com,"+twitter+"\r\n")
+          first = ''
+          if u.first_name:
+            first = u.first_name
+          last = ''
+          if u.last_name:
+            last = u.last_name
+          if u.username:
+            self.response.out.write(first+","+last+","+u.username+"@hackerdojo.com,"+twitter+"\r\n")
  
 
 app = webapp.WSGIApplication([
