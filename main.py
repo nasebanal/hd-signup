@@ -18,7 +18,7 @@ import sys
 ORG_NAME = 'Hacker Dojo'
 APP_NAME = 'hd-signup'
 EMAIL_FROM = "Dojo Signup <no-reply@%s.appspotmail.com>" % APP_NAME
-EMAIL_FROM_AYST = "Brian Klug <brian.klug@hackerdojo.com>"
+EMAIL_FROM_AYST = "Billing System <robot@hackerdojo.com>"
 DAYS_FOR_KEY = 0
 INTERNAL_DEV_EMAIL = "Internal Dev <internal-dev@hackerdojo.com>"
 DOMAIN_HOST = 'domain.hackerdojo.com'
@@ -106,7 +106,7 @@ One teeny tiny issue, it looks like your membership has lapsed!  This can happen
 With warmest regards,
 The Lobby Door
 """ % (m.first_name,m.subscribe_url())
-                     deferred.defer(mail.send_mail, sender="Maglock <brian.klug@hackerdojo.com>", to=m.email,
+                     deferred.defer(mail.send_mail, sender="Maglock <robot@hackerdojo.com>", to=m.email,
                      subject=subject, body=body, _queue="emailthrottle")    
                 else:
                   username = "unknown ("+rfid_tag+")"
@@ -114,7 +114,7 @@ The Lobby Door
                 rs = RFIDSwipe(username=username, rfid_tag=rfid_tag, success=success)
                 rs.put()
                 if "mark.hutsell" in username or "some.other.evilguy" in username:
-                  deferred.defer(mail.send_mail, sender="Maglock <brian.klug@hackerdojo.com>", to="Emergency Paging System <page@hackerdojo.com>",
+                  deferred.defer(mail.send_mail, sender="Maglock <robot@hackerdojo.com>", to="Emergency Paging System <page@hackerdojo.com>",
                      subject="RFID Entry: " + username, body="Lobby entry", _queue="emailthrottle")
                   urlfetch.fetch("http://www.dustball.com/call/call.php?str=RFID+Entry+"+username)
             self.response.out.write("OK")
@@ -942,7 +942,7 @@ class TwitterMail(webapp.RequestHandler):
         base = self.request.host
         body = render('templates/twittermail.txt', locals())
         to = "%s <%s@hackerdojo.com>" % (user.full_name(), user.username)
-        bcc = "%s <%s>" % ("Brian Klug", "brian.klug@hackerdojo.com")
+        bcc = "%s <%s>" % ("Robot", "robot@hackerdojo.com")
         mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc, html=body)
     
 class SetTwitterHandler(webapp.RequestHandler):
