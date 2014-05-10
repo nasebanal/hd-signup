@@ -34,11 +34,13 @@ GOOGLE_ANALYTICS_ID = 'UA-11332872-2'
 
 
 class Config():
+    is_dev = False
     def __init__(self):
         try:
-            self.is_dev = os.environ['SERVER_SOFTWARE'].startswith('Dev')
+            if not Config.is_dev:
+              Config.is_dev = os.environ['SERVER_SOFTWARE'].startswith('Dev')
         except:
-            self.is_dev = False  
+            pass
         self.is_prod = not self.is_dev
         if self.is_dev:
             self.SPREEDLY_ACCOUNT = 'hackerdojotest'
@@ -190,12 +192,20 @@ class Membership(db.Model):
 
 class MainHandler(webapp.RequestHandler):
     def get(self):
+        # Check for dev application.
+        if "-dev" in self.request.url:
+            Config.is_dev = True
+
         signup_users = Membership.all().fetch(10000)
         active_users = Membership.all().filter('status =', 'active').order("username").fetch(10000)
-        self.response.out.write(render('templates/main.html', {
+        template_values = {
             'plan': self.request.get('plan', 'full'),
             'active_users': active_users,
-            'paypal': self.request.get('paypal')}))
+            'paypal': self.request.get('paypal')}
+        if Config.is_dev:
+          template_values["dev_message"] = "You are using the dev version of \
+              Signup."
+        self.response.out.write(render('templates/main.html', template_values))
     
     def post(self):
         referuserid = self.request.get('referuserid')
