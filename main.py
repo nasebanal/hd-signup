@@ -11,6 +11,7 @@ from pprint import pprint
 from datetime import datetime, date, time
 
 from config import Config
+from membership import Membership
 import logging
 import spreedly
 import keymaster
@@ -32,26 +33,6 @@ SIGNUP_HELP_EMAIL = 'signupops@hackerdojo.com'
 TREASURER_EMAIL = 'treasurer@hackerdojo.com'
 GOOGLE_ANALYTICS_ID = 'UA-11332872-2'
 
-
-class Config():
-    is_dev = False
-    def __init__(self):
-        try:
-            if not Config.is_dev:
-              Config.is_dev = os.environ['SERVER_SOFTWARE'].startswith('Dev')
-        except:
-            pass
-        self.is_prod = not self.is_dev
-        if self.is_dev:
-            self.SPREEDLY_ACCOUNT = 'hackerdojotest'
-            self.SPREEDLY_APIKEY = keymaster.get('spreedly:hackerdojotest')
-            self.PLAN_IDS = {'full': '1957'}
-        else:
-            self.SPREEDLY_ACCOUNT = 'hackerdojo'
-            self.SPREEDLY_APIKEY = keymaster.get('spreedly:hackerdojo')
-            self.PLAN_IDS = {'full': '1987', 'hardship': '2537', 'supporter': '1988', 'family': '3659', 'worktrade': '6608', 'comped': '15451', 'threecomp': '18158', 'yearly':'18552', 'fiveyear': '18853', 'thielcomp': '19616'}
-
-
 def fetch_usernames(use_cache=True):
     usernames = memcache.get('usernames')
     if usernames and use_cache:
@@ -68,6 +49,10 @@ def render(path, local_vars):
     c = Config()
     template_vars = {'is_prod': c.is_prod, 'org_name': ORG_NAME, 'analytics_id': GOOGLE_ANALYTICS_ID, 'domain': APPS_DOMAIN}
     template_vars.update(local_vars)
+
+    if c.is_dev:
+      template_vars["dev_message"] = "You are using the dev version of \
+              Signup."
     return template.render(path, template_vars)
 
 class UsedCode(db.Model):
@@ -129,67 +114,6 @@ class BadgeChange(db.Model):
     username = db.StringProperty()
     description = db.StringProperty()
 
-class Membership(db.Model):
-    hash = db.StringProperty()
-    first_name = db.StringProperty(required=True)
-    last_name = db.StringProperty(required=True)
-    email = db.StringProperty(required=True)
-    twitter = db.StringProperty(required=False)
-    plan  = db.StringProperty(required=True)
-    status  = db.StringProperty() # None, active, suspended
-    referuserid = db.StringProperty()
-    referrer  = db.StringProperty()
-    username = db.StringProperty()
-    rfid_tag = db.StringProperty()
-    extra_599main = db.StringProperty()
-    extra_dnd = db.BooleanProperty(default=False)
-    auto_signin = db.StringProperty()
-    unsubscribe_reason = db.TextProperty()
-    hardship_comment = db.TextProperty()
-    
-    spreedly_token = db.StringProperty()
-    
-    created = db.DateTimeProperty(auto_now_add=True)
-    updated = db.DateTimeProperty(auto_now=True)
-    
-    def icon(self):
-        return str("http://www.gravatar.com/avatar/" + hashlib.md5(self.email.lower()).hexdigest())
-
-    def full_name(self):
-        return str('%s %s' % (self.first_name, self.last_name))
-    
-    def spreedly_url(self):
-        c = Config()
-        return str("https://spreedly.com/%s/subscriber_accounts/%s" % (c.SPREEDLY_ACCOUNT, self.spreedly_token))
-
-    def spreedly_admin_url(self):
-        c = Config()
-        return str("https://spreedly.com/%s/subscribers/%s" % (c.SPREEDLY_ACCOUNT, self.key().id()))
-
-    def subscribe_url(self):
-        c = Config()
-        try:
-            url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (c.SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, c.PLAN_IDS[self.plan])
-        except KeyError:
-            url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (c.SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, c.PLAN_IDS["full"])          
-        return str(url)
-
-    def force_full_subscribe_url(self):
-        c = Config()
-        url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % (c.SPREEDLY_ACCOUNT, self.key().id(), self.spreedly_token, c.PLAN_IDS["full"])          
-        return str(url)
-
-    def unsubscribe_url(self):
-        return "http://signup.hackerdojo.com/unsubscribe/%i" % (self.key().id())
-    
-    @classmethod
-    def get_by_email(cls, email):
-        return cls.all().filter('email =', email).get()
-    
-    @classmethod
-    def get_by_hash(cls, hash):
-        return cls.all().filter('hash =', hash).get()
-
 class MainHandler(webapp.RequestHandler):
     def get(self):
         # Check for dev application.
@@ -202,9 +126,6 @@ class MainHandler(webapp.RequestHandler):
             'plan': self.request.get('plan', 'full'),
             'active_users': active_users,
             'paypal': self.request.get('paypal')}
-        if Config.is_dev:
-          template_values["dev_message"] = "You are using the dev version of \
-              Signup."
         self.response.out.write(render('templates/main.html', template_values))
     
     def post(self):
