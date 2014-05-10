@@ -9,6 +9,8 @@ import json
 from cgi import escape
 from pprint import pprint
 from datetime import datetime, date, time
+
+from config import Config
 import logging
 import spreedly
 import keymaster
