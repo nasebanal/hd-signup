@@ -1,4 +1,7 @@
+# Use this one if deploying to production.
 application: hd-signup-hrd
+# Use this one if deploying to dev.
+#application: signup-dev
 version: 1
 runtime: python27
 threadsafe: true
@@ -15,6 +18,9 @@ handlers:
   static_dir: static
 - url: /remote_api
   script: google.appengine.ext.remote_api.handler.app
+- url: /my_billing
+  script: billing.app
+  login: required
 - url: /_ah/queue/deferred
   script: google.appengine.ext.deferred.handler.app
   login: admin
