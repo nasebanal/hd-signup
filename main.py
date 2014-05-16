@@ -209,9 +209,8 @@ class MainHandler(webapp.RequestHandler):
               account_url = str('/account/%s' % membership.hash)
               self.response.out.write(render('templates/account.html', locals()))
             else:
-              c = Config()
-              self.redirect(str("https://www.spreedly.com/%s/subscriber_accounts/%s" % (c.SPREEDLY_ACCOUNT, membership.spreedly_token)))
-            
+              self.response.out.write(render('templates/main.html',
+                  {'message': 'You are already an active member.'}))
 class AccountHandler(webapp.RequestHandler):
     def get(self, hash):
         membership = Membership.get_by_hash(hash)
