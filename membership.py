@@ -71,3 +71,7 @@ class Membership(db.Model):
   @classmethod
   def get_by_hash(cls, hash):
     return cls.all().filter('hash =', hash).get()
+
+  @classmethod
+  def get_by_username(cls, username):
+    return cls.all().filter('username =', username).get()

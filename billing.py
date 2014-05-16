@@ -9,7 +9,7 @@ from membership import Membership
 class BillingHandler(webapp2.RequestHandler):
   def get(self):
     user = users.get_current_user()
-    member = Membership.get_by_email(user.email())
+    member = Membership.get_by_username(user.nickname())
     if not member:
       # User is not (yet) a member.
       self.redirect("http://signup.hackerdojo.com")
