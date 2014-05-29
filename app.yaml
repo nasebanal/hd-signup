@@ -1,7 +1,7 @@
 # Use this one if deploying to production.
-application: hd-signup-hrd
+#application: hd-signup-hrd
 # Use this one if deploying to dev.
-#application: signup-dev
+application: signup-dev
 version: 1
 runtime: python27
 threadsafe: true
@@ -27,6 +27,8 @@ handlers:
 - url: /_km/.*
   script: keymaster.app
   login: admin
+- url: /_datasync
+  script: datasync.app
 - url: .*
   script: main.app
 
