@@ -54,25 +54,27 @@ class DataSyncHandler(webapp.RequestHandler):
     return member
   
   def post(self):
-    entry = self.request.body
-    logging.debug("Got new entry: " + entry)
-    entry = json.loads(entry)
-    # Change formatted date back into datetime.
-    for key in entry.keys():
-      if type(getattr(Membership, key)) == db.DateTimeProperty:
-        entry[key] = datetime.datetime.strptime(entry[key], self.time_format)
-    # entry should have everything nicely in a dict...
-    member = Membership(**entry)
+    if Config.is_dev:
+      # Only allow this if it's the dev server.
+      entry = self.request.body
+      logging.debug("Got new entry: " + entry)
+      entry = json.loads(entry)
+      # Change formatted date back into datetime.
+      for key in entry.keys():
+        if type(getattr(Membership, key)) == db.DateTimeProperty:
+          entry[key] = datetime.datetime.strptime(entry[key], self.time_format)
+      # entry should have everything nicely in a dict...
+      member = Membership(**entry)
 
-    # Is this an update or a new model?
-    match = Membership.all().filter("username =", member.username).get()
-    if match:
-      # Replace the old one.
-      logging.debug("Found entry with same username. Replacing...")
-      db.delete(match)
+      # Is this an update or a new model?
+      match = Membership.all().filter("username =", member.username).get()
+      if match:
+        # Replace the old one.
+        logging.debug("Found entry with same username. Replacing...")
+        db.delete(match)
 
-    member.put()
-    logging.debug("Put entry in datastore.")
+      member.put()
+      logging.debug("Put entry in datastore.")
 
 app = webapp.WSGIApplication([
     ("/_datasync", DataSyncHandler),
