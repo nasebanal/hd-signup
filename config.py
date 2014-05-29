@@ -1,5 +1,7 @@
 import os
 
+from google.appengine.api.app_identity import get_application_id
+
 import keymaster
 
 # Class for storing specific configuration parameters.
@@ -9,10 +11,11 @@ class Config():
   is_prod = True
   def __init__(self):
     try:
-      if not Config.is_dev:
-        Config.is_dev = os.environ['SERVER_SOFTWARE'].startswith('Dev')
+      Config.is_dev = os.environ['SERVER_SOFTWARE'].startswith('Dev')
     except KeyError:
       pass
+    if not Config.is_dev:
+      Config.is_dev = "-dev" in get_application_id()
     Config.is_prod = not Config.is_dev
     if Config.is_dev:
       self.SPREEDLY_ACCOUNT = 'hackerdojotest'

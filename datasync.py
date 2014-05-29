@@ -3,7 +3,6 @@
 import datetime
 import json
 import logging
-import urllib
 
 from google.appengine.api import urlfetch
 from google.appengine.ext import db
@@ -18,8 +17,7 @@ class DataSyncHandler(webapp.RequestHandler):
   time_format = "%Y %B %d %H %M %S"
 
   def get(self):
-    config = Config()
-    if not config.is_dev:
+    if not Config.is_dev:
       # If we're production, send out new models.
       if ("X-Appengine-Cron" in self.request.headers.keys()) and \
           (self.request.headers["X-Appengine-Cron"]):
@@ -34,13 +32,6 @@ class DataSyncHandler(webapp.RequestHandler):
       else:
         self.response.out.write("<h4>Only cron jobs can do that!</h4>")
 
-    else:
-      # Make text box.
-      self.response.out.write('<html><body><form method="post"> \
-          <input type="text" name="entry" \> \
-          <input type="submit" \> \
-          </form></body></html>')
-
   # Posts member data to dev application.
   def __post_member(self, member):
     data = db.to_dict(member)
@@ -51,10 +42,9 @@ class DataSyncHandler(webapp.RequestHandler):
     data = json.dumps(data)
     
     logging.debug("Posting entry: " + data)
-    form_data = urllib.urlencode({"entry": data})
-    response = urlfetch.fetch(url = self.dev_url, payload = form_data,
+    response = urlfetch.fetch(url = self.dev_url, payload = data,
         method = urlfetch.POST,
-        headers = {"Content-Type": "application/x-www-form-urlencoded"})
+        headers = {"Content-Type": "application/json"})
     if response.status_code != 200:
       logging.error("POST received status code %d!" % (response.status_code))
 
@@ -64,7 +54,7 @@ class DataSyncHandler(webapp.RequestHandler):
     return member
   
   def post(self):
-    entry = self.request.get("entry")
+    entry = self.request.body
     logging.debug("Got new entry: " + entry)
     entry = json.loads(entry)
     # Change formatted date back into datetime.
