@@ -2,7 +2,7 @@
 application: hd-signup-hrd
 # Use this one if deploying to dev.
 #application: signup-dev
-version: 1
+version: 2
 runtime: python27
 threadsafe: true
 api_version: 1

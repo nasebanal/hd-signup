@@ -292,11 +292,11 @@ class AccountHandler(webapp.RequestHandler):
                         'Content-Type':'application/xml'}
                     # Create subscriber
                     data = "<subscriber><customer-id>%s</customer-id><email>%s</email></subscriber>" % (customer_id, membership.email)
-                    resp = urlfetch.fetch("https://spreedly.com/api/v4/%s/subscribers.xml" % (c.SPREEDLY_ACCOUNT), 
+                    resp = urlfetch.fetch("https://subs.pinpayments.com/api/v4/%s/subscribers.xml" % (c.SPREEDLY_ACCOUNT), 
                             method='POST', payload=data, headers = headers, deadline=5)
                     # Credit
                     data = "<credit><amount>95.00</amount></credit>"
-                    resp = urlfetch.fetch("https://spreedly.com/api/v4/%s/subscribers/%s/credits.xml" % (c.SPREEDLY_ACCOUNT, customer_id), 
+                    resp = urlfetch.fetch("https://subs.pinpayments.com/api/v4/%s/subscribers/%s/credits.xml" % (c.SPREEDLY_ACCOUNT, customer_id), 
                             method='POST', payload=data, headers=headers, deadline=5)
 
                     uc = UsedCode(code=membership.referrer,email=membership.email,extra='OK')

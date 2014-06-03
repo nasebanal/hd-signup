@@ -3,7 +3,7 @@ import urllib2, xml.dom.minidom, base64
 __version__ = '0.1'
 
 SITE_NAME = 'your-site'
-SPREEDLY_BASE_URL = 'https://spreedly.com/api/v4/%(site)s/'
+SPREEDLY_BASE_URL = 'https://subs.pinpayments.com/api/v4/%(site)s/'
 SPREEDLY_TOKEN = 'your-token'
 
 
@@ -98,7 +98,7 @@ class Spreedly(object):
         
         auth_handler = urllib2.HTTPBasicAuthHandler()
         auth_handler.add_password(realm='Web Password',
-          uri='https://spreedly.com/', user=self.token,
+          uri='https://subs.pinpayments.com/', user=self.token,
           passwd='X')
         opener = urllib2.build_opener(auth_handler)
         urllib2.install_opener(opener)
