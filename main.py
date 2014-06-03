@@ -210,7 +210,7 @@ class MainHandler(webapp.RequestHandler):
               self.response.out.write(render('templates/account.html', locals()))
             else:
               self.response.out.write(render('templates/main.html',
-                  {'message': 'You are already an active member.'}))
+                {'message': 'The Email address is registered in our system.'}))
 class AccountHandler(webapp.RequestHandler):
     def get(self, hash):
         membership = Membership.get_by_hash(hash)
