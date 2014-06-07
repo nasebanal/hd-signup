@@ -116,10 +116,6 @@ class BadgeChange(db.Model):
 
 class MainHandler(webapp.RequestHandler):
     def get(self):
-        # Check for dev application.
-        if "-dev" in self.request.url:
-            Config.is_dev = True
-
         signup_users = Membership.all().fetch(10000)
         active_users = Membership.all().filter('status =', 'active').order("username").fetch(10000)
         template_values = {
