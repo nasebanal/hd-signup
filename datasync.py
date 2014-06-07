@@ -73,6 +73,7 @@ class DataSyncHandler(webapp.RequestHandler):
   # Removes sensitive data from membership instances.
   def __strip_sensitive(self, member):
     member.spreedly_token = None
+    member.hash = None
     return member
   
   def post(self):
