@@ -144,7 +144,7 @@ class MainHandler(webapp.RequestHandler):
         if not first_name or not last_name or not email:
             self.response.out.write(render('templates/main.html', {
                 'plan': plan, 'message': "Sorry, we need name and e-mail address."}))
-        elif not referred_user:
+        elif (not referred_user and refer != ""):
           self.response.out.write(render('templates/main.html', {
             'plan': plan,
             'message': "The person who referred you is not an active user."}))
