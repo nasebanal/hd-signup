@@ -26,12 +26,10 @@ class DataSyncHandler(webapp.RequestHandler):
 
   def get(self):
     config = Config()
-    #if not config.is_dev:
-    if True:
+    if not config.is_dev:
       # If we're production, send out new models.
-      #if ("X-Appengine-Cron" in self.request.headers.keys()) and \
-      #    (self.request.headers["X-Appengine-Cron"]):
-      if True:
+      if ("X-Appengine-Cron" in self.request.headers.keys()) and \
+          (self.request.headers["X-Appengine-Cron"]):
         # Only do this if a cron job told us to.
         run_info = SyncRunInfo.all().get()
         if not run_info:
