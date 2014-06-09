@@ -117,24 +117,37 @@ class BadgeChange(db.Model):
 class MainHandler(webapp.RequestHandler):
     def get(self):
         signup_users = Membership.all().fetch(10000)
-        active_users = Membership.all().filter('status =', 'active').order("username").fetch(10000)
         template_values = {
             'plan': self.request.get('plan', 'full'),
-            'active_users': active_users,
             'paypal': self.request.get('paypal')}
         self.response.out.write(render('templates/main.html', template_values))
     
     def post(self):
-        referuserid = self.request.get('referuserid')
+        refer = self.request.get('refer')
         first_name = self.request.get('first_name')
         last_name = self.request.get('last_name')
         twitter = self.request.get('twitter').lower().strip().strip('@')
         email = self.request.get('email').lower().strip()
         plan = self.request.get('plan', 'full')
         
+        # See if the referring user is valid.
+        try:
+          ref_first_name = refer.split()[0]
+          ref_last_name = refer.split()[1]
+          referred_user = db.GqlQuery("SELECT * FROM Membership \
+              WHERE first_name = :first_name AND last_name = :last_name",
+              first_name = ref_first_name,
+              last_name = ref_last_name).get()
+        except IndexError:
+          referred_user = None
+        
         if not first_name or not last_name or not email:
             self.response.out.write(render('templates/main.html', {
                 'plan': plan, 'message': "Sorry, we need name and e-mail address."}))
+        elif (not referred_user and refer != ""):
+          self.response.out.write(render('templates/main.html', {
+            'plan': plan,
+            'message': "The person who referred you is not an active user."}))
         else:
             
             # this just runs a check twice. (there is no OR in GQL)
@@ -177,8 +190,13 @@ class MainHandler(webapp.RequestHandler):
             #if existing_member and existing_member.status in [None, 'paypal']:
             #    existing_member.delete()
             if membership is None:
+                if referred_user:
+                  referuserid = referred_user.username
+                else:
+                  referuserid = None
                 membership = Membership(
-                    first_name=first_name, last_name=last_name, email=email, plan=plan, twitter=twitter, referuserid=referuserid)
+                    first_name=first_name, last_name=last_name, email=email,
+                    plan=plan, twitter=twitter, referuserid=referuserid)
                 if self.request.get('paypal') == '1':
                     membership.status = 'paypal'
                 membership.hash = hashlib.md5(membership.email).hexdigest()

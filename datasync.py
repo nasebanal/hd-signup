@@ -5,6 +5,7 @@ import json
 import logging
 
 from google.appengine.api import urlfetch
+from google.appengine.api import datastore
 from google.appengine.ext import db
 from google.appengine.ext import webapp
 
@@ -20,13 +21,17 @@ class DataSyncHandler(webapp.RequestHandler):
   dev_url = "http://signup-dev.appspot.com/_datasync"
   cron_interval = 60
   time_format = "%Y %B %d %H %M %S"
+  # The size of a batch for __batch_loop.
+  batch_size = 10
 
   def get(self):
     config = Config()
-    if not config.is_dev:
+    #if not config.is_dev:
+    if True:
       # If we're production, send out new models.
-      if ("X-Appengine-Cron" in self.request.headers.keys()) and \
-          (self.request.headers["X-Appengine-Cron"]):
+      #if ("X-Appengine-Cron" in self.request.headers.keys()) and \
+      #    (self.request.headers["X-Appengine-Cron"]):
+      if True:
         # Only do this if a cron job told us to.
         run_info = SyncRunInfo.all().get()
         if not run_info:
@@ -35,24 +40,39 @@ class DataSyncHandler(webapp.RequestHandler):
         if run_info.run_times == 0:
           # This is the first run. Sync everything.
           logging.info("First run, syncing everything...")
-          members = Membership.all()
+          self.__batch_loop()
         else:
           # Check for entries that changed since we last ran this.
           last_run = datetime.datetime.now()
           last_run -= datetime.timedelta(minutes = self.cron_interval)
-          members = Membership.all().filter("updated >", last_run)
+          self.__batch_loop("updated >", last_run)
         
         # Update the number of times we've ran this.
         run_info.run_times = run_info.run_times + 1
         logging.info("Ran sync %d times." % (run_info.run_times))
         run_info.put()
 
-        for member in members:
-          member = self.__strip_sensitive(member)
-          self.__post_member(member)
       else:
         self.response.out.write("<h4>Only cron jobs can do that!</h4>")
         logging.info("Got GET request from non-cron job.")
+
+  def __batch_loop(self, *args, **kwargs):
+    cursor = None
+    while True:
+      if (args == () and kwargs == {}):
+        query = Membership.all()
+      else:
+        query = Membership.all().filter(*args, **kwargs)
+      query.with_cursor(start_cursor = cursor)
+      members = query.fetch(self.batch_size)
+    
+      if len(members) == 0:
+        break
+      for member in members:
+        member = self.__strip_sensitive(member)
+        self.__post_member(member)
+     
+      cursor = query.cursor()
 
   # Posts member data to dev application.
   def __post_member(self, member):
@@ -90,7 +110,7 @@ class DataSyncHandler(webapp.RequestHandler):
       member = Membership(**entry)
 
       # Is this an update or a new model?
-      match = Membership.all().filter("username =", member.username).get()
+      match = Membership.all().filter("email =", member.email).get()
       if match:
         # Replace the old one.
         logging.debug("Found entry with same username. Replacing...")
