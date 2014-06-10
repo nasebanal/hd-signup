@@ -41,12 +41,12 @@ class DataSyncHandler(webapp.RequestHandler):
         if run_info.run_times == 0:
           # This is the first run. Sync everything.
           logging.info("First run, syncing everything...")
-          self.__batch_loop(cursor = run_info.cursor)
+          self.__batch_loop(run_info.cursor)
         else:
           # Check for entries that changed since we last ran this.
           last_run = datetime.datetime.now()
           last_run -= datetime.timedelta(minutes = self.cron_interval)
-          self.__batch_loop("updated >", last_run, cursor = run_info.cursor)
+          self.__batch_loop(run_info.cursor, "updated >", last_run)
         
         # Update the number of times we've run this.
         run_info = SyncRunInfo().all().get()
