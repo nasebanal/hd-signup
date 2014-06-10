@@ -15,6 +15,8 @@ from membership import Membership
 # Datastore model to keep track of DataSync information.
 class SyncRunInfo(db.Model):
   run_times = db.IntegerProperty(default = 0)
+  # The most recent cursor.
+  cursor = db.StringProperty();
 
 # Handler for syncing data between dev and production apps.
 class DataSyncHandler(webapp.RequestHandler):
@@ -35,27 +37,31 @@ class DataSyncHandler(webapp.RequestHandler):
         if not run_info:
           run_info = SyncRunInfo()
           run_info.put()
+
         if run_info.run_times == 0:
           # This is the first run. Sync everything.
           logging.info("First run, syncing everything...")
-          self.__batch_loop()
+          self.__batch_loop(cursor = run_info.cursor)
         else:
           # Check for entries that changed since we last ran this.
           last_run = datetime.datetime.now()
           last_run -= datetime.timedelta(minutes = self.cron_interval)
-          self.__batch_loop("updated >", last_run)
+          self.__batch_loop("updated >", last_run, cursor = run_info.cursor)
         
-        # Update the number of times we've ran this.
+        # Update the number of times we've run this.
+        run_info = SyncRunInfo().all().get()
         run_info.run_times = run_info.run_times + 1
-        logging.info("Ran sync %d times." % (run_info.run_times))
+        # Clear the cursor property if we synced successfully.
+        run_info.cursor = None
+        logging.info("Ran sync %d time(s)." % (run_info.run_times))
         run_info.put()
 
       else:
         self.response.out.write("<h4>Only cron jobs can do that!</h4>")
         logging.info("Got GET request from non-cron job.")
 
-  def __batch_loop(self, *args, **kwargs):
-    cursor = None
+  def __batch_loop(self, cursor = None, *args, **kwargs):
+    cursor = cursor
     while True:
       if (args == () and kwargs == {}):
         query = Membership.all()
@@ -71,6 +77,9 @@ class DataSyncHandler(webapp.RequestHandler):
         self.__post_member(member)
      
       cursor = query.cursor()
+      run_info = SyncRunInfo.all().get()
+      run_info.cursor = cursor
+      run_info.put()
 
   # Posts member data to dev application.
   def __post_member(self, member):
@@ -87,6 +96,8 @@ class DataSyncHandler(webapp.RequestHandler):
         headers = {"Content-Type": "application/json"})
     if response.status_code != 200:
       logging.error("POST received status code %d!" % (response.status_code))
+      raise RuntimeError("POST failed. Check your quotas.")
+
 
   # Removes sensitive data from membership instances.
   def __strip_sensitive(self, member):
