@@ -17,11 +17,12 @@ class SyncRunInfo(db.Model):
   run_times = db.IntegerProperty(default = 0)
   # The most recent cursor.
   cursor = db.StringProperty();
+  # The last time we ran this successfully.
+  last_run = db.DateTimeProperty()
 
 # Handler for syncing data between dev and production apps.
 class DataSyncHandler(webapp.RequestHandler):
   dev_url = "http://signup-dev.appspot.com/_datasync"
-  cron_interval = 60
   time_format = "%Y %B %d %H %M %S"
   # The size of a batch for __batch_loop.
   batch_size = 10
@@ -44,8 +45,8 @@ class DataSyncHandler(webapp.RequestHandler):
           self.__batch_loop(run_info.cursor)
         else:
           # Check for entries that changed since we last ran this.
-          last_run = datetime.datetime.now()
-          last_run -= datetime.timedelta(minutes = self.cron_interval)
+          last_run = run_info.last_run
+          logging.info("Last successful run: " + str(last_run))
           self.__batch_loop(run_info.cursor, "updated >", last_run)
         
         # Update the number of times we've run this.
@@ -54,6 +55,8 @@ class DataSyncHandler(webapp.RequestHandler):
         # Clear the cursor property if we synced successfully.
         run_info.cursor = None
         logging.info("Ran sync %d time(s)." % (run_info.run_times))
+        # Update the time of the last successful run.
+        run_info.last_run = datetime.datetime.now()
         run_info.put()
 
       else:
