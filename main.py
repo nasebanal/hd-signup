@@ -630,7 +630,9 @@ class HardshipHandler(webapp.RequestHandler):
       
 class AreYouStillThereHandler(webapp.RequestHandler):
     def get(self):
-        self.post()
+        config = Config()
+        if not config.is_dev:
+          self.post()
         
     def post(self):
         countdown = 0
