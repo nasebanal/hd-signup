@@ -1,5 +1,6 @@
 import wsgiref.handlers
 import datetime, time, hashlib, urllib, urllib2, re, os
+from google.appengine.api import app_identity
 from google.appengine.ext import deferred
 from google.appengine.ext import db
 from google.appengine.ext import webapp
@@ -19,7 +20,7 @@ import base64
 import sys
 
 ORG_NAME = 'Hacker Dojo'
-APP_NAME = 'hd-signup'
+APP_NAME = app_identity.get_application_id()
 EMAIL_FROM = "Dojo Signup <no-reply@%s.appspotmail.com>" % APP_NAME
 EMAIL_FROM_AYST = "Billing System <robot@hackerdojo.com>"
 DAYS_FOR_KEY = 0
@@ -317,7 +318,8 @@ class AccountHandler(webapp.RequestHandler):
                     uc.put()
                 
                 query_str = urllib.urlencode({'first_name': membership.first_name, 'last_name': membership.last_name, 
-                    'email': membership.email, 'return_url': 'http://%s/success/%s' % (self.request.host, membership.hash)})
+                    'email': membership.email, 'return_url':
+                    'http://%s/success/%s?email' % (self.request.host, membership.hash)})
                 # check if they are active already since we didn't create a new member above
                 # apparently the URL will be different
                 self.redirect(str("https://spreedly.com/%s/subscribers/%s/subscribe/%s/%s?%s" % 
@@ -409,8 +411,10 @@ class SuccessHandler(webapp.RequestHandler):
         if member:
             if self.request.query_string == 'email':
                 spreedly_url = member.spreedly_url()
+                dojo_email = "%s@hackerdojo.com" % (member.username)
+                name = member.full_name()
                 mail.send_mail(sender=EMAIL_FROM,
-                    to="%s <%s>" % (member.full_name(), member.email),
+                    to="%s <%s>; %s <%s>" % (name, member.email, name, dojo_email),
                     subject="Welcome to Hacker Dojo, %s!" % member.first_name,
                     body=render('templates/welcome.txt', locals()))
                 self.redirect(str(self.request.path))
@@ -630,8 +634,7 @@ class HardshipHandler(webapp.RequestHandler):
       
 class AreYouStillThereHandler(webapp.RequestHandler):
     def get(self):
-        config = Config()
-        if not config.is_dev:
+        if not Config().is_dev:
           self.post()
         
     def post(self):
