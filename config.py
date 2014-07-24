@@ -22,7 +22,6 @@ class Config():
     if Config.is_dev:
       self.SPREEDLY_ACCOUNT = 'hackerdojotest'
       self.SPREEDLY_APIKEY = keymaster.get('spreedly:hackerdojotest')
-      self.PLAN_IDS = {'full': '1957'}
       logging.info("Is dev server.")
     else:
       self.SPREEDLY_ACCOUNT = 'hackerdojo'

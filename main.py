@@ -319,7 +319,7 @@ class AccountHandler(webapp.RequestHandler):
                 
                 query_str = urllib.urlencode({'first_name': membership.first_name, 'last_name': membership.last_name, 
                     'email': membership.email, 'return_url':
-                    'http://%s/success/%s?email' % (self.request.host, membership.hash)})
+                    'http://%s/success/%s' % (self.request.host, membership.hash)})
                 # check if they are active already since we didn't create a new member above
                 # apparently the URL will be different
                 self.redirect(str("https://spreedly.com/%s/subscribers/%s/subscribe/%s/%s?%s" % 
@@ -343,7 +343,8 @@ class CreateUserTask(webapp.RequestHandler):
                 fail(Exception("Too many retries for %s" % self.request.get('hash')))
         
         c = Config()
-        membership = Membership.get_by_hash(self.request.get('hash'))
+        user_hash = self.request.get('hash')
+        membership = Membership.get_by_hash(user_hash)
         if membership is None or membership.username:
             return
         if not membership.spreedly_token:
@@ -372,6 +373,9 @@ class CreateUserTask(webapp.RequestHandler):
             membership.username = username
             membership.put()
             logging.warn("CreateUserTask: I think that worked: HTTP "+str(resp.status_code))
+
+            # Send the welcome email.
+            SuccessHandler.send_email(user_hash) 
         except urlfetch.DownloadError, e:
             logging.warn("CreateUserTask: API response error or timeout, retrying")
             return retry()
@@ -405,24 +409,25 @@ class UnsubscribeHandler(webapp.RequestHandler):
             self.response.out.write("error: could not locate your membership record.")
                 
 class SuccessHandler(webapp.RequestHandler):
+    @classmethod
+    def send_email(cls, hash):
+      member = Membership.get_by_hash(hash)
+      spreedly_url = member.spreedly_url()
+      dojo_email = "%s@hackerdojo.com" % (member.username)
+      name = member.full_name()
+      mail.send_mail(sender=EMAIL_FROM,
+          to="%s <%s>; %s <%s>" % (name, member.email, name, dojo_email),
+          subject="Welcome to Hacker Dojo, %s!" % member.first_name,
+          body=render('templates/welcome.txt', locals()))
+
     def get(self, hash):
         member = Membership.get_by_hash(hash)
         c = Config()
         if member:
-            if self.request.query_string == 'email':
-                spreedly_url = member.spreedly_url()
-                dojo_email = "%s@hackerdojo.com" % (member.username)
-                name = member.full_name()
-                mail.send_mail(sender=EMAIL_FROM,
-                    to="%s <%s>; %s <%s>" % (name, member.email, name, dojo_email),
-                    subject="Welcome to Hacker Dojo, %s!" % member.first_name,
-                    body=render('templates/welcome.txt', locals()))
-                self.redirect(str(self.request.path))
-            else:
-                success_html = urlfetch.fetch(SUCCESS_HTML_URL).content
-                success_html = success_html.replace('joining!', 'joining, %s!' % member.first_name)
-                is_prod = c.is_prod
-                self.response.out.write(render('templates/success.html', locals()))
+          success_html = urlfetch.fetch(SUCCESS_HTML_URL).content
+          success_html = success_html.replace('joining!', 'joining, %s!' % member.first_name)
+          is_prod = c.is_prod
+          self.response.out.write(render('templates/success.html', locals()))
 
 class NeedAccountHandler(webapp.RequestHandler):
     def get(self):
