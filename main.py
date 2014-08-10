@@ -375,7 +375,7 @@ class CreateUserTask(webapp.RequestHandler):
             logging.warn("CreateUserTask: I think that worked: HTTP "+str(resp.status_code))
 
             # Send the welcome email.
-            SuccessHandler.send_email(user_hash) 
+            SuccessHandler.send_email(membership)
         except urlfetch.DownloadError, e:
             logging.warn("CreateUserTask: API response error or timeout, retrying")
             return retry()
@@ -407,11 +407,10 @@ class UnsubscribeHandler(webapp.RequestHandler):
                 self.response.out.write(render('templates/unsubscribe_error.html', locals()))
         else:
             self.response.out.write("error: could not locate your membership record.")
-                
+
 class SuccessHandler(webapp.RequestHandler):
     @classmethod
-    def send_email(cls, hash):
-      member = Membership.get_by_hash(hash)
+    def send_email(cls, member):
       spreedly_url = member.spreedly_url()
       dojo_email = "%s@hackerdojo.com" % (member.username)
       name = member.full_name()
