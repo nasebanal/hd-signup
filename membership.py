@@ -47,11 +47,11 @@ class Membership(db.Model):
     config = Config()
     try:
       url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % \
-          (Membership.config.SPREEDLY_ACCOUNT, self.key().id(),
+          (config.SPREEDLY_ACCOUNT, self.key().id(),
           self.spreedly_token, config.PLAN_IDS[self.plan])
     except KeyError:
       url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % \
-          (Membership.config.SPREEDLY_ACCOUNT, self.key().id(),
+          (config.SPREEDLY_ACCOUNT, self.key().id(),
           self.spreedly_token, config.PLAN_IDS["full"])
     return str(url)
 

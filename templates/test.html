@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block content %}
+<center>
+<h4 style="margin-bottom: 20px; padding-left: 0px;">
+  Resubscribe as Hackerdojo Member
+</h4>
+<span style="color: red; margin-bottom: 20px; display: block;">{{ message }}</span>
+<div>
+<!--
+	<div style="width: 45%; background: #fee; border: 2px solid #db002a; float: left; margin: 5px; padding: 10px;">
+		<h3>I signed up with PayPal.</h3>
+		<p style="font-size:smaller;">You need to upgrade to our new billing system by signing up on this site. Your PayPal subscription will be canceled once you switch.</p>
+		<input type="submit" value="Continue here" style="font-size: larger;" onclick="window.location.href='/?paypal=1'"/>
+	</div>
+
+-->
+	<div style="width: 80%; background: #fee; border: 2px solid #db002a;  margin: 5px; padding: 10px;">
+<!--		<h3>I signed up with Spreedly.</h3> -->
+	<p style="font-size: smaller;">
+		Hi {{membership.first_name}},
+
+		This is the link to reactive your Hacker Dojo account:
+
+		id = {{member_id}}
+
+		spreedly = {{spreedly_token}}
+
+		plan token = {{plan_token}}
+
+		url =
+
+		{{membership.subscribe_url}}
+
+		url2 = 
+
+		https://spreedly.com/hackerdojo/subscribers/{{member_id}}/{{spreedly_token}}/subscribe/{{plan_token}}
+
+		If you need billing help, please contact treasurer@hackerdojo.com.
+
+		Cheers,
+		Hacker Dojo
+	</p>
+		<form action="{{self.request.path}}" method="post" style="margin:0px;">
+		<input type="text" name="email" style="font-size: larger;"/><br />
+		<input type="submit" value="Continue here" style="font-size: larger;"/>
+		</form>
+	</div>
+		<div style="padding-top: 50px;"><a href="http://dashboard.hackerdojo.com">Back to Dashboard</a></div>
+		<!--<a href="/">Not yet a member of Hacker Dojo?</a>-->
+</div>
+{#{% if sent %}#}
+<!--<script type="text/javascript">
+//alert("We've sent you a link to resubscribe. Check your inbox!");
+if (window.confirm("We've sent a link to you inbox. \n \nGo back to Hacker Dojo Dashboard?"))
+{
+    // They clicked Yes
+    window.location = 'http://dashboard.hackerdojo.com';
+}
+else
+{
+    // They clicked no
+}
+//window.location = 'http://dashboard.hackerdojo.com';
+</script>-->
+</center>
+{% endblock %}

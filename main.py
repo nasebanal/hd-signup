@@ -668,6 +668,7 @@ class ResubscribeHandler(webapp.RequestHandler):
         self.response.out.write(render('templates/resubscribe.html', locals()))
         #templates/needaccount is almost perfect for purposes
     def post(self):
+      c = Config()
       email = self.request.get('email').lower()
       existing_member = db.GqlQuery("SELECT * FROM Membership WHERE email = :email", email=email).get()
       if existing_member:
@@ -676,24 +677,18 @@ class ResubscribeHandler(webapp.RequestHandler):
               self.redirect(str(self.request.path + '?message=You are still an active member'))
               #alert: you are still an active member
           else:
-            #self.redirect(str(self.request.path + '?message=Test'))
-              #alert an email has been set to {email} with a link to resubscribe
-            b_email = membership.email
-            a = membership.full_name()
-            #user = membership
-            #self.redirect(str(self.request.path + '?message=An email has been set to sent to your email with a link to resubscribe'))
-            #subject = "Renewing you Hacker Dojo Membership"
-            #body = render#('templates/areyoustillthere.txt', locals()) #different template
-            #to = "%s <%s>" % (user.full_name(), user.email)
+            #alert an email has been set to {email} with a link to resubscribe
+            member_id = membership.key().id()
+            spreedly_token = membership.spreedly_token
+            plan_token = c.PLAN_IDS[membership.plan]
+            subject = "Reactivate your Hacker Dojo Membership"
+            body = render('templates/resubscribe.txt', locals()) #different template
+            to = "%s <%s>" % (membership.full_name(), membership.email)
             #bcc = "%s <%s>" % ("Billing System", "robot@hackerdojo.com")
-            #mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc)
-
-            #mail.send_mail(sender=EMAIL_FROM,
-            #to="%s <%s>" % (member.full_name(), member.email),
-            #subject="Renew your Hacker Dojo account",
-            #body="""Hello,\n\nHere's a link to create your Hacker Dojo account:\n\nhttp://%s/account/%s""" % (self.request.host, member.hash))
+            mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body)#, bcc=bcc)
             sent = True
-            self.response.out.write(render('templates/resubscribe.html', locals()))
+            self.response.out.write(render('templates/test.html', locals()))
+            #self.response.out.write(render('templates/resubscribe.html', locals()))
       else:
           self.redirect(str(self.request.path + '?message=There is no active record of that email.'))
               #alert = you are not a former member
