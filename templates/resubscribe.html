@@ -2,14 +2,16 @@
 {% block content %}
 <center>
 {% if sent %}
-We've sent you a link to resubscribe. Check your inbox!
+<h2 style="margin-bottom: 20px;">
+	We've sent you a link to resubscribe. Check your inbox!
+</h2>
+<div style="padding-top: 50px;"><a href="http://dashboard.hackerdojo.com">Back to Dashboard</a></div>
 {% else %}
-<h4 style="margin-bottom: 20px;">
+<h4 style="margin-bottom: 20px; padding-left: 0px;">
   Resubscribe as Hackerdojo Member
 </h4>
-<span style="color: red;">{{ message }}</span>
+<span style="color: red; margin-bottom: 20px; display: block;">{{ message }}</span>
 <div>
-
 <!--
 	<div style="width: 45%; background: #fee; border: 2px solid #db002a; float: left; margin: 5px; padding: 10px;">
 		<h3>I signed up with PayPal.</h3>
@@ -18,17 +20,31 @@ We've sent you a link to resubscribe. Check your inbox!
 	</div>
 
 -->	
-	<div style="width: 45%; background: #fee; border: 2px solid #db002a;  margin: 5px; margin-left:25%; padding: 10px;">
+	<div style="width: 45%; background: #fee; border: 2px solid #db002a;  margin: 5px; padding: 10px;">
 <!--		<h3>I signed up with Spreedly.</h3> -->
-		<p style="font-size: smaller;">Tell us the email address you used to subscribe:</p>
+		<p style="font-size: smaller;">Enter the email address you used to subscribe:</p>
 		<form action="{{self.request.path}}" method="post" style="margin:0px;">
 		<input type="text" name="email" style="font-size: larger;"/><br />
 		<input type="submit" value="Continue here" style="font-size: larger;"/>
 		</form>
 	</div>
-
-		<div style="padding-top: 200px;"><a href="/">Not yet a member of Hacker Dojo?</a></div>
+		<div style="padding-top: 50px;"><a href="http://dashboard.hackerdojo.com">Back to Dashboard</a></div>
+		<!--<a href="/">Not yet a member of Hacker Dojo?</a>-->
 </div>
+{#{% if sent %}#}
+<!--<script type="text/javascript">
+//alert("We've sent you a link to resubscribe. Check your inbox!");
+if (window.confirm("We've sent a link to you inbox. \n \nGo back to Hacker Dojo Dashboard?"))
+{
+    // They clicked Yes
+    window.location = 'http://dashboard.hackerdojo.com';
+}
+else
+{
+    // They clicked no
+}
+//window.location = 'http://dashboard.hackerdojo.com';
+</script>-->
 {% endif %}
 </center>
 {% endblock %}
