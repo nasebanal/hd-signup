@@ -662,6 +662,34 @@ class AreYouStillThereMail(webapp.RequestHandler):
         else:
             mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc)
         
+class ResubscribeHandler(webapp.RequestHandler):
+    def get(self):
+        message = escape(self.request.get('message'))
+        self.response.out.write(render('templates/resubscribe.html', locals()))
+        #templates/needaccount is almost perfect for purposes
+    def post(self):
+      email = self.request.get('email').lower()
+      if not email:
+          1+1
+          #self.redirect(str(self.request.path))
+          #alert = this is not a valid email
+      else:
+          member = Membership.all().filter('email =', email).get#.filter('status =', 'active').get()
+          if not member:
+              self.redirect(str(self.request.path + '?message=There is no active record of that email.'))
+              #alert you are not a former member
+          elif member.filter('status =','active'): #if member.status = 'active'
+              1+1
+              #alert: you are still an active member
+          else:
+              #alert an email has been set to {email} with a link to resubscribe
+              mail.send_mail(sender=EMAIL_FROM,
+                  to="%s <%s>" % (member.full_name(), member.email),
+                  subject="Renew your Hacker Dojo account",
+                  body="""Hello,\n\nHere's a link to create your Hacker Dojo account:\n\nhttp://%s/account/%s""" % (self.request.host, member.hash))
+              sent = True
+              self.response.out.write(render('templates/needaccount.html', locals()))
+
         
 class CleanupHandler(webapp.RequestHandler):
     def get(self):
@@ -995,6 +1023,7 @@ app = webapp.WSGIApplication([
         ('/cron/cache_users', CacheUsersCron),
         ('/tasks/areyoustillthere_mail', AreYouStillThereMail),
         ('/tasks/twitter_mail', TwitterMail),
+        ('/resubscribe', ResubscribeHandler),
         
         
         ], debug=True)
