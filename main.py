@@ -662,10 +662,10 @@ class AreYouStillThereMail(webapp.RequestHandler):
         else:
             mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc)
         
-class ResubscribeHandler(webapp.RequestHandler):
+class ReactivateHandler(webapp.RequestHandler):
     def get(self):
         message = escape(self.request.get('message'))
-        self.response.out.write(render('templates/resubscribe.html', locals()))
+        self.response.out.write(render('templates/reactivate.html', locals()))
         #templates/needaccount is almost perfect for purposes
     def post(self):
       c = Config()
@@ -677,20 +677,20 @@ class ResubscribeHandler(webapp.RequestHandler):
               self.redirect(str(self.request.path + '?message=You are still an active member'))
               #alert: you are still an active member
           else:
-            #alert an email has been set to {email} with a link to resubscribe
+            #alert an email has been set to {email} with a link to reactivate
             #testing:
             member_id = membership.key().id()
             spreedly_token = membership.spreedly_token
             plan_token = c.PLAN_IDS[membership.plan]
             #endtesting
             subject = "Reactivate your Hacker Dojo Membership"
-            body = render('templates/resubscribe.txt', locals()) #different template
+            body = render('templates/reactivate.txt', locals()) #different template
             to = "%s <%s>" % (membership.full_name(), membership.email)
             bcc = "%s <%s>" % ("Billing System", "robot@hackerdojo.com")
             mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc)
             sent = True
             self.response.out.write(render('templates/test.html', locals()))
-            #self.response.out.write(render('templates/resubscribe.html', locals()))
+            #self.response.out.write(render('templates/reactivate.html', locals()))
       else:
           self.redirect(str(self.request.path + '?message=There is no active record of that email.'))
         
@@ -1026,7 +1026,7 @@ app = webapp.WSGIApplication([
         ('/cron/cache_users', CacheUsersCron),
         ('/tasks/areyoustillthere_mail', AreYouStillThereMail),
         ('/tasks/twitter_mail', TwitterMail),
-        ('/resubscribe', ResubscribeHandler),
+        ('/reactivate', ReactivateHandler),
         
         
         ], debug=True)

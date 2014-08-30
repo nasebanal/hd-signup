@@ -1,6 +1,6 @@
 Hi {{membership.first_name}},
 
-This is the link to reactive your Hacker Dojo account:
+This is the link to reactivate your Hacker Dojo account:
 
 {{membership.subscribe_url}}
 
