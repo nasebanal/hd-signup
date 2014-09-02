@@ -681,8 +681,6 @@ class ReactivateHandler(webapp.RequestHandler):
             mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc)
             sent = True
             self.response.out.write(render('templates/reactivate.html', locals()))
-            #for testing:
-            #self.response.out.write(render('templates/test.html', locals()))
       else:
           self.redirect(str(self.request.path + '?message=There is no record of that email.'))
         
