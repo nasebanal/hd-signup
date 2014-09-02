@@ -958,8 +958,57 @@ class SetExtraHandler(webapp.RequestHandler):
       else:
         self.response.out.write("Need admin access")
 
+class SetParkingHandler(webapp.RequestHandler):
+    def get(self):
+      message = escape(self.request.get('message'))
+      user = users.get_current_user()
+      if not user:
+        self.redirect(users.create_login_url('/setparking'))
+      if users.is_current_user_admin():
+        #text field to enter email adress or hackerdojo username?
+        self.response.out.write(render('templates/test.html', locals()))
+      else:
+        self.response.out.write("Need admin access")
 
-
+    def post(self):
+      #email used to subscribe or hackerdojo username?
+      email = self.request.get('email').lower()
+      username = self.request.get('username').lower()
+      if email:
+        existing_member = db.GqlQuery("SELECT * FROM Membership WHERE email = :email", email=email).get()
+      else:
+        existing_member = db.GqlQuery("SELECT * FROM Membership WHERE username = :username", username=username).get()
+      if existing_member: #checks if member is a valid member
+          membership = existing_member
+          testing = False
+          if testing: #for testing; to delete attribute: change model to db.expando and comment out parking_pass
+            delattr(membership, 'parking_pass')
+            membership.put()
+            self.response.out.write("Done")
+          else: #for testing
+            if membership.status == "active":
+                if not membership.parking_pass:
+                  #finds highest parking_pass given out:
+                  parking_highest = db.GqlQuery("SELECT parking_pass FROM Membership ORDER BY parking_pass DESC").get()
+                  if parking_highest: #needed if there are no parking passes in db
+                    parking_int = int(parking_highest.parking_pass)#changes string to int
+                  else:
+                    parking_int = 0
+                  parking_int += 1
+                  parking_str = str(parking_int).zfill(6) #back to string and make 6 characters long
+                  #add parking_pass to selected member:
+                  membership.parking_pass = parking_str
+                  db.put(membership)
+                  self.response.out.write("The parking pass number is: " + membership.parking_pass) #outputs parking number
+                else:
+                    exists = True
+                    #self.response.out.write("This member already has a parking pass" + membership.parking_pass)
+                    self.response.out.write(render('templates/test.html', locals()))
+            else:
+              self.response.out.write("Not an Active Member")
+      else:
+        self.redirect(str(self.request.path + '?message=User not found'))
+        #self.response.out.write("Member Not Found")
 
 class CSVHandler(webapp.RequestHandler):
     def get(self):
@@ -1011,6 +1060,7 @@ app = webapp.WSGIApplication([
         ('/api/setextra', SetExtraHandler),
         ('/api/settwitter', SetTwitterHandler),
         ('/api/seths', SetHSHandler),
+        ('/setparking', SetParkingHandler),
         ('/tasks/create_user', CreateUserTask),
         ('/tasks/clean_row', CleanupTask),
         ('/cron/cache_users', CacheUsersCron),

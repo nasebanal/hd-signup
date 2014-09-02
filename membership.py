@@ -23,6 +23,7 @@ class Membership(db.Model):
   hardship_comment = db.TextProperty()
   
   spreedly_token = db.StringProperty()
+  parking_pass = db.StringProperty()
   
   created = db.DateTimeProperty(auto_now_add=True)
   updated = db.DateTimeProperty(auto_now=True)
