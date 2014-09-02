@@ -662,6 +662,27 @@ class AreYouStillThereMail(webapp.RequestHandler):
         else:
             mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc)
         
+class ReactivateHandler(webapp.RequestHandler):
+    def get(self):
+        message = escape(self.request.get('message'))
+        self.response.out.write(render('templates/reactivate.html', locals()))
+    def post(self):
+      email = self.request.get('email').lower()
+      existing_member = db.GqlQuery("SELECT * FROM Membership WHERE email = :email", email=email).get()
+      if existing_member:
+          membership = existing_member
+          if membership.status == "active":
+              self.redirect(str(self.request.path + '?message=You are still an active member'))
+          else:
+            subject = "Reactivate your Hacker Dojo Membership"
+            body = render('templates/reactivate.txt', locals())
+            to = "%s <%s>" % (membership.full_name(), membership.email)
+            bcc = "%s <%s>" % ("Billing System", "robot@hackerdojo.com")
+            mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc)
+            sent = True
+            self.response.out.write(render('templates/reactivate.html', locals()))
+      else:
+          self.redirect(str(self.request.path + '?message=There is no record of that email.'))
         
 class CleanupHandler(webapp.RequestHandler):
     def get(self):
@@ -995,6 +1016,7 @@ app = webapp.WSGIApplication([
         ('/cron/cache_users', CacheUsersCron),
         ('/tasks/areyoustillthere_mail', AreYouStillThereMail),
         ('/tasks/twitter_mail', TwitterMail),
+        ('/reactivate', ReactivateHandler),
         
         
         ], debug=True)

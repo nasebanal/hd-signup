@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block content %}
+<center>
+{% if sent %}
+<h2 style="margin-bottom: 20px;">
+	We've sent you a link to reactivate your Membership. Check your inbox!
+</h2>
+{% else %}
+<h4 style="margin-bottom: 20px; padding-left: 0px;">
+  Reactivate Your Hackerdojo Membership
+</h4>
+<span style="color: red; margin-bottom: 20px; display: block;">{{ message }}</span>
+<div>
+	<div style="width: 45%; background: #fee; border: 2px solid #db002a;  margin: 5px; padding: 10px;">
+		<p style="font-size: smaller;">Enter the email address you used to subscribe:</p>
+		<form action="{{self.request.path}}" method="post" style="margin:0px;">
+		<input type="text" name="email" style="font-size: larger;"/><br />
+		<input type="submit" value="Continue here" style="font-size: larger;"/>
+		</form>
+	</div>
+</div>
+{% endif %}
+<div style="padding-top: 50px;"><a href="http://dashboard.hackerdojo.com">Back to Dashboard</a></div>
+</center>
+{% endblock %}

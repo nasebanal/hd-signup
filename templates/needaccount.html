@@ -4,7 +4,7 @@
 {% if sent %}
 We've sent you a link to create your account. Check your inbox!
 {% else %}
-<h4 style="margin-bottom: 20px;">
+<h4 style="margin-bottom: 20px; padding-left: 0px;">
   Looks like you need a Hacker Dojo user account.
 </h4>
 <span style="color: red;">{{ message }}</span>
@@ -18,7 +18,7 @@ We've sent you a link to create your account. Check your inbox!
 	</div>
 
 -->	
-	<div style="width: 45%; background: #fee; border: 2px solid #db002a;  margin: 5px; margin-left:25%; padding: 10px;">
+	<div style="width: 45%; background: #fee; border: 2px solid #db002a;  margin: 5px; padding: 10px;">
 <!--		<h3>I signed up with Spreedly.</h3> -->
 		<p style="font-size: smaller;">Tell us the email address you used:</p>
 		<form action="{{self.request.path}}" method="post" style="margin:0px;">
@@ -27,7 +27,7 @@ We've sent you a link to create your account. Check your inbox!
 		</form>
 	</div>
 
-		<div style="padding-top: 200px;"><a href="/">Not yet a member of Hacker Dojo?</a></div>
+		<div style="padding-top: 100px;"><a href="/">Not yet a member of Hacker Dojo?</a></div>
 </div>
 {% endif %}
 </center>
