@@ -667,7 +667,6 @@ class ReactivateHandler(webapp.RequestHandler):
         message = escape(self.request.get('message'))
         self.response.out.write(render('templates/reactivate.html', locals()))
     def post(self):
-      c = Config()
       email = self.request.get('email').lower()
       existing_member = db.GqlQuery("SELECT * FROM Membership WHERE email = :email", email=email).get()
       if existing_member:
