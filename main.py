@@ -666,33 +666,26 @@ class ReactivateHandler(webapp.RequestHandler):
     def get(self):
         message = escape(self.request.get('message'))
         self.response.out.write(render('templates/reactivate.html', locals()))
-        #templates/needaccount is almost perfect for purposes
     def post(self):
       c = Config()
       email = self.request.get('email').lower()
       existing_member = db.GqlQuery("SELECT * FROM Membership WHERE email = :email", email=email).get()
       if existing_member:
           membership = existing_member
-          if membership.status == "active": #if member.status = 'active'
+          if membership.status == "active":
               self.redirect(str(self.request.path + '?message=You are still an active member'))
-              #alert: you are still an active member
           else:
-            #alert an email has been set to {email} with a link to reactivate
-            #testing:
-            member_id = membership.key().id()
-            spreedly_token = membership.spreedly_token
-            plan_token = c.PLAN_IDS[membership.plan]
-            #endtesting
             subject = "Reactivate your Hacker Dojo Membership"
-            body = render('templates/reactivate.txt', locals()) #different template
+            body = render('templates/reactivate.txt', locals())
             to = "%s <%s>" % (membership.full_name(), membership.email)
             bcc = "%s <%s>" % ("Billing System", "robot@hackerdojo.com")
             mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc)
             sent = True
-            self.response.out.write(render('templates/test.html', locals()))
-            #self.response.out.write(render('templates/reactivate.html', locals()))
+            self.response.out.write(render('templates/reactivate.html', locals()))
+            #for testing:
+            #self.response.out.write(render('templates/test.html', locals()))
       else:
-          self.redirect(str(self.request.path + '?message=There is no active record of that email.'))
+          self.redirect(str(self.request.path + '?message=There is no record of that email.'))
         
 class CleanupHandler(webapp.RequestHandler):
     def get(self):
