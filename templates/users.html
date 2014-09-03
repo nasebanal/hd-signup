@@ -20,6 +20,7 @@ h3 {margin-top:3em}
   <td>Status</td>
   <td>Spreedly</td>
   <td>RFID</td>
+  <td>Parking Pass</td>
 </tr>
 
 {% for u in signup_users %}  
@@ -30,6 +31,7 @@ h3 {margin-top:3em}
     <td {% if not u.status %}class="bad"{% endif %}>{{ u.status }}</td>
     <td {% if not u.spreedly_token %}class="bad"{% endif %}>{% if u.spreedly_token %}Yes{% else %}No{% endif %}</td>
     <td>{{ u.rfid_tag }}</td>
+    <td>{{ u.parking_pass }}</td>
   </tr>
 {% endfor %}
 </table>
