@@ -769,38 +769,43 @@ class KeyHandler(webapp.RequestHandler):
             return
         else:
             account = Membership.all().filter('username =', user.nickname().split("@")[0]).get()
-            if not account or not account.spreedly_token:
-                error = """<p>It appears that you have an account on @%(domain)s, but you do not have a corresponding account in the signup application.</p>
-<p>How to remedy:</p>
-<ol><li>If you <b>are not</b> in the Spreedly system yet, <a href=\"/\">sign up</a> now.</li>
-<li>If you <b>are</b> in Spreedly already, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a>.</li></ol>
-<pre>Nick: %(nick)s</pre>
-<pre>Email: %(email)s</pre>
-<pre>Account: %(account)s</pre>
-""" % {'domain': APPS_DOMAIN, 'signup_email': SIGNUP_HELP_EMAIL, 'nick': user.nickname().split("@")[0], 'email': user.email(), 'account': account}
-                if account:
-                    error += "<pre>Token: %s</pre>" % account.spreedly_token
-            
-                self.response.out.write(render('templates/error.html', locals()))
-                return
-            if account.status != "active":
-                url = "https://spreedly.com/"+c.SPREEDLY_ACCOUNT+"/subscriber_accounts/"+account.spreedly_token
-                error = """<p>Your Spreedly account status does not appear to me marked as active.  
-This might be a mistake, in which case we apologize. </p>
-<p>To investigate your account, you may go here: <a href=\"%(url)s\">%(url)s</a> </p>
-<p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a></p>
-""" % {'url': url, 'signup_email': SIGNUP_HELP_EMAIL}
-                self.response.out.write(render('templates/error.html', locals()))
-                return
-            delta = datetime.utcnow() - account.created
-            if delta.days < DAYS_FOR_KEY:
-                error = """<p>You have been a member for %(deltadays)s days.  
-After %(days)s days you qualify for a key.  Check back in %(delta)s days!</p>
-<p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Membership+create+date+not+correct\">%(signup_email)s</a>.</p>
-""" % {'deltadays': delta.days, 'days': DAYS_FOR_KEY, 'delta': DAYS_FOR_KEY-delta.days, 'signup_email': SIGNUP_HELP_EMAIL}
-                self.response.out.write(render('templates/error.html', locals()))
-                return    
-            bc = BadgeChange.all().filter('username =', account.username).fetch(100)
+            testing = True
+            if testing == True:
+              #self.redirect(users.create_logout_url('/key'))
+              1+1
+            else:
+              if not account or not account.spreedly_token:
+                  error = """<p>It appears that you have an account on @%(domain)s, but you do not have a corresponding account in the signup application.</p>
+  <p>How to remedy:</p>
+  <ol><li>If you <b>are not</b> in the Spreedly system yet, <a href=\"/\">sign up</a> now.</li>
+  <li>If you <b>are</b> in Spreedly already, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a>.</li></ol>
+  <pre>Nick: %(nick)s</pre>
+  <pre>Email: %(email)s</pre>
+  <pre>Account: %(account)s</pre>
+  """ % {'domain': APPS_DOMAIN, 'signup_email': SIGNUP_HELP_EMAIL, 'nick': user.nickname().split("@")[0], 'email': user.email(), 'account': account}
+                  if account:
+                      error += "<pre>Token: %s</pre>" % account.spreedly_token
+
+                  self.response.out.write(render('templates/error.html', locals()))
+                  return
+              if account.status != "active":
+                  url = "https://spreedly.com/"+c.SPREEDLY_ACCOUNT+"/subscriber_accounts/"+account.spreedly_token
+                  error = """<p>Your Spreedly account status does not appear to me marked as active.  
+  This might be a mistake, in which case we apologize. </p>
+  <p>To investigate your account, you may go here: <a href=\"%(url)s\">%(url)s</a> </p>
+  <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a></p>
+  """ % {'url': url, 'signup_email': SIGNUP_HELP_EMAIL}
+                  self.response.out.write(render('templates/error.html', locals()))
+                  return
+              delta = datetime.utcnow() - account.created
+              if delta.days < DAYS_FOR_KEY:
+                  error = """<p>You have been a member for %(deltadays)s days.
+  After %(days)s days you qualify for a key.  Check back in %(delta)s days!</p>
+  <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Membership+create+date+not+correct\">%(signup_email)s</a>.</p>
+  """ % {'deltadays': delta.days, 'days': DAYS_FOR_KEY, 'delta': DAYS_FOR_KEY-delta.days, 'signup_email': SIGNUP_HELP_EMAIL}
+                  self.response.out.write(render('templates/error.html', locals()))
+                  return
+              bc = BadgeChange.all().filter('username =', account.username).fetch(100)
             self.response.out.write(render('templates/key.html', locals()))
 
     def post(self):
@@ -980,9 +985,10 @@ class SetParkingHandler(webapp.RequestHandler):
         existing_member = db.GqlQuery("SELECT * FROM Membership WHERE username = :username", username=username).get()
       if existing_member: #checks if member is a valid member
           membership = existing_member
-          testing = False
+          testing = True
           if testing: #for testing; to delete attribute: change model to db.expando and comment out parking_pass
-            delattr(membership, 'parking_pass')
+            #delattr(membership, 'parking_pass')
+            membership.spreedly_token = "6789"
             membership.put()
             self.response.out.write("Done")
           else: #for testing
