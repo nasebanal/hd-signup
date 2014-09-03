@@ -17,6 +17,8 @@ table .label { text-align: right; width: 210px;}
 
 form div { margin-top: 10px; }
 
-.active {}
+#tab_bar > button {display: inline-block;}
+
+.active {background-color: blue;}
 
 .invisibile{display: none;}

@@ -3,10 +3,10 @@
 
 <!--<center><div style="padding-top: 50px; padding-bottom: 20px;"><a href="http://dashboard.hackerdojo.com">Back to Dashboard</a></div></center>-->
 <div id ="tab_bar"> <!--ul-->
-  <button id ="RFID" style = "display: inline-block;" onclick="changeId(this.id)">
+  <button id ="RFID" class = "active" onclick="changeId(this.id)">
     RFID Key
   </button>
-  <button id ="Parking" style = "display: inline-block;" onclick="changeId(this.id)">
+  <button id ="Parking" onclick="changeId(this.id)">
     Parking Pass
   </button>
 </div>
@@ -118,18 +118,25 @@ $( ".close_button" ).click(function(e) {
 */
 function changeId(clicked_id)
 {
-  //document.getElementById(clicked_id).style.display="none";
-  if (clicked_id == 'RFID')
+  var park = document.getElementById('parking_pass'); //for changing visibility of divs
+  var rfid = document.getElementById('rfid_key'); //for changing visibility of divs
+  var b1 = document.getElementById('RFID') //rfid button
+  var b2 = document.getElementById('Parking') // parking button
+  if (clicked_id == 'RFID') //change page to RFID
   {
-   document.getElementById('Parking').style.backgroundColor="gray"; //page switched to
-    document.getElementById('RFID').style.backgroundColor=""; //last page
-    alert("Class Changed To Parking");
-  }
-  else //clicked_id = parking
-  {
-    document.getElementById('RFID').style.backgroundColor="blue"; //page switched to
-    document.getElementById('Parking').style.backgroundColor=""; //last page
+    b1.className = "active" //makes button show it is the current
+    b2.className = "";
+    park.className = park.className + " invisibile"; //changes visibility
+    rfid.className = "";
     alert("Class Changed To RFID");
+  }
+  else //clicked_id = parking; change page to Parking
+  {
+    b2.className = "active" //makes button show it is the current
+    b1.className = "";
+    rfid.className = rfid.className + " invisibile";
+    park.className = "";
+    alert("Class Changed To Parking");
   }
 }
 </script>
