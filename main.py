@@ -764,6 +764,7 @@ class KeyHandler(webapp.RequestHandler):
     def get(self):
         user = users.get_current_user()
         c = Config()
+        message = escape(self.request.get('message'))
         if not user:
             self.redirect(users.create_login_url('/key'))
             return
@@ -806,6 +807,7 @@ class KeyHandler(webapp.RequestHandler):
                   self.response.out.write(render('templates/error.html', locals()))
                   return
               bc = BadgeChange.all().filter('username =', account.username).fetch(100)
+              #pp = check if there was already a parking pass?
             self.response.out.write(render('templates/key.html', locals()))
 
     def post(self):
@@ -818,27 +820,50 @@ class KeyHandler(webapp.RequestHandler):
             error = "<p>Error #1982, which should never happen."
             self.response.out.write(render('templates/error.html', locals()))
             return
-      rfid_tag = self.request.get('rfid_tag').strip()
-      description = self.request.get('description').strip()
-      if rfid_tag.isdigit():
-        if Membership.all().filter('rfid_tag =', rfid_tag).get():
-          error = "<p>That RFID tag is in use by someone else.</p>"
+      is_park = self.request.get('ispark')
+      if is_park == "True": #checks if user input is a parking pass number or an rfid number
+        pass_to_add = self.request.get('parking_pass')
+        try: #tests if there are only numbers in the parking pass
+          float(pass_to_add)
+        except ValueError:
+          error = "<p>A Parking Pass may only contain letters.</p><a href=\"/key\">Try Again</a>"
           self.response.out.write(render('templates/error.html', locals()))
-          return
-        if not description:
-          error = "<p>Please enter a reason why you are associating a replacement RFID key.  Please hit BACK and try again.</p>"
-          self.response.out.write(render('templates/error.html', locals()))
-          return
-        account.rfid_tag = rfid_tag
-        account.put()
-        bc = BadgeChange(rfid_tag = rfid_tag, username=account.username, description=description)
-        bc.put()
-        self.response.out.write(render('templates/key_ok.html', locals()))
-        return
+        if not account.parking_pass: #no existing parking pass exists
+          if (len(pass_to_add) == 6): #checks if the parking pass is 6 characters long
+            #account.parking_pass = pass_to_add
+            #db.put(account)
+            #self.response.out.write("The parking pass number is: " + account.parking_pass) #outputs parking number
+            self.response.write("OK")
+          else:
+            error = "<p>The Parking Pass is to short</p><a href=\"/key\">Try Again</a>"
+            self.response.out.write(render('templates/error.html', locals()))
+        else:
+          exists = True
+          #self.response.out.write("You already have a parking pass:" + account.parking_pass)
+          #self.response.out.write(render('templates/test.html', locals()))
+          self.response.write("Nope")
       else:
-        error = "<p>That RFID ID seemed invalid. Hit back and try again.</p>"
-        self.response.out.write(render('templates/error.html', locals()))
-        return
+        rfid_tag = self.request.get('rfid_tag').strip()
+        description = self.request.get('description').strip()
+        if rfid_tag.isdigit():
+          if Membership.all().filter('rfid_tag =', rfid_tag).get():
+            error = "<p>That RFID tag is in use by someone else.</p>"
+            self.response.out.write(render('templates/error.html', locals()))
+            return
+          if not description:
+            error = "<p>Please enter a reason why you are associating a replacement RFID key.  Please hit BACK and try again.</p>"
+            self.response.out.write(render('templates/error.html', locals()))
+            return
+          account.rfid_tag = rfid_tag
+          account.put()
+          bc = BadgeChange(rfid_tag = rfid_tag, username=account.username, description=description)
+          bc.put()
+          self.response.out.write(render('templates/key_ok.html', locals()))
+          return
+        else:
+          error = "<p>That RFID ID seemed invalid. Hit back and try again.</p>"
+          self.response.out.write(render('templates/error.html', locals()))
+          return
 
 class RFIDHandler(webapp.RequestHandler):
     def get(self):

@@ -25,6 +25,7 @@
     <textarea rows="4" cols="80" style="width:100%" name="description"></textarea>
   {% else %}
     <input type="hidden" name="description" value="Initial assignment" />
+    <input type="hidden" name="ispark" value = "False"/>
   {% endif %}
 </form>
 
@@ -74,28 +75,18 @@
 {% endif %}
 </div>
 <div id = "parking_pass" class = "invisibile">
+  <h2>Self-Serve Parking Pass Assignment</h2>
+  <p>This page lets you associate an Parking Pass with your {{org_name}} account.</p>
+  <p>Simply grab an Parking Pass from the lobby and enter the numbers printed on it here, including the zeros.</p>
+
   <center>
-  <h4 style="margin-bottom: 20px; padding-left: 0px;">
-    Parking Pass
-  </h4>
-  <span style="color: red; margin-bottom: 20px; display: block;">{{ message }}</span>
-  <div>
-    <div style="width: 80%; background: #fee; border: 2px solid #db002a;  margin: 5px; padding: 10px;">
-    <p style="font-size: smaller;">
-      Enter Member Email or Username:
-    </p>
-      {% if not exists %}
-      <form action="{{self.request.path}}" method="post" style="margin:0px;">
-      Email <input type="text" name="email" style="font-size: larger;  display: block;"/><br />
-      Username <input type="text" name="username" style="font-size: larger;  display: block;"/><br />
-      <input type="submit" value="Continue here" style="font-size: larger;"/>
-      </form>
-      {% endif %}
-      {% if exists %}
-      <div style = "font-size: larger;">This Parking Pass already exists: {{membership.parking_pass}}</div>
-      {% endif %}
-    </div>
-  </div>
+    <form action="{{self.request.path}}" method="post" style="width:80%; background:#efe9fe; margin: 5px; padding: 10px; display: block;">
+      <p style = "margin-top: 5px;">Enter Parking Pass:</p>
+      <input type="text" name="parking_pass" style="font-size: larger;  display: block;"/>
+      <br>
+      <input type="submit" value="Save" style="font-size:22px" />
+      <input type="hidden" name="ispark" value = "True"/>
+    </form>
   </center>
 </div>
 {% endblock %}
@@ -128,7 +119,6 @@ function changeId(clicked_id)
     b2.className = "";
     park.className = park.className + " invisibile"; //changes visibility
     rfid.className = "";
-    alert("Class Changed To RFID");
   }
   else //clicked_id = parking; change page to Parking
   {
@@ -136,7 +126,6 @@ function changeId(clicked_id)
     b1.className = "";
     rfid.className = rfid.className + " invisibile";
     park.className = "";
-    alert("Class Changed To Parking");
   }
 }
 </script>
