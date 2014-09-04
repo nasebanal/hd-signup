@@ -1,14 +1,11 @@
 {% extends 'base.html' %}
 {% block content %}
-
 <!--<center><div style="padding-top: 50px; padding-bottom: 20px;"><a href="http://dashboard.hackerdojo.com">Back to Dashboard</a></div></center>-->
-<div id ="tab_bar"> <!--ul-->
-  <button id ="RFID" class = "active" onclick="changeId(this.id)">
-    RFID Key
-  </button>
-  <button id ="Parking" onclick="changeId(this.id)">
-    Parking Pass
-  </button>
+<div id ="tab_bar">
+  <ul class="nav nav-tabs nav-justified" role="tablist">
+    <li id = "RFID" class="active" onclick="changeId(this.id)"><a>RFID Key</a></li>
+    <li id = "Parking" onclick="changeId(this.id)"><a>Parking Pass</a></li>
+  </ul>
 </div>
 <div id ="rfid_key">
 <h2>Self-Serve Key Assignment</h2>
@@ -111,22 +108,23 @@ function changeId(clicked_id)
 {
   var park = document.getElementById('parking_pass'); //for changing visibility of divs
   var rfid = document.getElementById('rfid_key'); //for changing visibility of divs
-  var b1 = document.getElementById('RFID') //rfid button
-  var b2 = document.getElementById('Parking') // parking button
+  var b1 = document.getElementById('RFID') //rfid Tab
+  var b2 = document.getElementById('Parking') // parking Tab
   if (clicked_id == 'RFID') //change page to RFID
   {
-    b1.className = "active" //makes button show it is the current
+    b1.className = "active" //makes tab show it is the current
     b2.className = "";
     park.className = park.className + " invisibile"; //changes visibility
     rfid.className = "";
   }
   else //clicked_id = parking; change page to Parking
   {
-    b2.className = "active" //makes button show it is the current
+    b2.className = "active" //makes tab show it is the current
     b1.className = "";
     rfid.className = rfid.className + " invisibile";
     park.className = "";
   }
 }
 </script>
+<link href="/static/bootstrap-signup.css" type="text/css" rel="stylesheet" />
 {% endblock %}
