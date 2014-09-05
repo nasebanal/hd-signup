@@ -1,4 +1,7 @@
 {% extends 'base.html' %}
+{% block extrahead %}
+<link href="/static/bootstrap-signup.css" type="text/css" rel="stylesheet" />
+{% endblock %}
 {% block content %}
 <!--<center><div style="padding-top: 50px; padding-bottom: 20px;"><a href="http://dashboard.hackerdojo.com">Back to Dashboard</a></div></center>-->
 <div id ="tab_bar">
@@ -73,12 +76,18 @@
 </div>
 <div id = "parking_pass" class = "invisibile">
   <h2>Self-Serve Parking Pass Assignment</h2>
-  <p>This page lets you associate an Parking Pass with your {{org_name}} account.</p>
-  <p>Simply grab an Parking Pass from the lobby and enter the numbers printed on it here, including the zeros.</p>
-
+  {% if pp %}
+    <br>
+    <p style="text-align:left; color: green; font-size: larger;">You already have a Parking Pass: {{account.parking_pass}}</p>
+    <p>You can update your Parking Pass below.</p>
+  {% else %}
+    <p>This page lets you associate a Parking Pass with your {{org_name}} account.</p>
+    <p>Simply grab a Parking Pass from the lobby and enter the numbers printed on it here, including the zeros.</p>
+  {% endif %}
+  <br>
   <center>
     <form action="{{self.request.path}}" method="post" style="width:80%; background:#efe9fe; margin: 5px; padding: 10px; display: block;">
-      <p style = "margin-top: 5px;">Enter Parking Pass:</p>
+      <p style = "margin-top: 5px;"><b>Enter Parking Pass:</b></p>
       <input type="text" name="parking_pass" style="font-size: larger;  display: block;"/>
       <br>
       <input type="submit" value="Save" style="font-size:22px" />
@@ -126,5 +135,4 @@ function changeId(clicked_id)
   }
 }
 </script>
-<link href="/static/bootstrap-signup.css" type="text/css" rel="stylesheet" />
 {% endblock %}

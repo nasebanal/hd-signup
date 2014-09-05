@@ -4,6 +4,8 @@ This is the link to reactivate your Hacker Dojo account:
 
 {{membership.subscribe_url}}
 
+Your Hacker Dojo username is: {{membership.username}}
+
 If you need billing help, please contact treasurer@hackerdojo.com.
 
 Cheers,
