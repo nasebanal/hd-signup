@@ -526,7 +526,7 @@ class MemberListHandler(webapp.RequestHandler):
       user = users.get_current_user()
       if not user:
         self.redirect(users.create_login_url('/memberlist'))
-      signup_users = Membership.all().order('status').order('last_name').fetch(10000);#run
+      signup_users = Membership.all().order("last_name").fetch(10000);
       self.response.out.write(render('templates/memberlist.html', locals()))
 
 class DebugHandler(webapp.RequestHandler):
