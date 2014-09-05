@@ -2,6 +2,7 @@
   <head>
     <title>{{org_name}} Member Signup</title>
     <link href="/static/style.css" type="text/css" rel="stylesheet" />
+    {% block extrahead %}{% endblock %}
   </head>
   <body>
     <div id="wrapper">
@@ -40,4 +41,5 @@
   })();
 
 </script>  
+{% block script %}{% endblock %}
 </html>

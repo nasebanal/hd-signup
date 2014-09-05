@@ -16,3 +16,5 @@ table { margin-top: 50px;}
 table .label { text-align: right; width: 210px;}
 
 form div { margin-top: 10px; }
+
+.invisibile{display: none;}

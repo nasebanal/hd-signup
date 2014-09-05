@@ -614,7 +614,7 @@ class AllHandler(webapp.RequestHandler):
 #        active_usernames = [m.lower() for m in active_usernames]
 #        users_not_on_domain = set(signup_usernames) - set(domain_usernames)
 #        users_not_on_signup = set(domain_usernames) - set(active_usernames)
-        signup_users = sorted(signup_users, key=lambda user: user.last_name.lower())        
+        signup_users = sorted(signup_users, key=lambda user: user.last_name.lower())
         self.response.out.write(render('templates/users.html', locals()))
       else:
         self.response.out.write("Need admin access")
@@ -702,9 +702,16 @@ class CleanupTask(webapp.RequestHandler):
         user = Membership.get_by_id(int(self.request.get('user')))
         try:
           mail.send_mail(sender=EMAIL_FROM,
-             to=user.email,
-             subject="Hi again -- from Hacker Dojo!",
-             body="Hi "+user.first_name+",\n\nOur fancy membership system noted that you started filling out the Membership Signup form, but didn't complete it.\n\nWell -- We'd love to have you as a member!\n\n Hacker Dojo has grown by leaps and bounds in recent years.  Give us a try?\n\nIf you would like to become a member of Hacker Dojo, just complete the signup process at http://signup.hackerdojo.com\n\nIf you don't want to sign up -- please give us anonymous feedback so we know how we can do better!  URL: http://bit.ly/jJAGYM\n\n Cheers!\nHacker Dojo\n\nPS: Please ignore this e-mail if you already signed up -- you might have started signing up twice or something :)\nPSS: This is an automated e-mail and we're now deleting your e-mail address from the signup application"
+              to=user.email,
+              subject="Hi again -- from Hacker Dojo!",
+              body="Hi "+user.first_name+""",
+              \nOur fancy membership system noted that you started filling out the Membership Signup form, but didn't complete it.
+              \nWell -- We'd love to have you as a member!
+              \nHacker Dojo has grown by leaps and bounds in recent years.  Give us a try?
+              \nIf you would like to become a member of Hacker Dojo, just complete the signup process at http://signup.hackerdojo.com
+              \nIf you don't want to sign up -- please give us anonymous feedback so we know how we can do better!  URL: http://bit.ly/jJAGYM
+              \nCheers!\nHacker Dojo\n\nPS: Please ignore this e-mail if you already signed up -- you might have started signing up twice or something :)
+              PSS: This is an automated e-mail and we're now deleting your e-mail address from the signup application"""
           )
         except:  
           noop = True
@@ -764,6 +771,7 @@ class KeyHandler(webapp.RequestHandler):
     def get(self):
         user = users.get_current_user()
         c = Config()
+        message = escape(self.request.get('message'))
         if not user:
             self.redirect(users.create_login_url('/key'))
             return
@@ -771,36 +779,36 @@ class KeyHandler(webapp.RequestHandler):
             account = Membership.all().filter('username =', user.nickname().split("@")[0]).get()
             if not account or not account.spreedly_token:
                 error = """<p>It appears that you have an account on @%(domain)s, but you do not have a corresponding account in the signup application.</p>
-<p>How to remedy:</p>
-<ol><li>If you <b>are not</b> in the Spreedly system yet, <a href=\"/\">sign up</a> now.</li>
-<li>If you <b>are</b> in Spreedly already, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a>.</li></ol>
-<pre>Nick: %(nick)s</pre>
-<pre>Email: %(email)s</pre>
-<pre>Account: %(account)s</pre>
-""" % {'domain': APPS_DOMAIN, 'signup_email': SIGNUP_HELP_EMAIL, 'nick': user.nickname().split("@")[0], 'email': user.email(), 'account': account}
+                <p>How to remedy:</p>
+                <ol><li>If you <b>are not</b> in the Spreedly system yet, <a href=\"/\">sign up</a> now.</li>
+                <li>If you <b>are</b> in Spreedly already, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a>.</li></ol>
+                <pre>Nick: %(nick)s</pre>
+                <pre>Email: %(email)s</pre>
+                <pre>Account: %(account)s</pre>
+                """ % {'domain': APPS_DOMAIN, 'signup_email': SIGNUP_HELP_EMAIL, 'nick': user.nickname().split("@")[0], 'email': user.email(), 'account': account}
                 if account:
                     error += "<pre>Token: %s</pre>" % account.spreedly_token
-            
+
                 self.response.out.write(render('templates/error.html', locals()))
                 return
             if account.status != "active":
                 url = "https://spreedly.com/"+c.SPREEDLY_ACCOUNT+"/subscriber_accounts/"+account.spreedly_token
-                error = """<p>Your Spreedly account status does not appear to me marked as active.  
-This might be a mistake, in which case we apologize. </p>
-<p>To investigate your account, you may go here: <a href=\"%(url)s\">%(url)s</a> </p>
-<p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a></p>
-""" % {'url': url, 'signup_email': SIGNUP_HELP_EMAIL}
+                error = """<p>Your Spreedly account status does not appear to me marked as active. This might be a mistake, in which case we apologize. </p>
+                <p>To investigate your account, you may go here: <a href=\"%(url)s\">%(url)s</a> </p>
+                <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a></p>
+                """ % {'url': url, 'signup_email': SIGNUP_HELP_EMAIL}
                 self.response.out.write(render('templates/error.html', locals()))
                 return
             delta = datetime.utcnow() - account.created
             if delta.days < DAYS_FOR_KEY:
-                error = """<p>You have been a member for %(deltadays)s days.  
-After %(days)s days you qualify for a key.  Check back in %(delta)s days!</p>
-<p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Membership+create+date+not+correct\">%(signup_email)s</a>.</p>
-""" % {'deltadays': delta.days, 'days': DAYS_FOR_KEY, 'delta': DAYS_FOR_KEY-delta.days, 'signup_email': SIGNUP_HELP_EMAIL}
+                error = """<p>You have been a member for %(deltadays)s days.
+                After %(days)s days you qualify for a key.  Check back in %(delta)s days!</p>
+                <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Membership+create+date+not+correct\">%(signup_email)s</a>.</p>
+                """ % {'deltadays': delta.days, 'days': DAYS_FOR_KEY, 'delta': DAYS_FOR_KEY-delta.days, 'signup_email': SIGNUP_HELP_EMAIL}
                 self.response.out.write(render('templates/error.html', locals()))
-                return    
+                return
             bc = BadgeChange.all().filter('username =', account.username).fetch(100)
+            pp = account.parking_pass
             self.response.out.write(render('templates/key.html', locals()))
 
     def post(self):
@@ -813,27 +821,40 @@ After %(days)s days you qualify for a key.  Check back in %(delta)s days!</p>
             error = "<p>Error #1982, which should never happen."
             self.response.out.write(render('templates/error.html', locals()))
             return
-      rfid_tag = self.request.get('rfid_tag').strip()
-      description = self.request.get('description').strip()
-      if rfid_tag.isdigit():
-        if Membership.all().filter('rfid_tag =', rfid_tag).get():
-          error = "<p>That RFID tag is in use by someone else.</p>"
+      is_park = self.request.get('ispark')
+      if is_park == "True": #checks if user input is a parking pass number or an rfid number
+        pass_to_add = self.request.get('parking_pass')
+        try: #tests if there are only numbers in the parking pass
+          float(pass_to_add)
+        except ValueError:
+          error = "<p>A Parking Pass may only contain numbers.</p><a href=\"/key\">Try Again</a>"
           self.response.out.write(render('templates/error.html', locals()))
           return
-        if not description:
-          error = "<p>Please enter a reason why you are associating a replacement RFID key.  Please hit BACK and try again.</p>"
-          self.response.out.write(render('templates/error.html', locals()))
-          return
-        account.rfid_tag = rfid_tag
-        account.put()
-        bc = BadgeChange(rfid_tag = rfid_tag, username=account.username, description=description)
-        bc.put()
-        self.response.out.write(render('templates/key_ok.html', locals()))
-        return
+        account.parking_pass = pass_to_add
+        db.put(account)
+        self.response.out.write(render('templates/pass_ok.html', locals())) #outputs the parking number
       else:
-        error = "<p>That RFID ID seemed invalid. Hit back and try again.</p>"
-        self.response.out.write(render('templates/error.html', locals()))
-        return
+        rfid_tag = self.request.get('rfid_tag').strip()
+        description = self.request.get('description').strip()
+        if rfid_tag.isdigit():
+          if Membership.all().filter('rfid_tag =', rfid_tag).get():
+            error = "<p>That RFID tag is in use by someone else.</p>"
+            self.response.out.write(render('templates/error.html', locals()))
+            return
+          if not description:
+            error = "<p>Please enter a reason why you are associating a replacement RFID key.  Please hit BACK and try again.</p>"
+            self.response.out.write(render('templates/error.html', locals()))
+            return
+          account.rfid_tag = rfid_tag
+          account.put()
+          bc = BadgeChange(rfid_tag = rfid_tag, username=account.username, description=description)
+          bc.put()
+          self.response.out.write(render('templates/key_ok.html', locals()))
+          return
+        else:
+          error = "<p>That RFID ID seemed invalid. Hit back and try again.</p>"
+          self.response.out.write(render('templates/error.html', locals()))
+          return
 
 class RFIDHandler(webapp.RequestHandler):
     def get(self):
@@ -957,9 +978,6 @@ class SetExtraHandler(webapp.RequestHandler):
           self.response.out.write("User not found")
       else:
         self.response.out.write("Need admin access")
-
-
-
 
 class CSVHandler(webapp.RequestHandler):
     def get(self):

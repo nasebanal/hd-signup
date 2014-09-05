@@ -1,8 +1,16 @@
 {% extends 'base.html' %}
+{% block extrahead %}
+<link href="/static/bootstrap-signup.css" type="text/css" rel="stylesheet" />
+{% endblock %}
 {% block content %}
-
-
-
+<!--<center><div style="padding-top: 50px; padding-bottom: 20px;"><a href="http://dashboard.hackerdojo.com">Back to Dashboard</a></div></center>-->
+<div id ="tab_bar">
+  <ul class="nav nav-tabs nav-justified" role="tablist">
+    <li id = "RFID" class="active" onclick="changeId(this.id)"><a>RFID Key</a></li>
+    <li id = "Parking" onclick="changeId(this.id)"><a>Parking Pass</a></li>
+  </ul>
+</div>
+<div id ="rfid_key">
 <h2>Self-Serve Key Assignment</h2>
 
 <p>This page lets you associate an RFID tag with your {{org_name}} account.</p>
@@ -17,21 +25,22 @@
     <textarea rows="4" cols="80" style="width:100%" name="description"></textarea>
   {% else %}
     <input type="hidden" name="description" value="Initial assignment" />
+    <input type="hidden" name="ispark" value = "False"/>
   {% endif %}
 </form>
 
 
 {% if bc %}
-  
+
   <h3>RFID Tag Assignment History</h3>
-  
+
   <style>
   .log td {border-bottom:1px solid #ccc; border-right:1px solid #ccc; font-size:12px; padding:2px}
   table.log {border-left:1px solid #ccc; border-top:1px solid #ccc; margin-top:0}
   .log .header {font-weight:bold;}
   h3 {margin-top:3em}
   </style>
-  
+
   <table class="log" width="100%" cellspacing="0" cellpadding="0" border="0">
   <tr class="header">
     <td>Timestamp</td>
@@ -39,7 +48,7 @@
     <td>RFID ID</td>
     <td>Description</td>
   </tr>
-  {% for c in bc %}  
+  {% for c in bc %}
     <tr>
       <td>{{ c.created }}</td>
       <td>{{ c.username }}</td>
@@ -64,6 +73,51 @@
 
 
 {% endif %}
-  
-  
+</div>
+<div id = "parking_pass" class = "invisibile">
+  <h2>Self-Serve Parking Pass Assignment</h2>
+  {% if pp %}
+    <br>
+    <p style="text-align:left; color: green; font-size: larger;">You already have a Parking Pass: {{account.parking_pass}}</p>
+    <p>You can update your Parking Pass below.</p>
+  {% else %}
+    <p>This page lets you associate a Parking Pass with your {{org_name}} account.</p>
+    <p>Simply grab a Parking Pass from the lobby and enter the numbers printed on it here, including the zeros.</p>
+  {% endif %}
+  <br>
+  <center>
+    <form action="{{self.request.path}}" method="post" style="width:80%; background:#efe9fe; margin: 5px; padding: 10px; display: block;">
+      <p style = "margin-top: 5px;"><b>Enter Parking Pass:</b></p>
+      <input type="text" name="parking_pass" style="font-size: larger;  display: block;"/>
+      <br>
+      <input type="submit" value="Save" style="font-size:22px" />
+      <input type="hidden" name="ispark" value = "True"/>
+    </form>
+  </center>
+</div>
+{% endblock %}
+{% block script %}
+<script type="text/javascript">
+function changeId(clicked_id)
+{
+  var park = document.getElementById('parking_pass'); //for changing visibility of divs
+  var rfid = document.getElementById('rfid_key'); //for changing visibility of divs
+  var b1 = document.getElementById('RFID') //rfid Tab
+  var b2 = document.getElementById('Parking') // parking Tab
+  if (clicked_id == 'RFID') //change page to RFID
+  {
+    b1.className = "active" //makes tab show it is the current
+    b2.className = "";
+    park.className = park.className + " invisibile"; //changes visibility
+    rfid.className = "";
+  }
+  else //clicked_id = parking; change page to Parking
+  {
+    b2.className = "active" //makes tab show it is the current
+    b1.className = "";
+    rfid.className = rfid.className + " invisibile";
+    park.className = "";
+  }
+}
+</script>
 {% endblock %}
