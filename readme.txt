@@ -1,5 +1,8 @@
 How to Work on this app
 
+You'll have to download the required externals to use it locally:
+`pip install -t externals -r requirements.txt` (For Linux)
+
 Keymaster Error:
 Navigate to /_km/key
 Login as admin
