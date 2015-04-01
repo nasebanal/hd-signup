@@ -9,7 +9,7 @@ from google.appengine.ext.webapp import template
 import json
 from cgi import escape
 from pprint import pprint
-from datetime import datetime, date, time
+from datetime import datetime, date, time, timedelta
 
 from config import Config
 from membership import Membership
@@ -19,20 +19,23 @@ import keymaster
 import base64
 import sys
 
-ORG_NAME = 'Hacker Dojo'
-APP_NAME = app_identity.get_application_id()
-EMAIL_FROM = "Dojo Signup <no-reply@%s.appspotmail.com>" % APP_NAME
-EMAIL_FROM_AYST = "Billing System <robot@hackerdojo.com>"
-DAYS_FOR_KEY = 0
-INTERNAL_DEV_EMAIL = "Internal Dev <internal-dev@hackerdojo.com>"
-DOMAIN_HOST = 'domain.hackerdojo.com'
-DOMAIN_USER = 'api@hackerdojo.com'
-SUCCESS_HTML_URL = 'http://hackerdojo.pbworks.com/api_v2/op/GetPage/page/SubscriptionSuccess/_type/html'
-PAYPAL_EMAIL = 'PayPal <paypal@hackerdojo.com>'
-APPS_DOMAIN = 'hackerdojo.com'
-SIGNUP_HELP_EMAIL = 'signupops@hackerdojo.com'
-TREASURER_EMAIL = 'treasurer@hackerdojo.com'
-GOOGLE_ANALYTICS_ID = 'UA-11332872-2'
+import dateutil.parser
+
+if __name__ == '__main__':
+    ORG_NAME = 'Hacker Dojo'
+    APP_NAME = app_identity.get_application_id()
+    EMAIL_FROM = "Dojo Signup <no-reply@%s.appspotmail.com>" % APP_NAME
+    EMAIL_FROM_AYST = "Billing System <robot@hackerdojo.com>"
+    DAYS_FOR_KEY = 0
+    INTERNAL_DEV_EMAIL = "Internal Dev <internal-dev@hackerdojo.com>"
+    DOMAIN_HOST = 'domain.hackerdojo.com'
+    DOMAIN_USER = 'api@hackerdojo.com'
+    SUCCESS_HTML_URL = 'http://hackerdojo.pbworks.com/api_v2/op/GetPage/page/SubscriptionSuccess/_type/html'
+    PAYPAL_EMAIL = 'PayPal <paypal@hackerdojo.com>'
+    APPS_DOMAIN = 'hackerdojo.com'
+    SIGNUP_HELP_EMAIL = 'signupops@hackerdojo.com'
+    TREASURER_EMAIL = 'treasurer@hackerdojo.com'
+    GOOGLE_ANALYTICS_ID = 'UA-11332872-2'
 
 def fetch_usernames(use_cache=True):
     usernames = memcache.get('usernames')
@@ -90,17 +93,17 @@ Hi %s,
 It looks like you just tried using your RFID key to open the doors to Hacker Dojo.
 
 One teeny tiny issue, it looks like your membership has lapsed!  This can happen by mistake sometimes, so no worries at all.  The good news is you can reactivate your membership with only a few clicks:
- 
+
 %s
- 
+
 With warmest regards,
 The Lobby Door
 """ % (m.first_name,m.subscribe_url())
                      deferred.defer(mail.send_mail, sender="Maglock <robot@hackerdojo.com>", to=m.email,
-                     subject=subject, body=body, _queue="emailthrottle")    
+                     subject=subject, body=body, _queue="emailthrottle")
                 else:
                   username = "unknown ("+rfid_tag+")"
-                  success = False   
+                  success = False
                 rs = RFIDSwipe(username=username, rfid_tag=rfid_tag, success=success)
                 rs.put()
                 if "mark.hutsell" in username or "some.other.evilguy" in username:
@@ -111,7 +114,7 @@ The Lobby Door
 
 class BadgeChange(db.Model):
     created = db.DateTimeProperty(auto_now_add=True)
-    rfid_tag = db.StringProperty()    
+    rfid_tag = db.StringProperty()
     username = db.StringProperty()
     description = db.StringProperty()
 
@@ -119,18 +122,18 @@ class MainHandler(webapp.RequestHandler):
     def get(self):
         signup_users = Membership.all().fetch(10000)
         template_values = {
-            'plan': self.request.get('plan', 'full'),
+            'plan': self.request.get('plan', 'newfull'),
             'paypal': self.request.get('paypal')}
         self.response.out.write(render('templates/main.html', template_values))
-    
+
     def post(self):
         refer = self.request.get('refer')
         first_name = self.request.get('first_name')
         last_name = self.request.get('last_name')
         twitter = self.request.get('twitter').lower().strip().strip('@')
         email = self.request.get('email').lower().strip()
-        plan = self.request.get('plan', 'full')
-        
+        plan = self.request.get('plan', 'newfull')
+
         # See if the referring user is valid.
         try:
           ref_first_name = refer.split()[0]
@@ -141,7 +144,7 @@ class MainHandler(webapp.RequestHandler):
               last_name = ref_last_name).get()
         except IndexError:
           referred_user = None
-        
+
         if not first_name or not last_name or not email:
             self.response.out.write(render('templates/main.html', {
                 'plan': plan, 'message': "Sorry, we need name and e-mail address."}))
@@ -149,8 +152,8 @@ class MainHandler(webapp.RequestHandler):
           self.response.out.write(render('templates/main.html', {
             'plan': plan,
             'message': "The person who referred you is not an active user."}))
+
         else:
-            
             # this just runs a check twice. (there is no OR in GQL)
             # first name, last name
             existing_member = db.GqlQuery("SELECT * FROM Membership WHERE first_name = :first_name AND last_name = :last_name", first_name=first_name, last_name=last_name).get()
@@ -168,12 +171,12 @@ class MainHandler(webapp.RequestHandler):
             username = '.'.join([first_part, last_part]).lower()
             if username in fetch_usernames():
                 username = email.split('@')[0].lower()
-            
+
             # username@hackerdojo.com
             existing_member = db.GqlQuery("SELECT * FROM Membership WHERE email = :email", email='%s@hackerdojo.com' % username).get()
             if existing_member:
                 membership = existing_member
-            
+
             try:
                 membership
                 if membership.extra_dnd == True:
@@ -181,11 +184,10 @@ class MainHandler(webapp.RequestHandler):
                     return
                 if membership.status == "suspended":
                     c = Config()
-                    self.redirect(str("https://www.spreedly.com/%s/subscriber_accounts/%s" % (c.SPREEDLY_ACCOUNT, membership.spreedly_token)))              
+                    self.redirect(str("https://www.spreedly.com/%s/subscriber_accounts/%s" % (c.SPREEDLY_ACCOUNT, membership.spreedly_token)))
             except NameError:
                 membership = None
 
-                
             # old code below
             #existing_member = Membership.get_by_email(email)
             #if existing_member and existing_member.status in [None, 'paypal']:
@@ -206,7 +208,7 @@ class MainHandler(webapp.RequestHandler):
                 else:
                     membership.referrer = self.request.get('referrer').replace('\n', ' ')
                 membership.put()
-            
+
             # if there is a membership, redirect here
             if membership.status != "active":
               #self.redirect(str('/account/%s' % membership.hash))
@@ -226,6 +228,8 @@ class MainHandler(webapp.RequestHandler):
             else:
               self.response.out.write(render('templates/main.html',
                 {'message': 'The Email address is registered in our system.'}))
+
+
 class AccountHandler(webapp.RequestHandler):
     def get(self, hash):
         membership = Membership.get_by_hash(hash)
@@ -245,7 +249,7 @@ class AccountHandler(webapp.RequestHandler):
           self.response.out.write(render('templates/account.html', locals()))
         else:
           self.response.out.write("404 Not Found")
-    
+
     def post(self, hash):
         username = self.request.get('username')
         password = self.request.get('password')
@@ -259,17 +263,17 @@ class AccountHandler(webapp.RequestHandler):
             if membership.username:
                 self.redirect(str(self.request.path + "?message=You already have a user account"))
                 return
-            
+
             # Yes, storing their username and password temporarily so we can make their account later
-            memcache.set(str(hashlib.sha1(str(membership.hash)+c.SPREEDLY_APIKEY).hexdigest()), 
+            memcache.set(str(hashlib.sha1(str(membership.hash)+c.SPREEDLY_APIKEY).hexdigest()),
                 '%s:%s' % (username, password), time=3600)
-            
+
             if membership.status == 'active':
                 taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': membership.hash}, countdown=3)
                 self.redirect(str('http://%s/success/%s' % (self.request.host, membership.hash)))
             else:
                 customer_id = membership.key().id()
-                
+
                 # This code is not weird...
                 if "1337" in membership.referrer:
 
@@ -307,25 +311,25 @@ class AccountHandler(webapp.RequestHandler):
                         'Content-Type':'application/xml'}
                     # Create subscriber
                     data = "<subscriber><customer-id>%s</customer-id><email>%s</email></subscriber>" % (customer_id, membership.email)
-                    resp = urlfetch.fetch("https://subs.pinpayments.com/api/v4/%s/subscribers.xml" % (c.SPREEDLY_ACCOUNT), 
+                    resp = urlfetch.fetch("https://subs.pinpayments.com/api/v4/%s/subscribers.xml" % (c.SPREEDLY_ACCOUNT),
                             method='POST', payload=data, headers = headers, deadline=5)
                     # Credit
                     data = "<credit><amount>95.00</amount></credit>"
-                    resp = urlfetch.fetch("https://subs.pinpayments.com/api/v4/%s/subscribers/%s/credits.xml" % (c.SPREEDLY_ACCOUNT, customer_id), 
+                    resp = urlfetch.fetch("https://subs.pinpayments.com/api/v4/%s/subscribers/%s/credits.xml" % (c.SPREEDLY_ACCOUNT, customer_id),
                             method='POST', payload=data, headers=headers, deadline=5)
 
                     uc = UsedCode(code=membership.referrer,email=membership.email,extra='OK')
                     uc.put()
-                
-                query_str = urllib.urlencode({'first_name': membership.first_name, 'last_name': membership.last_name, 
+
+                query_str = urllib.urlencode({'first_name': membership.first_name, 'last_name': membership.last_name,
                     'email': membership.email, 'return_url':
                     'http://%s/success/%s' % (self.request.host, membership.hash)})
                 # check if they are active already since we didn't create a new member above
                 # apparently the URL will be different
-                self.redirect(str("https://spreedly.com/%s/subscribers/%s/subscribe/%s/%s?%s" % 
+                self.redirect(str("https://spreedly.com/%s/subscribers/%s/subscribe/%s/%s?%s" %
                     (c.SPREEDLY_ACCOUNT, customer_id, c.PLAN_IDS[membership.plan], username, query_str)))
 
-            
+
 class CreateUserTask(webapp.RequestHandler):
     def post(self):
         def fail(exception):
@@ -341,7 +345,7 @@ class CreateUserTask(webapp.RequestHandler):
                     params={'hash': self.request.get('hash'), 'retries': retries})
             else:
                 fail(Exception("Too many retries for %s" % self.request.get('hash')))
-        
+
         c = Config()
         user_hash = self.request.get('hash')
         membership = Membership.get_by_hash(user_hash)
@@ -351,12 +355,12 @@ class CreateUserTask(webapp.RequestHandler):
             logging.warn("CreateUserTask: No spreedly token yet, retrying")
             return retry(300)
 
-            
+
         try:
             username, password = memcache.get(hashlib.sha1(membership.hash+c.SPREEDLY_APIKEY).hexdigest()).split(':')
         except (AttributeError, ValueError):
             return fail(Exception("Account information expired for %s" % membership.email))
-            
+
         try:
             url = 'http://%s/users' % DOMAIN_HOST
             payload = urllib.urlencode({
@@ -386,7 +390,6 @@ class CreateUserTask(webapp.RequestHandler):
             return fail(e)
 
 
-
 class UnsubscribeHandler(webapp.RequestHandler):
     def get(self, id):
         member = Membership.get_by_id(int(id))
@@ -408,6 +411,7 @@ class UnsubscribeHandler(webapp.RequestHandler):
         else:
             self.response.out.write("error: could not locate your membership record.")
 
+
 class SuccessHandler(webapp.RequestHandler):
     @classmethod
     def send_email(cls, member):
@@ -428,11 +432,12 @@ class SuccessHandler(webapp.RequestHandler):
           is_prod = c.is_prod
           self.response.out.write(render('templates/success.html', locals()))
 
+
 class NeedAccountHandler(webapp.RequestHandler):
     def get(self):
         message = escape(self.request.get('message'))
         self.response.out.write(render('templates/needaccount.html', locals()))
-    
+
     def post(self):
         email = self.request.get('email').lower()
         if not email:
@@ -448,6 +453,7 @@ class NeedAccountHandler(webapp.RequestHandler):
                     body="""Hello,\n\nHere's a link to create your Hacker Dojo account:\n\nhttp://%s/account/%s""" % (self.request.host, member.hash))
                 sent = True
                 self.response.out.write(render('templates/needaccount.html', locals()))
+
 
 class UpdateHandler(webapp.RequestHandler):
     def suspend(self, username):
@@ -476,22 +482,65 @@ class UpdateHandler(webapp.RequestHandler):
 
     def get(self):
         pass
-    
-    def post(self, ids=None):
+
+    """ Handle PinPayments XML data for a particular subscriber, updating the
+    corresponding membership instance to be on the proper plan and have the
+    proper status.
+    subscriber: The input dictionary to interpret from the XML response.
+    member: The membership object to update. """
+    def update_plan(self, subscriber, member):
+        if subscriber['active'] == 'true':
+            # Membership is active.
+            member.status = 'active'
+        else:
+            # Membership is not active.
+            member.status = 'suspended'
+
+            if member.plan == 'full':
+                # If they are on a legacy plan, we have to figure out
+                # whether they can stay on it.
+                if subscriber['ready-to-renew'] == 'true':
+                    # Membership wasn't cancelled, it expired.
+                    # Figure out how long ago it expired.
+                    expire_date = \
+                        dateutil.parser.parse(
+                            subscriber['ready-to-renew-since'])
+                    expired_time = datetime.now() - expire_date
+                    logging.debug("Plan expired for %s" % (str(expired_time)))
+
+                    if expired_time >= timedelta(30):
+                        # If it expired more than 30 days ago, we are
+                        # not even going to consider giving them the
+                        # legacy rate again.
+                        logging.info("Not renewing legacy plan for %s"
+                                  "due to excessive wait time." %
+                                  (member.username))
+                        member.plan = 'newfull'
+                else:
+                    # Membership was cancelled. In this case, they don't
+                    # get to stay on the legacy plan.
+                    logging.info("Not renewing legacy plan for %s because"
+                              "it was cancelled." % (member.username))
+                    member.plan = 'newfull'
+
+    def post(self):
         subscriber_ids = self.request.get('subscriber_ids').split(',')
         c = Config()
         s = spreedly.Spreedly(c.SPREEDLY_ACCOUNT, token=c.SPREEDLY_APIKEY)
         for id in subscriber_ids:
             subscriber = s.subscriber_details(sub_id=int(id))
+            logging.debug("subscriber_info: %s" % (subscriber))
             logging.debug("customer_id: "+ subscriber['customer-id'])
             member = Membership.get_by_id(int(subscriber['customer-id']))
             if member:
                 if member.status == 'paypal':
                     mail.send_mail(sender=EMAIL_FROM,
-                        to=PAYPAL_EMAIL,
-                        subject="Please cancel PayPal subscription for %s" % member.full_name(),
-                        body=member.email)
-                member.status = 'active' if subscriber['active'] == 'true' else 'suspended'
+                    to=PAYPAL_EMAIL,
+                    subject="Please cancel PayPal subscription for %s" % member.full_name(),
+                    body=member.email)
+
+                self.update_plan(subscriber, member)
+
                 if member.status == 'active' and not member.username:
                     taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': member.hash}, countdown=3)
                 if member.status == 'active' and member.unsubscribe_reason:
@@ -500,26 +549,29 @@ class UpdateHandler(webapp.RequestHandler):
                 member.plan = subscriber['feature-level'] or member.plan
                 if not subscriber['email']:
                   subscriber['email'] = "noemail@hackerdojo.com"
-                member.email = subscriber['email']                
+                member.email = subscriber['email']
                 member.put()
                 # TODO: After a few months (now() = 06.13.2011), only suspend/restore if status CHANGED
                 # As of right now, we can't trust previous status, so lets take action on each call to /update
                 if member.status == 'active' and member.username:
-                    logging.info("Restoring User: "+member.username)
+                    logging.info("Restoring User: " + member.username)
                     self.restore(member.username)
                 if member.status == 'suspended' and member.username:
-                    logging.info("Suspending User: "+member.username)
+                    logging.info("Suspending User: " + member.username)
                     self.suspend(member.username)
 
         self.response.out.write("ok")
-            
+
+
 class LinkedHandler(webapp.RequestHandler):
     def get(self):
         self.response.out.write(json.dumps([m.username for m in Membership.all().filter('username !=', None)]))
 
+
 class APISuspendedHandler(webapp.RequestHandler):
     def get(self):
         self.response.out.write(json.dumps([[m.fullname(), m.username] for m in Membership.all().filter('status =', 'suspended')]))
+
 
 class MemberListHandler(webapp.RequestHandler):
     def get(self):
@@ -528,6 +580,7 @@ class MemberListHandler(webapp.RequestHandler):
         self.redirect(users.create_login_url('/memberlist'))
       signup_users = Membership.all().order("last_name").fetch(10000);
       self.response.out.write(render('templates/memberlist.html', locals()))
+
 
 class DebugHandler(webapp.RequestHandler):
     def get(self):
@@ -564,7 +617,8 @@ class LeaveReasonListHandler(webapp.RequestHandler):
         self.response.out.write(render('templates/leavereasonlist.html', locals()))
       else:
         self.response.out.write("Need admin access")
-  
+
+
 class JoinReasonListHandler(webapp.RequestHandler):
     def get(self):
       user = users.get_current_user()
@@ -575,7 +629,8 @@ class JoinReasonListHandler(webapp.RequestHandler):
         self.response.out.write(render('templates/joinreasonlist.html', locals()))
       else:
         self.response.out.write("Need admin access")
-  
+
+
 class SuspendedHandler(webapp.RequestHandler):
     def get(self):
       user = users.get_current_user()
@@ -587,7 +642,7 @@ class SuspendedHandler(webapp.RequestHandler):
         for user in suspended_users:
             if user.spreedly_token:
                 tokened_users.append(user)
-        suspended_users = sorted(tokened_users, key=lambda user: user.last_name.lower())        
+        suspended_users = sorted(tokened_users, key=lambda user: user.last_name.lower())
         total = len(suspended_users)
         reasonable = 0
         for user in suspended_users:
@@ -596,7 +651,8 @@ class SuspendedHandler(webapp.RequestHandler):
         self.response.out.write(render('templates/suspended.html', locals()))
       else:
         self.response.out.write("Need admin access")
-        		
+
+
 class AllHandler(webapp.RequestHandler):
     def get(self):
       user = users.get_current_user()
@@ -619,6 +675,7 @@ class AllHandler(webapp.RequestHandler):
       else:
         self.response.out.write("Need admin access")
 
+
 class HardshipHandler(webapp.RequestHandler):
     def get(self):
       user = users.get_current_user()
@@ -626,7 +683,7 @@ class HardshipHandler(webapp.RequestHandler):
         self.redirect(users.create_login_url('/hardshiplist'))
       if users.is_current_user_admin():
         active_users = Membership.all().filter('status =', 'active').filter('plan =', 'hardship').fetch(10000)
-        active_users = sorted(active_users, key=lambda user: user.created) 
+        active_users = sorted(active_users, key=lambda user: user.created)
         subject = "About your Hacker Dojo membership"
         body1 = "\n\nWe hope you have enjoyed your discounted membership at Hacker Dojo.  As you\nknow, we created the hardship program to give temporary financial support to help\nmembers get started at the Dojo.  Our records show you began the program\non "
         body2 = ", and we hope you feel that you have benefited.\n\nBeginning with your next month's term, we ask that you please sign up at\nour regular rate:\n"
@@ -635,12 +692,12 @@ class HardshipHandler(webapp.RequestHandler):
       else:
         self.response.out.write("Need admin access")
 
-      
+
 class AreYouStillThereHandler(webapp.RequestHandler):
     def get(self):
         if not Config().is_dev:
           self.post()
-        
+
     def post(self):
         countdown = 0
         for membership in Membership.all().filter('status =', "suspended"):
@@ -650,7 +707,7 @@ class AreYouStillThereHandler(webapp.RequestHandler):
             taskqueue.add(url='/tasks/areyoustillthere_mail', params={'user': membership.key().id()}, countdown=countdown)
 
 class AreYouStillThereMail(webapp.RequestHandler):
-    def post(self): 
+    def post(self):
         user = Membership.get_by_id(int(self.request.get('user')))
         subject = "Hacker Dojo Membership: ACTION REQUIRED"
         body = render('templates/areyoustillthere.txt', locals())
@@ -661,7 +718,7 @@ class AreYouStillThereMail(webapp.RequestHandler):
             mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc, cc=cc)
         else:
             mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc)
-        
+
 class ReactivateHandler(webapp.RequestHandler):
     def get(self):
         message = escape(self.request.get('message'))
@@ -683,11 +740,11 @@ class ReactivateHandler(webapp.RequestHandler):
             self.response.out.write(render('templates/reactivate.html', locals()))
       else:
           self.redirect(str(self.request.path + '?message=There is no record of that email.'))
-        
+
 class CleanupHandler(webapp.RequestHandler):
     def get(self):
         self.post()
-        
+
     def post(self):
         countdown = 0
         for membership in Membership.all().filter('status =', None):
@@ -698,7 +755,7 @@ class CleanupHandler(webapp.RequestHandler):
 
 
 class CleanupTask(webapp.RequestHandler):
-    def post(self): 
+    def post(self):
         user = Membership.get_by_id(int(self.request.get('user')))
         try:
           mail.send_mail(sender=EMAIL_FROM,
@@ -711,13 +768,13 @@ class CleanupTask(webapp.RequestHandler):
               \nIf you would like to become a member of Hacker Dojo, just complete the signup process at http://signup.hackerdojo.com
               \nIf you don't want to sign up -- please give us anonymous feedback so we know how we can do better!  URL: http://bit.ly/jJAGYM
               \nCheers!\nHacker Dojo\n\nPS: Please ignore this e-mail if you already signed up -- you might have started signing up twice or something :)
-              PSS: This is an automated e-mail and we're now deleting your e-mail address from the signup application"""
+              PPS: This is an automated e-mail and we're now deleting your e-mail address from the signup application"""
           )
-        except:  
+        except:
           noop = True
         user.delete()
-        
-        
+
+
 class ProfileHandler(webapp.RequestHandler):
     def get(self):
       user = users.get_current_user()
@@ -727,7 +784,7 @@ class ProfileHandler(webapp.RequestHandler):
       else:
           account = Membership.all().filter('username =', user.nickname().split("@")[0]).get()
           email = '%s@%s' % (account.username, APPS_DOMAIN)
-          gravatar_url = "http://www.gravatar.com/avatar/" + hashlib.md5(email.lower()).hexdigest()          
+          gravatar_url = "http://www.gravatar.com/avatar/" + hashlib.md5(email.lower()).hexdigest()
           self.response.out.write(render('templates/profile.html', locals()))
 
 class PrefHandler(webapp.RequestHandler):
@@ -764,8 +821,7 @@ class PrefHandler(webapp.RequestHandler):
       account.auto_signin = auto_signin
       account.put()
       self.response.out.write(render('templates/prefsaved.html', locals()))
- 
-            
+
 
 class KeyHandler(webapp.RequestHandler):
     def get(self):
@@ -872,7 +928,7 @@ class RFIDHandler(webapp.RequestHandler):
           self.response.out.write(")");
       else:
         if self.request.get('maglock:key') == keymaster.get('maglock:key'):
-          if self.request.get('machine'):       
+          if self.request.get('machine'):
             members = Membership.all().filter('rfid_tag !=', None).filter('status =', 'active').filter("extra_"+self.request.get('machine')+' =',"True")
           else:
             members = Membership.all().filter('rfid_tag !=', None).filter('status =', 'active')
@@ -890,7 +946,7 @@ class ModifyHandler(webapp.RequestHandler):
           return
       else:
           if not account or not account.spreedly_token:
-            error = """<p>Sorry, your %(name)s account does not appear to be linked to a Spreedly account.  
+            error = """<p>Sorry, your %(name)s account does not appear to be linked to a Spreedly account.
 Please contact <a href=\"mailto:%(treasurer)s\">%(treasurer)s</a> so they can manually update your account.
 """ % {'treasurer': TREASURER_EMAIL, 'name': ORG_NAME}
             self.response.out.write(render('templates/error.html', locals()))
@@ -905,15 +961,15 @@ class GenLinkHandler(webapp.RequestHandler):
         u = Membership.get_by_id(int(key))
         plans = c.PLAN_IDS
         self.response.out.write(render('templates/genlink.html', locals()))
-        
+
 
 class CacheUsersCron(webapp.RequestHandler):
     def get(self):
         self.post()
-        
-    def post(self): 
+
+    def post(self):
         fetch_usernames(use_cache=False)
-          
+
 class GetTwitterHandler(webapp.RequestHandler):
     def get(self):
       user = users.get_current_user()
@@ -930,10 +986,9 @@ class GetTwitterHandler(webapp.RequestHandler):
       else:
         self.response.out.write("Need admin access")
 
-            
 
 class TwitterMail(webapp.RequestHandler):
-    def post(self): 
+    def post(self):
         user = Membership.get_by_id(int(self.request.get('user')))
         subject = "What's your twitter handle?"
         base = self.request.host
@@ -941,7 +996,7 @@ class TwitterMail(webapp.RequestHandler):
         to = "%s <%s@hackerdojo.com>" % (user.full_name(), user.username)
         bcc = "%s <%s>" % ("Robot", "robot@hackerdojo.com")
         mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc, html=body)
-    
+
 class SetTwitterHandler(webapp.RequestHandler):
     def get(self):
       if self.request.get('user'):
@@ -983,7 +1038,7 @@ class CSVHandler(webapp.RequestHandler):
     def get(self):
       self.response.headers['Content-type'] = "text/csv; charset=utf-8"
       self.response.headers['Content-disposition'] = "attachment;filename=HackerDojoMembers.csv"
-      if keymaster.get('csvkey') == self.request.get('csvkey'): 
+      if keymaster.get('csvkey') == self.request.get('csvkey'):
         users = Membership.all().filter('status =', 'active').filter('username !=', '').fetch(10000)
         for u in users:
           twitter = ''
@@ -997,7 +1052,7 @@ class CSVHandler(webapp.RequestHandler):
             last = u.last_name
           if u.username:
             self.response.out.write(first+","+last+","+u.username+"@hackerdojo.com,"+twitter+"\r\n")
- 
+
 
 app = webapp.WSGIApplication([
         ('/', MainHandler),
@@ -1035,7 +1090,7 @@ app = webapp.WSGIApplication([
         ('/tasks/areyoustillthere_mail', AreYouStillThereMail),
         ('/tasks/twitter_mail', TwitterMail),
         ('/reactivate', ReactivateHandler),
-        
-        
+
+
         ], debug=True)
 

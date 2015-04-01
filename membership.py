@@ -21,10 +21,10 @@ class Membership(db.Model):
   auto_signin = db.StringProperty()
   unsubscribe_reason = db.TextProperty()
   hardship_comment = db.TextProperty()
-  
+
   spreedly_token = db.StringProperty()
   parking_pass = db.StringProperty()
-  
+
   created = db.DateTimeProperty(auto_now_add=True)
   updated = db.DateTimeProperty(auto_now=True)
 
@@ -33,7 +33,7 @@ class Membership(db.Model):
 
   def full_name(self):
     return str('%s %s' % (self.first_name, self.last_name))
-  
+
   def spreedly_url(self):
     config = Config()
     return str("https://spreedly.com/%s/subscriber_accounts/%s" % \

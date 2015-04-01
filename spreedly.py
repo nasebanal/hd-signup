@@ -23,18 +23,19 @@ def remove_whitespace_nodes(node, unlink=True):
 def get_code(response):
     if hasattr(response, 'code'):
         return response.code # py 2.6
-    
+
     return int(response.headers['status'][0:3])
+
 
 class XMLReply(object):
     def __init__(self, payload):
         self.raw_payload = payload
         self.data = payload.read()
         self.xml = None
-        
+
         dom = self.to_xml()
         self.dict = self.to_dict(dom.documentElement)
-        
+
     def to_xml(self):
         if self.xml is None:
             self.xml = xml.dom.minidom.parseString(self.data)
@@ -43,23 +44,23 @@ class XMLReply(object):
 
     def to_dict(self, parent):
         child = parent.firstChild
-    
+
         if not child:
             return None
         elif child.nodeType == child.TEXT_NODE:
             return child.nodeValue
-    
+
         block = dict()
-    
+
         while child is not None:
             if child.nodeType == child.ELEMENT_NODE:
                 block[child.tagName] = self.to_dict(child)
-    
+
             child = child.nextSibling
-    
+
         return block
 
-    # -- 
+    # --
 
     def __repr__(self):
         return '<XMLReply: data=%d bytes>' % len(self.data)
@@ -70,13 +71,13 @@ class SpreedlyResponseError(Exception):
         self.headers = response.headers
         self.url = self.safe_url(response.url)
         self.body = response.read()
-    
+
     def safe_url(self, url):
         if not '@' in url:
             return url
-            
+
         return url[:url.index('//')+2]+url[url.index('@')+1:]
-    
+
     def __str__(self):
         return '<SpreedlyResponseError: code=%d, url=%s>' % (self.code, self.url)
 
@@ -89,46 +90,41 @@ class Spreedly(object):
         self.site = site
         self.base_url = base_url
         self.token = token
-        
+
     def url(self, rel_url):
         return self.base_url % { 'site': self.site }+rel_url
-        
-        
+
     def request(self, url, data=None):
-        
         auth_handler = urllib2.HTTPBasicAuthHandler()
         auth_handler.add_password(realm='Web Password',
           uri='https://subs.pinpayments.com/', user=self.token,
           passwd='X')
         opener = urllib2.build_opener(auth_handler)
         urllib2.install_opener(opener)
-        
+
         return self.to_reply(opener.open(self.url(url), data))
 
-        
     def to_reply(self, response):
         if not get_code(response) == 200:
             raise SpreedlyResponseError(response)
-        
+
         return XMLReply(response).dict
-    
-    # -- 
-    
+
     def url_factory(url):
         def wrapped_request(self, data=None, **kwargs):
             return self.request(url % kwargs, data)
         return wrapped_request
-        
+
     subscribers = url_factory('subscribers.xml')
     subscription_plans = url_factory('subscription_plans.xml')
     subscriber_details = url_factory('subscribers/%(sub_id)d.xml')
-    
+
     def __repr__(self):
         return '<Spreedly: site=%s, token=%s>' % (self.site, self.token)
-        
+
 if __name__ == "__main__":
     sp = Spreedly()
-    
+
     print sp.subscription_plans()
     print sp.subscriber_details(sub_id=1)
     print sp.subscribers()
