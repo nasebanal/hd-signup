@@ -21,21 +21,23 @@ import sys
 
 import dateutil.parser
 
-if __name__ == '__main__':
-    ORG_NAME = 'Hacker Dojo'
-    APP_NAME = app_identity.get_application_id()
-    EMAIL_FROM = "Dojo Signup <no-reply@%s.appspotmail.com>" % APP_NAME
-    EMAIL_FROM_AYST = "Billing System <robot@hackerdojo.com>"
-    DAYS_FOR_KEY = 0
-    INTERNAL_DEV_EMAIL = "Internal Dev <internal-dev@hackerdojo.com>"
-    DOMAIN_HOST = 'domain.hackerdojo.com'
-    DOMAIN_USER = 'api@hackerdojo.com'
-    SUCCESS_HTML_URL = 'http://hackerdojo.pbworks.com/api_v2/op/GetPage/page/SubscriptionSuccess/_type/html'
-    PAYPAL_EMAIL = 'PayPal <paypal@hackerdojo.com>'
-    APPS_DOMAIN = 'hackerdojo.com'
-    SIGNUP_HELP_EMAIL = 'signupops@hackerdojo.com'
-    TREASURER_EMAIL = 'treasurer@hackerdojo.com'
-    GOOGLE_ANALYTICS_ID = 'UA-11332872-2'
+ORG_NAME = 'Hacker Dojo'
+try:
+  APP_NAME = app_identity.get_application_id()
+except AttributeError:
+  APP_NAME = "Testing"
+EMAIL_FROM = "Dojo Signup <no-reply@%s.appspotmail.com>" % APP_NAME
+EMAIL_FROM_AYST = "Billing System <robot@hackerdojo.com>"
+DAYS_FOR_KEY = 0
+INTERNAL_DEV_EMAIL = "Internal Dev <internal-dev@hackerdojo.com>"
+DOMAIN_HOST = 'domain.hackerdojo.com'
+DOMAIN_USER = 'api@hackerdojo.com'
+SUCCESS_HTML_URL = 'http://hackerdojo.pbworks.com/api_v2/op/GetPage/page/SubscriptionSuccess/_type/html'
+PAYPAL_EMAIL = 'PayPal <paypal@hackerdojo.com>'
+APPS_DOMAIN = 'hackerdojo.com'
+SIGNUP_HELP_EMAIL = 'signupops@hackerdojo.com'
+TREASURER_EMAIL = 'treasurer@hackerdojo.com'
+GOOGLE_ANALYTICS_ID = 'UA-11332872-2'
 
 def fetch_usernames(use_cache=True):
     usernames = memcache.get('usernames')
