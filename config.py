@@ -26,7 +26,7 @@ class Config():
         'supporter': '1988', 'family': '3659',
         'worktrade': '6608', 'comped': '15451',
         'threecomp': '18158', 'yearly':'18552',
-        'fiveyear': '18853', 'thielcomp': '19616',
+        'fiveyear': '18853', 'hive': '19616',
         # This is the new full membership at $195.
         'newfull': '25716'}
 
