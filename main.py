@@ -458,7 +458,8 @@ class NeedAccountHandler(webapp.RequestHandler):
 
 
 class UpdateHandler(webapp.RequestHandler):
-    def suspend(self, username):
+    @classmethod
+    def suspend(cls, username):
         def fail(self, exception):
             mail.send_mail(sender=EMAIL_FROM,
                 to=INTERNAL_DEV_EMAIL,
@@ -470,7 +471,8 @@ class UpdateHandler(webapp.RequestHandler):
         except Exception, e:
             return fail(e)
 
-    def restore(self, username):
+    @classmethod
+    def restore(cls, username):
         def fail(exception):
             mail.send_mail(sender=EMAIL_FROM,
                 to=INTERNAL_DEV_EMAIL,
@@ -490,7 +492,8 @@ class UpdateHandler(webapp.RequestHandler):
     proper status.
     subscriber: The input dictionary to interpret from the XML response.
     member: The membership object to update. """
-    def update_plan(self, subscriber, member):
+    @classmethod
+    def update_plan(cls, subscriber, member):
         if subscriber['active'] == 'true':
             # Membership is active.
             member.status = 'active'
@@ -508,59 +511,73 @@ class UpdateHandler(webapp.RequestHandler):
                         dateutil.parser.parse(
                             subscriber['ready-to-renew-since'])
                     expired_time = datetime.now() - expire_date
-                    logging.debug("Plan expired for %s" % (str(expired_time)))
+                    logging.debug('Plan expired for %s' % (str(expired_time)))
 
                     if expired_time >= timedelta(30):
                         # If it expired more than 30 days ago, we are
                         # not even going to consider giving them the
                         # legacy rate again.
-                        logging.info("Not renewing legacy plan for %s"
-                                  "due to excessive wait time." %
+                        logging.info('Not renewing legacy plan for %s'
+                                  ' due to excessive wait time.' %
                                   (member.username))
                         member.plan = 'newfull'
                 else:
                     # Membership was cancelled. In this case, they don't
                     # get to stay on the legacy plan.
-                    logging.info("Not renewing legacy plan for %s because"
-                              "it was cancelled." % (member.username))
+                    logging.info('Not renewing legacy plan for %s because'
+                              ' it was cancelled.' % (member.username))
                     member.plan = 'newfull'
+
+    """ Gets the data from PinPayments for a particular subscriber and updates
+    their status accordingly.
+    subscriber_id: The id token of the subscriber.
+    Returns: True if the member is active, False otherwise."""
+    @classmethod
+    def update_subscriber(cls, subscriber_id):
+        c = Config()
+        api = spreedly.Spreedly(c.SPREEDLY_ACCOUNT, token=c.SPREEDLY_APIKEY)
+        subscriber = api.subscriber_details(sub_id=int(subscriber_id))
+        logging.debug("subscriber_info: %s" % (subscriber))
+        logging.debug("customer_id: "+ subscriber['customer-id'])
+
+        member = Membership.get_by_id(int(subscriber['customer-id']))
+        if member:
+            if member.status == 'paypal':
+                mail.send_mail(sender=EMAIL_FROM,
+                to=PAYPAL_EMAIL,
+                subject="Please cancel PayPal subscription for %s" % member.full_name(),
+                body=member.email)
+
+            cls.update_plan(subscriber, member)
+
+            if member.status == 'active' and not member.username:
+                taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': member.hash}, countdown=3)
+            if member.status == 'active' and member.unsubscribe_reason:
+                member.unsubscribe_reason = None
+
+            member.spreedly_token = subscriber['token']
+            member.plan = subscriber['feature-level'] or member.plan
+            if not subscriber['email']:
+              subscriber['email'] = "noemail@hackerdojo.com"
+            member.email = subscriber['email']
+
+            member.put()
+
+            # TODO: After a few months (now() = 06.13.2011), only suspend/restore if status CHANGED
+            # As of right now, we can't trust previous status, so lets take action on each call to /update
+            if member.status == 'active' and member.username:
+                logging.info("Restoring User: " + member.username)
+                cls.restore(member.username)
+            if member.status == 'suspended' and member.username:
+                logging.info("Suspending User: " + member.username)
+                cls.suspend(member.username)
+
+            return member.status == 'active'
 
     def post(self):
         subscriber_ids = self.request.get('subscriber_ids').split(',')
-        c = Config()
-        s = spreedly.Spreedly(c.SPREEDLY_ACCOUNT, token=c.SPREEDLY_APIKEY)
         for id in subscriber_ids:
-            subscriber = s.subscriber_details(sub_id=int(id))
-            logging.debug("subscriber_info: %s" % (subscriber))
-            logging.debug("customer_id: "+ subscriber['customer-id'])
-            member = Membership.get_by_id(int(subscriber['customer-id']))
-            if member:
-                if member.status == 'paypal':
-                    mail.send_mail(sender=EMAIL_FROM,
-                    to=PAYPAL_EMAIL,
-                    subject="Please cancel PayPal subscription for %s" % member.full_name(),
-                    body=member.email)
-
-                self.update_plan(subscriber, member)
-
-                if member.status == 'active' and not member.username:
-                    taskqueue.add(url='/tasks/create_user', method='POST', params={'hash': member.hash}, countdown=3)
-                if member.status == 'active' and member.unsubscribe_reason:
-                    member.unsubscribe_reason = None
-                member.spreedly_token = subscriber['token']
-                member.plan = subscriber['feature-level'] or member.plan
-                if not subscriber['email']:
-                  subscriber['email'] = "noemail@hackerdojo.com"
-                member.email = subscriber['email']
-                member.put()
-                # TODO: After a few months (now() = 06.13.2011), only suspend/restore if status CHANGED
-                # As of right now, we can't trust previous status, so lets take action on each call to /update
-                if member.status == 'active' and member.username:
-                    logging.info("Restoring User: " + member.username)
-                    self.restore(member.username)
-                if member.status == 'suspended' and member.username:
-                    logging.info("Suspending User: " + member.username)
-                    self.suspend(member.username)
+          self.update_subscriber(id)
 
         self.response.out.write("ok")
 
@@ -708,6 +725,7 @@ class AreYouStillThereHandler(webapp.RequestHandler):
             self.response.out.write("Are you still there "+membership.email+ "?<br/>")
             taskqueue.add(url='/tasks/areyoustillthere_mail', params={'user': membership.key().id()}, countdown=countdown)
 
+
 class AreYouStillThereMail(webapp.RequestHandler):
     def post(self):
         user = Membership.get_by_id(int(self.request.get('user')))
@@ -721,27 +739,35 @@ class AreYouStillThereMail(webapp.RequestHandler):
         else:
             mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc)
 
+
 class ReactivateHandler(webapp.RequestHandler):
     def get(self):
         message = escape(self.request.get('message'))
         self.response.out.write(render('templates/reactivate.html', locals()))
+
     def post(self):
-      email = self.request.get('email').lower()
-      existing_member = db.GqlQuery("SELECT * FROM Membership WHERE email = :email", email=email).get()
-      if existing_member:
-          membership = existing_member
-          if membership.status == "active":
-              self.redirect(str(self.request.path + '?message=You are still an active member'))
-          else:
-            subject = "Reactivate your Hacker Dojo Membership"
-            body = render('templates/reactivate.txt', locals())
-            to = "%s <%s>" % (membership.full_name(), membership.email)
-            bcc = "%s <%s>" % ("Billing System", "robot@hackerdojo.com")
-            mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc)
-            sent = True
-            self.response.out.write(render('templates/reactivate.html', locals()))
-      else:
-          self.redirect(str(self.request.path + '?message=There is no record of that email.'))
+        email = self.request.get('email').lower()
+        existing_member = \
+            db.GqlQuery("SELECT * FROM Membership WHERE email = :email",
+            email=email).get()
+        if existing_member:
+            membership = existing_member
+            active = UpdateHandler.update_subscriber(membership.spreedly_token)
+
+            if active == "active":
+                self.redirect(str(self.request.path + \
+                    '?message=You are still an active member'))
+            else:
+              subject = "Reactivate your Hacker Dojo Membership"
+              body = render('templates/reactivate.txt', locals())
+              to = "%s <%s>" % (membership.full_name(), membership.email)
+              bcc = "%s <%s>" % ("Billing System", "robot@hackerdojo.com")
+              mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc)
+              sent = True
+              self.response.out.write(render('templates/reactivate.html', locals()))
+        else:
+            self.redirect(str(self.request.path + '?message=There is no record of that email.'))
+
 
 class CleanupHandler(webapp.RequestHandler):
     def get(self):
