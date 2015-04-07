@@ -53,23 +53,23 @@ class Membership(db.Model):
     except KeyError:
       url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % \
           (config.SPREEDLY_ACCOUNT, self.key().id(),
-          self.spreedly_token, config.PLAN_IDS["full"])
+          self.spreedly_token, config.PLAN_IDS["newfull"])
     return str(url)
 
   def force_full_subscribe_url(self):
     config = Config()
     url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % \
         (config.SPREEDLY_ACCOUNT, self.key().id(),
-        self.spreedly_token, Membership.config.PLAN_IDS["full"])          
+        self.spreedly_token, Membership.config.PLAN_IDS["newfull"])
     return str(url)
 
   def unsubscribe_url(self):
     return "http://signup.hackerdojo.com/unsubscribe/%i" % (self.key().id())
-  
+
   @classmethod
   def get_by_email(cls, email):
     return cls.all().filter('email =', email).get()
-  
+
   @classmethod
   def get_by_hash(cls, hash):
     return cls.all().filter('hash =', hash).get()
