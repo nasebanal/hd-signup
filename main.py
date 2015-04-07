@@ -752,7 +752,7 @@ class ReactivateHandler(webapp.RequestHandler):
             email=email).get()
         if existing_member:
             membership = existing_member
-            active = UpdateHandler.update_subscriber(membership.spreedly_token)
+            active = UpdateHandler.update_subscriber(membership.key().id())
 
             if active == "active":
                 self.redirect(str(self.request.path + \
