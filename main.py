@@ -510,7 +510,7 @@ class UpdateHandler(webapp.RequestHandler):
                     expire_date = \
                         dateutil.parser.parse(
                             subscriber['ready-to-renew-since'])
-                    expired_time = datetime.now() - expire_date
+                    expired_time = datetime.now() - expire_date.replace(tzinfo=None)
                     logging.debug('Plan expired for %s' % (str(expired_time)))
 
                     if expired_time >= timedelta(30):
@@ -531,7 +531,7 @@ class UpdateHandler(webapp.RequestHandler):
     """ Gets the data from PinPayments for a particular subscriber and updates
     their status accordingly.
     subscriber_id: The id token of the subscriber.
-    Returns: True if the member is active, False otherwise."""
+    Returns: True if the member is active, False otherwise, and the plan of the member."""
     @classmethod
     def update_subscriber(cls, subscriber_id):
         c = Config()
@@ -572,7 +572,7 @@ class UpdateHandler(webapp.RequestHandler):
                 logging.info("Suspending User: " + member.username)
                 cls.suspend(member.username)
 
-            return member.status == 'active'
+            return ((member.status == 'active'), member.plan)
 
     def post(self):
         subscriber_ids = self.request.get('subscriber_ids').split(',')
@@ -747,12 +747,14 @@ class ReactivateHandler(webapp.RequestHandler):
 
     def post(self):
         email = self.request.get('email').lower()
+	c = Config()
         existing_member = \
             db.GqlQuery("SELECT * FROM Membership WHERE email = :email",
             email=email).get()
         if existing_member:
             membership = existing_member
-            active = UpdateHandler.update_subscriber(membership.key().id())
+            active, plan = UpdateHandler.update_subscriber(membership.key().id())
+	    plan_id = c.PLAN_IDS[plan]
 
             if active == "active":
                 self.redirect(str(self.request.path + \
