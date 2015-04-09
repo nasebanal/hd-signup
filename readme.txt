@@ -1,7 +1,7 @@
 How to Work on this app
 
-You'll have to download the required externals to use it locally:
-`pip install -t externals -r requirements.txt` (For Linux)
+To avoid issues, it is recommended that you deploy and test locally using the
+"deploy.py" script. Run `deploy.py -h` for more information.
 
 Keymaster Error:
 Navigate to /_km/key
