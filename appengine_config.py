@@ -13,7 +13,6 @@ import deploy
 
 
 # Use external libraries.
-vendor.add("externals")
 required_externals = file("externals/externals.txt").read().split("\n")
 have_externals = os.listdir("externals").remove("externals.txt")
 
