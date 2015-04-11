@@ -530,17 +530,16 @@ class UpdateHandler(webapp.RequestHandler):
 
     """ Gets the data from PinPayments for a particular subscriber and updates
     their status accordingly.
-    subscriber_id: The id token of the subscriber.
-    Returns: True if the member is active, False otherwise, and the plan of the member."""
+    member: A membership structure representing the member that we want to
+            update. """
     @classmethod
-    def update_subscriber(cls, subscriber_id):
+    def update_subscriber(cls, member):
         c = Config()
         api = spreedly.Spreedly(c.SPREEDLY_ACCOUNT, token=c.SPREEDLY_APIKEY)
-        subscriber = api.subscriber_details(sub_id=int(subscriber_id))
+        subscriber = api.subscriber_details(sub_id=int(member.key().id()))
         logging.debug("subscriber_info: %s" % (subscriber))
         logging.debug("customer_id: "+ subscriber['customer-id'])
 
-        member = Membership.get_by_id(int(subscriber['customer-id']))
         if member:
             if member.status == 'paypal':
                 mail.send_mail(sender=EMAIL_FROM,
@@ -572,12 +571,10 @@ class UpdateHandler(webapp.RequestHandler):
                 logging.info("Suspending User: " + member.username)
                 cls.suspend(member.username)
 
-            return ((member.status == 'active'), member.plan)
-
     def post(self):
         subscriber_ids = self.request.get('subscriber_ids').split(',')
         for id in subscriber_ids:
-          self.update_subscriber(id)
+          self.update_subscriber(Membership.get_by_id(id))
 
         self.response.out.write("ok")
 
@@ -747,16 +744,15 @@ class ReactivateHandler(webapp.RequestHandler):
 
     def post(self):
         email = self.request.get('email').lower()
-	c = Config()
+        c = Config()
         existing_member = \
             db.GqlQuery("SELECT * FROM Membership WHERE email = :email",
             email=email).get()
         if existing_member:
             membership = existing_member
-            active, plan = UpdateHandler.update_subscriber(membership.key().id())
-	    plan_id = c.PLAN_IDS[plan]
+            UpdateHandler.update_subscriber(membership)
 
-            if active == "active":
+            if membership.status == "active":
                 self.redirect(str(self.request.path + \
                     '?message=You are still an active member'))
             else:
