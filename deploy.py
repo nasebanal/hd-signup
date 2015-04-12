@@ -77,7 +77,7 @@ def get_external(external):
 
 """ Runs all the unit tests.
 sdk_path: The path to the appengine sdk. """
-def run_tests(sdk_path):
+def run_tests(sdk_path, *args):
     sys.path.insert(0, sdk_path)
     import dev_appserver
     dev_appserver.fix_sys_path()
@@ -89,21 +89,28 @@ def run_tests(sdk_path):
       os._exit(1)
 
 """ Runs the dev server.
-sdk_location: Path to the GAE sdk. """
-def dev_server(sdk_location):
+sdk_location: Path to the GAE sdk.
+forward_args: Arguments to forward to dev_appserver. """
+def dev_server(sdk_location, forward_args):
   run_tests(sdk_location)
+
+  command = [os.path.join(sdk_location, "dev_appserver.py"), "app.yaml"]
+  command.extend(forward_args)
   try:
-    subprocess.call([os.path.join(sdk_location, "dev_appserver.py"), "app.yaml"])
+    subprocess.call(command)
   except KeyboardInterrupt:
     # User killed the dev server.
     return
 
 """ Uses appcfg.py to update the application.
-sdk_location: Path to the GAE sdk. """
-def gae_update(sdk_location):
+sdk_location: Path to the GAE sdk.
+forward_args: Arguments to forward to appcfg. """
+def gae_update(sdk_location, forward_args):
   run_tests(sdk_location)
-  subprocess.call([os.path.join(sdk_location, "appcfg.py"),
-                   "update", "app.yaml"])
+
+  command = [os.path.join(sdk_location, "appcfg.py"), "update", "app.yaml"]
+  command.extend(forward_args)
+  subprocess.call(command)
 
 def main():
   # Parse options.
@@ -121,7 +128,7 @@ def main():
   dev_server_parser.set_defaults(func=dev_server)
   update_parser.set_defaults(func=gae_update)
 
-  args = parser.parse_args()
+  args, forward_args = parser.parse_known_args()
 
   # Get the location of the GAE installation.
   try:
@@ -143,7 +150,7 @@ def main():
       get_external(requirement)
 
   # Do the requested action.
-  args.func(gae_installation)
+  args.func(gae_installation, forward_args)
 
 
 if __name__ == "__main__":
