@@ -1,4 +1,4 @@
-""" Tests for the signup page. """
+""" Tests for the subscriber api handler. """
 
 import datetime
 import unittest
@@ -6,7 +6,7 @@ import unittest
 from google.appengine.ext import testbed
 
 from membership import Membership
-from main import UpdateHandler
+import subscriber_api
 
 
 """ Simulates responses from the pinpayments API. """
@@ -154,12 +154,10 @@ class UpdateTests(unittest.TestCase):
 
   """ Tests that Update sets the proper plan given when the member has paid. """
   def test_plan_update(self):
-    update_handler = UpdateHandler()
-
     # This member is active and on the new plan. Nothing should change.
     member_info = self.api_simulation.generate_subscriber_info(
         self.test_member, 10)
-    update_handler.update_plan(member_info, self.test_member)
+    subscriber_api.update_plan(member_info, self.test_member)
     self.assertEqual("active", self.test_member.status)
     self.assertEqual("newfull", self.test_member.plan)
 
@@ -168,7 +166,7 @@ class UpdateTests(unittest.TestCase):
     self.test_member.plan = "full"
     member_info = self.api_simulation.generate_subscriber_info(
         self.test_member, 10)
-    update_handler.update_plan(member_info, self.test_member)
+    subscriber_api.update_plan(member_info, self.test_member)
     self.assertEqual("active", self.test_member.status)
     self.assertEqual("full", self.test_member.plan)
 
@@ -176,7 +174,7 @@ class UpdateTests(unittest.TestCase):
     self.test_member.plan = "newfull"
     member_info = self.api_simulation.generate_subscriber_info(
         self.test_member, 40)
-    update_handler.update_plan(member_info, self.test_member)
+    subscriber_api.update_plan(member_info, self.test_member)
     self.assertEqual("suspended", self.test_member.status)
     self.assertEqual("newfull", self.test_member.plan)
 
@@ -185,7 +183,7 @@ class UpdateTests(unittest.TestCase):
     self.test_member.plan = "full"
     member_info = self.api_simulation.generate_subscriber_info(
         self.test_member, 40)
-    update_handler.update_plan(member_info, self.test_member)
+    subscriber_api.update_plan(member_info, self.test_member)
     self.assertEqual("suspended", self.test_member.status)
     self.assertEqual("full", self.test_member.plan)
 
@@ -194,7 +192,7 @@ class UpdateTests(unittest.TestCase):
     self.test_member.plan = "full"
     member_info = self.api_simulation.generate_subscriber_info(
         self.test_member, 60)
-    update_handler.update_plan(member_info, self.test_member)
+    subscriber_api.update_plan(member_info, self.test_member)
     self.assertEqual("suspended", self.test_member.status)
     self.assertEqual("newfull", self.test_member.plan)
 
@@ -202,7 +200,7 @@ class UpdateTests(unittest.TestCase):
     self.test_member.plan = "newfull"
     member_info = self.api_simulation.generate_subscriber_info(
         self.test_member, 10, cancelled=True)
-    update_handler.update_plan(member_info, self.test_member)
+    subscriber_api.update_plan(member_info, self.test_member)
     self.assertEqual("suspended", self.test_member.status)
     self.assertEqual("newfull", self.test_member.plan)
 
@@ -211,6 +209,6 @@ class UpdateTests(unittest.TestCase):
     self.test_member.plan = "full"
     member_info = self.api_simulation.generate_subscriber_info(
         self.test_member, 10, cancelled=True)
-    update_handler.update_plan(member_info, self.test_member)
+    subscriber_api.update_plan(member_info, self.test_member)
     self.assertEqual("suspended", self.test_member.status)
     self.assertEqual("newfull", self.test_member.plan)
