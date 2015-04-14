@@ -110,32 +110,15 @@ class MainHandler(webapp.RequestHandler):
         self.response.out.write(render("templates/main.html", template_values))
 
     def post(self):
-        refer = self.request.get("refer")
         first_name = self.request.get("first_name")
         last_name = self.request.get("last_name")
         twitter = self.request.get("twitter").lower().strip().strip("@")
         email = self.request.get("email").lower().strip()
         plan = self.request.get("plan", "newfull")
 
-        # See if the referring user is valid.
-        try:
-          ref_first_name = refer.split()[0]
-          ref_last_name = refer.split()[1]
-          referred_user = db.GqlQuery("SELECT * FROM Membership \
-              WHERE first_name = :first_name AND last_name = :last_name",
-              first_name = ref_first_name,
-              last_name = ref_last_name).get()
-        except IndexError:
-          referred_user = None
-
         if not first_name or not last_name or not email:
             self.response.out.write(render("templates/main.html", {
                 "plan": plan, "message": "Sorry, we need name and e-mail address."}))
-        elif (not referred_user and refer != ""):
-          self.response.out.write(render("templates/main.html", {
-            "plan": plan,
-            "message": "The person who referred you is not an active user."}))
-
         else:
             # this just runs a check twice. (there is no OR in GQL)
             # first name, last name
