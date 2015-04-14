@@ -76,7 +76,8 @@ def get_external(external):
     os._exit(0)
 
 """ Runs all the unit tests.
-sdk_path: The path to the appengine sdk. """
+sdk_path: The path to the appengine sdk.
+Returns: True or False depending on whether tests succeed. """
 def run_tests(sdk_path, *args):
     sys.path.insert(0, sdk_path)
     import dev_appserver
@@ -86,13 +87,17 @@ def run_tests(sdk_path, *args):
     test_result = unittest.TextTestRunner(verbosity=2).run(suite)
     if not test_result.wasSuccessful():
       print "ERROR: Unit tests failed."
-      os._exit(1)
+      return False
+
+    return True
 
 """ Runs the dev server.
 sdk_location: Path to the GAE sdk.
+args: Options from the command line.
 forward_args: Arguments to forward to dev_appserver. """
-def dev_server(sdk_location, forward_args):
-  run_tests(sdk_location)
+def dev_server(sdk_location, args, forward_args):
+  if (not run_tests(sdk_location) and not args.force):
+    os._exit(1)
 
   command = [os.path.join(sdk_location, "dev_appserver.py"), "app.yaml"]
   command.extend(forward_args)
@@ -104,9 +109,11 @@ def dev_server(sdk_location, forward_args):
 
 """ Uses appcfg.py to update the application.
 sdk_location: Path to the GAE sdk.
+args: Options from the command line.
 forward_args: Arguments to forward to appcfg. """
-def gae_update(sdk_location, forward_args):
-  run_tests(sdk_location)
+def gae_update(sdk_location, args, forward_args):
+  if (not run_tests(sdk_location) and not args.force):
+    os._exit(1)
 
   command = [os.path.join(sdk_location, "appcfg.py"), "update", "app.yaml"]
   command.extend(forward_args)
@@ -116,13 +123,15 @@ def main():
   # Parse options.
   parser = argparse.ArgumentParser( \
       description="Safely deploy and test application.")
+  parser.add_argument("-f", "--force", action="store_true",
+      help="Takes requested action even if unit tests fail.")
   subparsers = parser.add_subparsers()
   test_parser = subparsers.add_parser("test",
-      help = "Runs the unit tests and exits.")
+      help="Runs the unit tests and exits.")
   dev_server_parser = subparsers.add_parser("dev-server",
-      help = "Runs the dev server")
+      help="Runs the dev server")
   update_parser = subparsers.add_parser("update",
-      help = "Updates the application on GAE.")
+      help="Updates the application on GAE.")
 
   test_parser.set_defaults(func=run_tests)
   dev_server_parser.set_defaults(func=dev_server)
@@ -150,7 +159,8 @@ def main():
       get_external(requirement)
 
   # Do the requested action.
-  args.func(gae_installation, forward_args)
+  if not args.func(gae_installation, args, forward_args):
+    os._exit(1)
 
 
 if __name__ == "__main__":
