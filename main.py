@@ -122,7 +122,6 @@ class BadgeChange(db.Model):
 
 class MainHandler(webapp.RequestHandler):
     def get(self):
-        signup_users = Membership.all().fetch(10000)
         template_values = {
             'plan': self.request.get('plan', 'newfull'),
             'paypal': self.request.get('paypal')}
