@@ -67,9 +67,11 @@ def get_external(external):
 
   os.mkdir(os.path.join("externals", module_name))
 
+  pip_location = get_location("pip")
+
   # Install the module.
   try:
-    subprocess.check_call(["/usr/bin/pip", "install", "-t",
+    subprocess.check_call([os.path.join(pip_location, "pip"), "install", "-t",
         os.path.join("externals", module_name), external.replace(" ", "")])
   except subprocess.CalledProcessError:
     print "ERROR: Installation of '%s' failed." % (name)
@@ -112,6 +114,20 @@ def gae_update(sdk_location, forward_args):
   command.extend(forward_args)
   subprocess.call(command)
 
+""" Figures out where a particular executable is located on the user's system.
+program: The name of the executable to find.
+Returns: The path to the program. """
+def get_location(program):
+  # Get the location of the GAE installation.
+  try:
+    output = subprocess.check_output(["/usr/bin/which", program])
+  except subprocess.CalledProcessError:
+    print "ERROR: Could not find '%s'." % (program)
+    os._exit(1)
+
+  location = output.decode("utf-8").rstrip("%s\n" % (program))
+  return location
+
 def main():
   # Parse options.
   parser = argparse.ArgumentParser( \
@@ -131,13 +147,7 @@ def main():
   args, forward_args = parser.parse_known_args()
 
   # Get the location of the GAE installation.
-  try:
-    output = subprocess.check_output(["/usr/bin/which", "appcfg.py"])
-  except subprocess.CalledProcessError:
-    print "ERROR: Could not find appcfg.py script."
-    os._exit(1)
-
-  gae_installation = output.decode("utf-8").rstrip("appcfg.py\n")
+  gae_installation = get_location("appcfg.py")
   print "Using gae installation directory: %s" % (gae_installation)
 
   # Check for required packages. Pip can't be trusted to deal with
