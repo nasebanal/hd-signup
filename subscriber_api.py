@@ -1,9 +1,14 @@
 from datetime import datetime, date, time, timedelta
 import logging
+import urllib
+
+from google.appengine.api import mail, urlfetch, taskqueue
 
 import dateutil.parser
 
 from config import Config
+import keymaster
+import spreedly
 
 """ Suspend the requested user.
 username: The username of the user to suspend. """
@@ -13,7 +18,7 @@ def suspend(username):
   def fail(exception):
     mail.send_mail(sender=conf.EMAIL_FROM,
         to=conf.INTERNAL_DEV_EMAIL,
-        subject="[%s] User suspension failure: " % (conf.APP_NAME, username),
+        subject="[%s] User suspension failure: %s" % (conf.APP_NAME, username),
         body=str(exception))
     logging.error("User suspension failure: %s" % (exception))
 
@@ -22,7 +27,7 @@ def suspend(username):
         (conf.DOMAIN_HOST, username),
         method="POST", deadline=10,
         payload=urllib.urlencode({"secret": keymaster.get("api")}))
-  except Exception, e:
+  except IOError as e:
     return fail(e)
 
 """ Restore the requested user.
@@ -86,17 +91,16 @@ def update_plan(subscriber, member):
 
 """ Gets the data from PinPayments for a particular subscriber and updates
 their status accordingly.
-subscriber_id: The id token of the subscriber.
+member: The Membership object we are updating.
 Returns: True if the member is active,
     False otherwise, and the plan of the member. """
-def update_subscriber(subscriber_id):
+def update_subscriber(member):
   conf = Config()
   api = spreedly.Spreedly(conf.SPREEDLY_ACCOUNT, token=conf.SPREEDLY_APIKEY)
-  subscriber = api.subscriber_details(sub_id=int(subscriber_id))
+  subscriber = api.subscriber_details(sub_id=int(member.key().id()))
   logging.debug("subscriber_info: %s" % (subscriber))
   logging.debug("customer_id: "+ subscriber["customer-id"])
 
-  member = Membership.get_by_id(int(subscriber["customer-id"]))
   if member:
     if member.status == "paypal":
       mail.send_mail(sender=conf.EMAIL_FROM,
@@ -104,7 +108,7 @@ def update_subscriber(subscriber_id):
       subject="Please cancel PayPal subscription for %s" % member.full_name(),
       body=member.email)
 
-    cls.update_plan(subscriber, member)
+    update_plan(subscriber, member)
 
     if member.status == "active" and not member.username:
       taskqueue.add(url="/tasks/create_user", method="POST",
@@ -114,9 +118,6 @@ def update_subscriber(subscriber_id):
 
     member.spreedly_token = subscriber["token"]
     member.plan = subscriber["feature-level"] or member.plan
-    if not subscriber["email"]:
-      subscriber["email"] = "noemail@hackerdojo.com"
-    member.email = subscriber["email"]
 
     member.put()
 
@@ -125,10 +126,10 @@ def update_subscriber(subscriber_id):
     # take action on each call to /update
     if member.status == "active" and member.username:
       logging.info("Restoring User: " + member.username)
-      cls.restore(member.username)
+      restore(member.username)
     if member.status == "suspended" and member.username:
       logging.info("Suspending User: " + member.username)
-      cls.suspend(member.username)
+      suspend(member.username)
 
     return ((member.status == "active"), member.plan)
 

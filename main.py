@@ -446,7 +446,7 @@ class UpdateHandler(webapp.RequestHandler):
     def post(self):
         subscriber_ids = self.request.get("subscriber_ids").split(",")
         for id in subscriber_ids:
-          self.subscriber_api.update_subscriber(id)
+          self.subscriber_api.update_subscriber(Membership.get_by_id(id))
 
         self.response.out.write("ok")
 
@@ -636,7 +636,7 @@ class ReactivateHandler(webapp.RequestHandler):
             email=email).get()
         if existing_member:
             membership = existing_member
-            UpdateHandler.update_subscriber(membership)
+            subscriber_api.update_subscriber(membership)
 
             if membership.status == "active":
                 self.redirect(str(self.request.path + \
