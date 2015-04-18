@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'templates/base.html' %}
 {% block content %}
 <center>
 {% if sent %}
@@ -17,11 +17,11 @@ We've sent you a link to create your account. Check your inbox!
 		<input type="submit" value="Continue here" style="font-size: larger;" onclick="window.location.href='/?paypal=1'"/>
 	</div>
 
--->	
+-->
 	<div style="width: 45%; background: #fee; border: 2px solid #db002a;  margin: 5px; padding: 10px;">
 <!--		<h3>I signed up with Spreedly.</h3> -->
 		<p style="font-size: smaller;">Tell us the email address you used:</p>
-		<form action="{{self.request.path}}" method="post" style="margin:0px;">
+		<form action="{{request.path}}" method="post" style="margin:0px;">
 		<input type="text" name="email" style="font-size: larger;"/><br />
 		<input type="submit" value="Continue here" style="font-size: larger;"/>
 		</form>

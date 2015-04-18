@@ -10,7 +10,7 @@ class Membership(db.Model):
   last_name = db.StringProperty(required=True)
   email = db.StringProperty(required=True)
   twitter = db.StringProperty(required=False)
-  plan  = db.StringProperty(required=True)
+  plan  = db.StringProperty(required=False)
   status  = db.StringProperty() # None, active, suspended
   referuserid = db.StringProperty()
   referrer  = db.StringProperty()

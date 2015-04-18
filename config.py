@@ -10,6 +10,7 @@ import keymaster
 class Config():
   is_dev = False
   is_prod = True
+  is_testing = True;
 
   def __init__(self):
     try:
@@ -21,12 +22,13 @@ class Config():
     try:
       self.APP_NAME = app_identity.get_application_id()
     except AttributeError:
+      Config.is_testing = True
       self.APP_NAME = "Testing"
 
     if not Config.is_dev:
       # Check if we are running the dev application.
       Config.is_dev = "-dev" in self.APP_NAME
-    Config.is_prod = not Config.is_dev
+    Config.is_prod = not (Config.is_dev or Config.is_testing)
 
     self.ORG_NAME = "Hacker Dojo"
     self.EMAIL_FROM = "Dojo Signup <no-reply@%s.appspotmail.com>" % \
@@ -51,15 +53,29 @@ class Config():
         "threecomp": "18158", "yearly":"18552",
         "fiveyear": "18853", "hive": "19616",
         # This is the new full membership at $195.
-        "newfull": "25716"}
+        "newfull": "25716",
+        # This is the new hive membership at $325.
+        "newhive": "changeme",
+        # A limited membership with a reduced price.
+        "lite": "changeme"}
 
-    if Config.is_dev:
+    # How many visits per month we allow on the lite membership.
+    #TODO(danielp): Figure out the real number here.
+    self.LITE_VISITS = 8
+
+    if Config.is_testing:
+      self.SPREEDLY_ACCOUNT = "hackerdojotest"
+      # We can't use the datastore.
+      self.SPREEDLY_APIKEY = "testapikey"
+
+      logging.debug("Is testing.")
+    elif Config.is_dev:
       self.SPREEDLY_ACCOUNT = "hackerdojotest"
       self.SPREEDLY_APIKEY = keymaster.get("spreedly:hackerdojotest")
 
-      logging.info("Is dev server.")
+      logging.debug("Is dev server.")
     else:
       self.SPREEDLY_ACCOUNT = "hackerdojo"
       self.SPREEDLY_APIKEY = keymaster.get("spreedly:hackerdojo")
 
-      logging.info("Is production server.")
+      logging.debug("Is production server.")

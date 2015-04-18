@@ -2,15 +2,16 @@ import wsgiref.handlers
 import datetime, time, hashlib, urllib, urllib2, re, os
 from google.appengine.ext import deferred
 from google.appengine.ext import db
-from google.appengine.ext import webapp
 from google.appengine.api import urlfetch, mail, memcache, users, taskqueue
-from google.appengine.ext.webapp import template
+from google.appengine.ext import webapp
 import json
 from cgi import escape
 from pprint import pprint
 
 from config import Config
 from membership import Membership
+from project_handler import ProjectHandler
+from select_plan import SelectPlanHandler
 import base64
 import keymaster
 import logging
@@ -32,17 +33,6 @@ def fetch_usernames(use_cache=True):
                 logging.error("Memcache set failed.")
             return usernames
 
-def render(path, local_vars):
-    conf = Config()
-    template_vars = {"is_prod": conf.is_prod, "org_name": conf.ORG_NAME,
-        "analytics_id": conf.GOOGLE_ANALYTICS_ID, "domain": conf.APPS_DOMAIN}
-    template_vars.update(local_vars)
-
-    if conf.is_dev:
-        template_vars["dev_message"] = "You are using the dev version of \
-            Signup."
-    return template.render(path, template_vars)
-
 class UsedCode(db.Model):
     email = db.StringProperty()
     created = db.DateTimeProperty(auto_now_add=True)
@@ -56,7 +46,7 @@ class RFIDSwipe(db.Model):
     created = db.DateTimeProperty(auto_now_add=True)
     success = db.BooleanProperty()
 
-class RFIDSwipeHandler(webapp.RequestHandler):
+class RFIDSwipeHandler(ProjectHandler):
     def get(self):
         if self.request.get("maglock:key") != keymaster.get("maglock:key"):
             self.response.out.write("Access denied")
@@ -102,106 +92,77 @@ class BadgeChange(db.Model):
     username = db.StringProperty()
     description = db.StringProperty()
 
-class MainHandler(webapp.RequestHandler):
+class MainHandler(ProjectHandler):
     def get(self):
-        template_values = {
-            "plan": self.request.get("plan", "newfull"),
-            "paypal": self.request.get("paypal")}
-        self.response.out.write(render("templates/main.html", template_values))
+      self.response.out.write(self.render("templates/main.html"))
 
     def post(self):
-        first_name = self.request.get("first_name")
-        last_name = self.request.get("last_name")
-        twitter = self.request.get("twitter").lower().strip().strip("@")
-        email = self.request.get("email").lower().strip()
-        plan = self.request.get("plan", "newfull")
+      first_name = self.request.get("first_name")
+      last_name = self.request.get("last_name")
+      twitter = self.request.get("twitter").lower().strip().strip("@")
+      email = self.request.get("email").lower().strip()
 
-        if not first_name or not last_name or not email:
-            self.response.out.write(render("templates/main.html", {
-                "plan": plan, "message": "Sorry, we need name and e-mail address."}))
+      if not first_name or not last_name or not email:
+        self.response.out.write(self.render("templates/main.html",
+            {"message": "Sorry, we need name and e-mail address."}))
+        return
+
+      first_part = re.compile(r"[^\w]").sub("", first_name.split(" ")[0])
+      last_part = re.compile(r"[^\w]").sub("", last_name)
+      if len(first_part)+len(last_part) >= 15:
+        last_part = last_part[0]
+      username = ".".join([first_part, last_part]).lower()
+      if username in fetch_usernames():
+        username = email.split("@")[0].lower()
+
+      membership = db.GqlQuery("SELECT * FROM Membership WHERE email = :email",
+                               email=email).get()
+
+      if membership:
+        # A membership object already exists in the datastore.
+        if membership.extra_dnd == True:
+          self.response.out.write("Error #237.  Please contact signupops@hackerdojo.com")
+          return
+        if membership.status == "suspended":
+          self.response.out.write(self.render("templates/main.html",
+              message="Your account has been suspended." \
+              " <a href=\"/reactivate\">Click here</a> to reactivate."))
+          return
+        elif membership.status == "active":
+          self.response.out.write(self.render("templates/main.html",
+                                  message="Account already exists."))
+          return
         else:
-            # this just runs a check twice. (there is no OR in GQL)
-            # first name, last name
-            existing_member = db.GqlQuery("SELECT * FROM Membership WHERE first_name = :first_name AND last_name = :last_name", first_name=first_name, last_name=last_name).get()
-            if existing_member:
-                membership = existing_member
-            # email
-            existing_member = db.GqlQuery("SELECT * FROM Membership WHERE email = :email", email=email).get()
-            if existing_member:
-                membership = existing_member
+          # Existing membership never got activated. Overwrite it.
+          logging.info("Overwriting existing membership for %s." % (email))
+      else:
+        # Make a new membership object.
+        membership = Membership(
+            first_name=first_name, last_name=last_name, email=email,
+            twitter=twitter)
 
-            first_part = re.compile(r"[^\w]").sub("", first_name.split(" ")[0])
-            last_part = re.compile(r"[^\w]").sub("", last_name)
-            if len(first_part)+len(last_part) >= 15:
-                last_part = last_part[0]
-            username = ".".join([first_part, last_part]).lower()
-            if username in fetch_usernames():
-                username = email.split("@")[0].lower()
+      if self.request.get("paypal") == "1":
+        membership.status = "paypal"
+      membership.hash = hashlib.md5(membership.email).hexdigest()
+      if "1337" in self.request.get("referrer").upper():
+        membership.referrer = re.sub("[^0-9]", "", self.request.get("referrer").upper())
+      else:
+        membership.referrer = self.request.get("referrer").replace("\n", " ")
+      membership.put()
 
-            # username@hackerdojo.com
-            existing_member = db.GqlQuery("SELECT * FROM Membership WHERE email = :email", email="%s@hackerdojo.com" % username).get()
-            if existing_member:
-                membership = existing_member
-
-            try:
-                membership
-                if membership.extra_dnd == True:
-                    self.response.out.write("Error #237.  Please contact signupops@hackerdojo.com")
-                    return
-                if membership.status == "suspended":
-                    conf = Config()
-                    self.redirect(str( \
-                        "https://www.spreedly.com/%s/subscriber_accounts/%s" \
-                        % (cconf.SPREEDLY_ACCOUNT, membership.spreedly_token)))
-            except NameError:
-                membership = None
-
-            # old code below
-            #existing_member = Membership.get_by_email(email)
-            #if existing_member and existing_member.status in [None, "paypal"]:
-            #    existing_member.delete()
-            if membership is None:
-                if referred_user:
-                  referuserid = referred_user.username
-                else:
-                  referuserid = None
-                membership = Membership(
-                    first_name=first_name, last_name=last_name, email=email,
-                    plan=plan, twitter=twitter, referuserid=referuserid)
-                if self.request.get("paypal") == "1":
-                    membership.status = "paypal"
-                membership.hash = hashlib.md5(membership.email).hexdigest()
-                if "1337" in self.request.get("referrer").upper():
-                    membership.referrer = re.sub("[^0-9]", "", self.request.get("referrer").upper())
-                else:
-                    membership.referrer = self.request.get("referrer").replace("\n", " ")
-                membership.put()
-
-            # if there is a membership, redirect here
-            if membership.status != "active":
-              #self.redirect(str("/account/%s" % membership.hash))
-              # HRD compatible hack, code taken from AccountHandler::get()
-              first_part = re.compile(r"[^\w]").sub("", membership.first_name.split(" ")[0]) # First word of first name
-              last_part = re.compile(r"[^\w]").sub("", membership.last_name)
-              if len(first_part) + len(last_part) >= 15:
-                  last_part = last_part[0] # Just last initial
-              username = ".".join([first_part, last_part]).lower()
-              if username in fetch_usernames():
-                  username = membership.email.split("@")[0].lower()
-              if self.request.get("u"):
-                  pick_username = True
-              message = escape(self.request.get("message"))
-              account_url = str("/account/%s" % membership.hash)
-              self.response.out.write(render("templates/account.html", locals()))
-            else:
-              self.response.out.write(render("templates/main.html",
-                {"message": "The Email address is registered in our system."}))
+      # Have the user select a plan.
+      self.redirect(str("/plan/%s" % membership.hash))
 
 
-class AccountHandler(webapp.RequestHandler):
+class AccountHandler(ProjectHandler):
     def get(self, hash):
         membership = Membership.get_by_hash(hash)
         if membership:
+          # Save the plan they want.
+          plan = self.request.get("plan", "newfull")
+          membership.plan = plan
+          membership.put()
+
           # steal this part to detect if they registered with hacker dojo email above
           first_part = re.compile(r"[^\w]").sub("", membership.first_name.split(" ")[0]) # First word of first name
           last_part = re.compile(r"[^\w]").sub("", membership.last_name)
@@ -212,20 +173,29 @@ class AccountHandler(webapp.RequestHandler):
               username = membership.email.split("@")[0].lower()
           if self.request.get("u"):
               pick_username = True
-          message = escape(self.request.get("message"))
+
           account_url = str("/account/%s" % membership.hash)
-          self.response.out.write(render("templates/account.html", locals()))
+          self.response.out.write(self.render("templates/account.html", locals()))
         else:
-          self.response.out.write("404 Not Found")
+          self.response.set_status(422)
+          self.response.out.write("Unknown member hash.")
+          logging.error("Could not find member with hash '%s'." % (hash))
 
     def post(self, hash):
         username = self.request.get("username")
         password = self.request.get("password")
+        plan = self.request.get("plan")
+        account_url = str("/account/%s" % hash)
+
         conf = Config()
         if password != self.request.get("password_confirm"):
-            self.redirect(str(self.request.path + "?message=Passwords don't match"))
+            self.response.out.write(self.render("templates/account.html",
+                locals(), message="Passwords do not match."))
+            return
         elif len(password) < 8:
-            self.redirect(str(self.request.path + "?message=Password must be 8 characters or longer"))
+            self.response.out.write(self.render("templates/account.html",
+                locals(), message="Password must be at least 8 characters."))
+            return
         else:
             membership = Membership.get_by_hash(hash)
             if membership.username:
@@ -252,7 +222,7 @@ class AccountHandler(webapp.RequestHandler):
                                  message is in error and we can help!" % \
                                  (conf.SIGNUP_HELP_EMAIL)
                         error += "<p><a href="/">Start again</a>"
-                        self.response.out.write(render("templates/error.html", locals()))
+                        self.response.out.write(self.render("templates/error.html", locals()))
                         return
 
                     serial = membership.referrer[4:8]
@@ -268,7 +238,7 @@ class AccountHandler(webapp.RequestHandler):
                         error += "<p><a href="/">Start again</a>"
                         uc = UsedCode(code=membership.referrer,email=membership.email,extra="invalid code")
                         uc.put()
-                        self.response.out.write(render("templates/error.html", locals()))
+                        self.response.out.write(self.render("templates/error.html", locals()))
                         return
 
                     previous = UsedCode.all().filter("code =", membership.referrer).get()
@@ -278,7 +248,7 @@ class AccountHandler(webapp.RequestHandler):
                         error += "<p><a href="/">Start again</a>"
                         uc = UsedCode(code=membership.referrer,email=membership.email,extra="2nd+ attempt")
                         uc.put()
-                        self.response.out.write(render("templates/error.html", locals()))
+                        self.response.out.write(self.render("templates/error.html", locals()))
                         return
 
                     headers = {"Authorization": "Basic %s" % \
@@ -310,10 +280,10 @@ class AccountHandler(webapp.RequestHandler):
                 # check if they are active already since we didn"t create a new member above
                 # apparently the URL will be different
                 self.redirect(str("https://spreedly.com/%s/subscribers/%s/subscribe/%s/%s?%s" %
-                    (conf.SPREEDLY_ACCOUNT, customer_id, conf.PLAN_IDS[membership.plan], username, query_str)))
+                    (conf.SPREEDLY_ACCOUNT, customer_id, conf.PLAN_IDS[plan], username, query_str)))
 
 
-class CreateUserTask(webapp.RequestHandler):
+class CreateUserTask(ProjectHandler):
     def post(self):
         def fail(exception):
             logging.error("CreateUserTask failed: %s" % exception)
@@ -374,11 +344,11 @@ class CreateUserTask(webapp.RequestHandler):
             return fail(e)
 
 
-class UnsubscribeHandler(webapp.RequestHandler):
+class UnsubscribeHandler(ProjectHandler):
     def get(self, id):
         member = Membership.get_by_id(int(id))
         if member:
-            self.response.out.write(render("templates/unsubscribe.html", locals()))
+            self.response.out.write(self.render("templates/unsubscribe.html", locals()))
         else:
             self.response.out.write("error: could not locate your membership record.")
 
@@ -389,14 +359,14 @@ class UnsubscribeHandler(webapp.RequestHandler):
             if unsubscribe_reason:
                 member.unsubscribe_reason = unsubscribe_reason
                 member.put()
-                self.response.out.write(render("templates/unsubscribe_thanks.html", locals()))
+                self.response.out.write(self.render("templates/unsubscribe_thanks.html", locals()))
             else:
-                self.response.out.write(render("templates/unsubscribe_error.html", locals()))
+                self.response.out.write(self.render("templates/unsubscribe_error.html", locals()))
         else:
             self.response.out.write("error: could not locate your membership record.")
 
 
-class SuccessHandler(webapp.RequestHandler):
+class SuccessHandler(ProjectHandler):
     @classmethod
     def send_email(cls, member):
       spreedly_url = member.spreedly_url()
@@ -405,7 +375,7 @@ class SuccessHandler(webapp.RequestHandler):
       mail.send_mail(sender=EMAIL_FROM,
           to="%s <%s>; %s <%s>" % (name, member.email, name, dojo_email),
           subject="Welcome to Hacker Dojo, %s!" % member.first_name,
-          body=render("templates/welcome.txt", locals()))
+          body=self.render("templates/welcome.txt", locals()))
 
     def get(self, hash):
         member = Membership.get_by_hash(hash)
@@ -414,13 +384,13 @@ class SuccessHandler(webapp.RequestHandler):
           success_html = urlfetch.fetch(conf.SUCCESS_HTML_URL).content
           success_html = success_html.replace("joining!", "joining, %s!" % member.first_name)
           is_prod = conf.is_prod
-          self.response.out.write(render("templates/success.html", locals()))
+          self.response.out.write(self.render("templates/success.html", locals()))
 
 
-class NeedAccountHandler(webapp.RequestHandler):
+class NeedAccountHandler(ProjectHandler):
     def get(self):
         message = escape(self.request.get("message"))
-        self.response.out.write(render("templates/needaccount.html", locals()))
+        self.response.out.write(self.render("templates/needaccount.html", locals()))
 
     def post(self):
         email = self.request.get("email").lower()
@@ -436,10 +406,10 @@ class NeedAccountHandler(webapp.RequestHandler):
                     subject="Create your Hacker Dojo account",
                     body="""Hello,\n\nHere"s a link to create your Hacker Dojo account:\n\nhttp://%s/account/%s""" % (self.request.host, member.hash))
                 sent = True
-                self.response.out.write(render("templates/needaccount.html", locals()))
+                self.response.out.write(self.render("templates/needaccount.html", locals()))
 
 
-class UpdateHandler(webapp.RequestHandler):
+class UpdateHandler(ProjectHandler):
     def get(self):
         pass
 
@@ -451,26 +421,26 @@ class UpdateHandler(webapp.RequestHandler):
         self.response.out.write("ok")
 
 
-class LinkedHandler(webapp.RequestHandler):
+class LinkedHandler(ProjectHandler):
     def get(self):
         self.response.out.write(json.dumps([m.username for m in Membership.all().filter("username !=", None)]))
 
 
-class APISuspendedHandler(webapp.RequestHandler):
+class APISuspendedHandler(ProjectHandler):
     def get(self):
         self.response.out.write(json.dumps([[m.fullname(), m.username] for m in Membership.all().filter("status =", "suspended")]))
 
 
-class MemberListHandler(webapp.RequestHandler):
+class MemberListHandler(ProjectHandler):
     def get(self):
       user = users.get_current_user()
       if not user:
         self.redirect(users.create_login_url("/memberlist"))
       signup_users = Membership.all().order("last_name").fetch(10000);
-      self.response.out.write(render("templates/memberlist.html", locals()))
+      self.response.out.write(self.render("templates/memberlist.html", locals()))
 
 
-class DebugHandler(webapp.RequestHandler):
+class DebugHandler(ProjectHandler):
     def get(self):
       user = users.get_current_user()
       if not user:
@@ -496,31 +466,31 @@ class DebugHandler(webapp.RequestHandler):
         self.response.out.write("Need admin access")
 
 
-class LeaveReasonListHandler(webapp.RequestHandler):
+class LeaveReasonListHandler(ProjectHandler):
     def get(self):
       user = users.get_current_user()
       if not user:
         self.redirect(users.create_login_url("/leavereasonlist"))
       if users.is_current_user_admin():
         all_users = Membership.all().order("-updated").fetch(10000)
-        self.response.out.write(render("templates/leavereasonlist.html", locals()))
+        self.response.out.write(self.render("templates/leavereasonlist.html", locals()))
       else:
         self.response.out.write("Need admin access")
 
 
-class JoinReasonListHandler(webapp.RequestHandler):
+class JoinReasonListHandler(ProjectHandler):
     def get(self):
       user = users.get_current_user()
       if not user:
         self.redirect(users.create_login_url("/joinreasonlist"))
       if users.is_current_user_admin():
         all_users = Membership.all().order("created").fetch(10000)
-        self.response.out.write(render("templates/joinreasonlist.html", locals()))
+        self.response.out.write(self.render("templates/joinreasonlist.html", locals()))
       else:
         self.response.out.write("Need admin access")
 
 
-class SuspendedHandler(webapp.RequestHandler):
+class SuspendedHandler(ProjectHandler):
     def get(self):
       user = users.get_current_user()
       if not user:
@@ -537,12 +507,12 @@ class SuspendedHandler(webapp.RequestHandler):
         for user in suspended_users:
             if user.unsubscribe_reason:
                 reasonable += 1
-        self.response.out.write(render("templates/suspended.html", locals()))
+        self.response.out.write(self.render("templates/suspended.html", locals()))
       else:
         self.response.out.write("Need admin access")
 
 
-class AllHandler(webapp.RequestHandler):
+class AllHandler(ProjectHandler):
     def get(self):
       user = users.get_current_user()
       if not user:
@@ -560,12 +530,12 @@ class AllHandler(webapp.RequestHandler):
 #        users_not_on_domain = set(signup_usernames) - set(domain_usernames)
 #        users_not_on_signup = set(domain_usernames) - set(active_usernames)
         signup_users = sorted(signup_users, key=lambda user: user.last_name.lower())
-        self.response.out.write(render("templates/users.html", locals()))
+        self.response.out.write(self.render("templates/users.html", locals()))
       else:
         self.response.out.write("Need admin access")
 
 
-class HardshipHandler(webapp.RequestHandler):
+class HardshipHandler(ProjectHandler):
     def get(self):
       user = users.get_current_user()
       if not user:
@@ -583,12 +553,12 @@ class HardshipHandler(webapp.RequestHandler):
                 with your next month's term, we ask that you please sign up \
                 at\nour regular rate:\n"
         body3 = "\n\nThank you for supporting the Dojo!"
-        self.response.out.write(render("templates/hardship.html", locals()))
+        self.response.out.write(self.render("templates/hardship.html", locals()))
       else:
         self.response.out.write("Need admin access")
 
 
-class AreYouStillThereHandler(webapp.RequestHandler):
+class AreYouStillThereHandler(ProjectHandler):
     def get(self):
         if not Config().is_dev:
             self.post()
@@ -608,11 +578,11 @@ class AreYouStillThereHandler(webapp.RequestHandler):
                 params={"user": membership.key().id()}, countdown=countdown)
 
 
-class AreYouStillThereMail(webapp.RequestHandler):
+class AreYouStillThereMail(ProjectHandler):
     def post(self):
         user = Membership.get_by_id(int(self.request.get("user")))
         subject = "Hacker Dojo Membership: ACTION REQUIRED"
-        body = render("templates/areyoustillthere.txt", locals())
+        body = self.render("templates/areyoustillthere.txt", locals())
         to = "%s <%s>" % (user.full_name(), user.email)
         bcc = "%s <%s>" % ("Billing System", "robot@hackerdojo.com")
         if user.username:
@@ -624,10 +594,10 @@ class AreYouStillThereMail(webapp.RequestHandler):
                            subject=subject, body=body, bcc=bcc)
 
 
-class ReactivateHandler(webapp.RequestHandler):
+class ReactivateHandler(ProjectHandler):
     def get(self):
         message = escape(self.request.get("message"))
-        self.response.out.write(render("templates/reactivate.html", locals()))
+        self.response.out.write(self.render("templates/reactivate.html", locals()))
 
     def post(self):
         email = self.request.get("email").lower()
@@ -643,18 +613,18 @@ class ReactivateHandler(webapp.RequestHandler):
                     "?message=You are still an active member"))
             else:
               subject = "Reactivate your Hacker Dojo Membership"
-              body = render("templates/reactivate.txt", locals())
+              body = self.render("templates/reactivate.txt", locals())
               to = "%s <%s>" % (membership.full_name(), membership.email)
               bcc = "%s <%s>" % ("Billing System", "robot@hackerdojo.com")
               mail.send_mail(sender=Config().EMAIL_FROM_AYST, to=to,
                              subject=subject, body=body, bcc=bcc)
               sent = True
-              self.response.out.write(render("templates/reactivate.html", locals()))
+              self.response.out.write(self.render("templates/reactivate.html", locals()))
         else:
             self.redirect(str(self.request.path + "?message=There is no record of that email."))
 
 
-class CleanupHandler(webapp.RequestHandler):
+class CleanupHandler(ProjectHandler):
     def get(self):
         self.post()
 
@@ -667,7 +637,7 @@ class CleanupHandler(webapp.RequestHandler):
                 taskqueue.add(url="/tasks/clean_row", params={"user": membership.key().id()}, countdown=countdown)
 
 
-class CleanupTask(webapp.RequestHandler):
+class CleanupTask(ProjectHandler):
     def post(self):
         user = Membership.get_by_id(int(self.request.get("user")))
         try:
@@ -696,7 +666,7 @@ class CleanupTask(webapp.RequestHandler):
         user.delete()
 
 
-class ProfileHandler(webapp.RequestHandler):
+class ProfileHandler(ProjectHandler):
     def get(self):
       user = users.get_current_user()
       if not user:
@@ -707,9 +677,9 @@ class ProfileHandler(webapp.RequestHandler):
           email = "%s@%s" % (account.username, Config().APPS_DOMAIN)
           gravatar_url = "http://www.gravatar.com/avatar/" + \
               hashlib.md5(email.lower()).hexdigest()
-          self.response.out.write(render("templates/profile.html", locals()))
+          self.response.out.write(self.render("templates/profile.html", locals()))
 
-class PrefHandler(webapp.RequestHandler):
+class PrefHandler(ProjectHandler):
    def get(self):
       user = users.get_current_user()
       if not user:
@@ -724,10 +694,10 @@ class PrefHandler(webapp.RequestHandler):
             error += "<pre>Account: "+str(account)
             if account:
               error += "<pre>Token: "+str(account.spreedly_token)
-            self.response.out.write(render("templates/error.html", locals()))
+            self.response.out.write(self.render("templates/error.html", locals()))
             return
           auto_signin = account.auto_signin
-          self.response.out.write(render("templates/pref.html", locals()))
+          self.response.out.write(self.render("templates/pref.html", locals()))
 
    def post(self):
       user = users.get_current_user()
@@ -737,15 +707,15 @@ class PrefHandler(webapp.RequestHandler):
       account = Membership.all().filter("username =", user.nickname().split("@")[0]).get()
       if not account:
             error = "<p>Error #1983, which should never happen."
-            self.response.out.write(render("templates/error.html", locals()))
+            self.response.out.write(self.render("templates/error.html", locals()))
             return
       auto_signin = self.request.get("auto").strip()
       account.auto_signin = auto_signin
       account.put()
-      self.response.out.write(render("templates/prefsaved.html", locals()))
+      self.response.out.write(self.render("templates/prefsaved.html", locals()))
 
 
-class KeyHandler(webapp.RequestHandler):
+class KeyHandler(ProjectHandler):
     def get(self):
         user = users.get_current_user()
         conf = Config()
@@ -770,7 +740,7 @@ class KeyHandler(webapp.RequestHandler):
                 if account:
                     error += "<pre>Token: %s</pre>" % account.spreedly_token
 
-                self.response.out.write(render("templates/error.html", locals()))
+                self.response.out.write(self.render("templates/error.html", locals()))
                 return
             if account.status != "active":
                 url = "https://spreedly.com/"+conf.SPREEDLY_ACCOUNT+"/subscriber_accounts/" + account.spreedly_token
@@ -778,7 +748,7 @@ class KeyHandler(webapp.RequestHandler):
                 <p>To investigate your account, you may go here: <a href=\"%(url)s\">%(url)s</a> </p>
                 <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a></p>
                 """ % {"url": url, "signup_email": SIGNUP_HELP_EMAIL}
-                self.response.out.write(render("templates/error.html", locals()))
+                self.response.out.write(self.render("templates/error.html", locals()))
                 return
             delta = datetime.utcnow() - account.created
             if delta.days < DAYS_FOR_KEY:
@@ -786,11 +756,11 @@ class KeyHandler(webapp.RequestHandler):
                 After %(days)s days you qualify for a key.  Check back in %(delta)s days!</p>
                 <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Membership+create+date+not+correct\">%(signup_email)s</a>.</p>
                 """ % {"deltadays": delta.days, "days": DAYS_FOR_KEY, "delta": DAYS_FOR_KEY-delta.days, "signup_email": SIGNUP_HELP_EMAIL}
-                self.response.out.write(render("templates/error.html", locals()))
+                self.response.out.write(self.render("templates/error.html", locals()))
                 return
             bc = BadgeChange.all().filter("username =", account.username).fetch(100)
             pp = account.parking_pass
-            self.response.out.write(render("templates/key.html", locals()))
+            self.response.out.write(self.render("templates/key.html", locals()))
 
     def post(self):
       user = users.get_current_user()
@@ -800,7 +770,7 @@ class KeyHandler(webapp.RequestHandler):
       account = Membership.all().filter("username =", user.nickname().split("@")[0]).get()
       if not account or not account.spreedly_token or account.status != "active":
             error = "<p>Error #1982, which should never happen."
-            self.response.out.write(render("templates/error.html", locals()))
+            self.response.out.write(self.render("templates/error.html", locals()))
             return
       is_park = self.request.get("ispark")
       if is_park == "True": #checks if user input is a parking pass number or an rfid number
@@ -809,35 +779,35 @@ class KeyHandler(webapp.RequestHandler):
           float(pass_to_add)
         except ValueError:
           error = "<p>A Parking Pass may only contain numbers.</p><a href=\"/key\">Try Again</a>"
-          self.response.out.write(render("templates/error.html", locals()))
+          self.response.out.write(self.render("templates/error.html", locals()))
           return
         account.parking_pass = pass_to_add
         db.put(account)
-        self.response.out.write(render("templates/pass_ok.html", locals())) #outputs the parking number
+        self.response.out.write(self.render("templates/pass_ok.html", locals())) #outputs the parking number
       else:
         rfid_tag = self.request.get("rfid_tag").strip()
         description = self.request.get("description").strip()
         if rfid_tag.isdigit():
           if Membership.all().filter("rfid_tag =", rfid_tag).get():
             error = "<p>That RFID tag is in use by someone else.</p>"
-            self.response.out.write(render("templates/error.html", locals()))
+            self.response.out.write(self.render("templates/error.html", locals()))
             return
           if not description:
             error = "<p>Please enter a reason why you are associating a replacement RFID key.  Please hit BACK and try again.</p>"
-            self.response.out.write(render("templates/error.html", locals()))
+            self.response.out.write(self.render("templates/error.html", locals()))
             return
           account.rfid_tag = rfid_tag
           account.put()
           bc = BadgeChange(rfid_tag = rfid_tag, username=account.username, description=description)
           bc.put()
-          self.response.out.write(render("templates/key_ok.html", locals()))
+          self.response.out.write(self.render("templates/key_ok.html", locals()))
           return
         else:
           error = "<p>That RFID ID seemed invalid. Hit back and try again.</p>"
-          self.response.out.write(render("templates/error.html", locals()))
+          self.response.out.write(self.render("templates/error.html", locals()))
           return
 
-class RFIDHandler(webapp.RequestHandler):
+class RFIDHandler(ProjectHandler):
     def get(self):
       if self.request.get("id"):
         m = Membership.all().filter("rfid_tag ==", self.request.get("id")).filter("status =", "active").get()
@@ -861,7 +831,7 @@ class RFIDHandler(webapp.RequestHandler):
         else:
           self.response.out.write("Access denied")
 
-class ModifyHandler(webapp.RequestHandler):
+class ModifyHandler(ProjectHandler):
     def get(self):
       user = users.get_current_user()
       account = Membership.all().filter("username =", user.nickname().split("@")[0]).get()
@@ -873,30 +843,30 @@ class ModifyHandler(webapp.RequestHandler):
             error = """<p>Sorry, your %(name)s account does not appear to be linked to a Spreedly account.
 Please contact <a href=\"mailto:%(treasurer)s\">%(treasurer)s</a> so they can manually update your account.
 """ % {"treasurer": TREASURER_EMAIL, "name": ORG_NAME}
-            self.response.out.write(render("templates/error.html", locals()))
+            self.response.out.write(self.render("templates/error.html", locals()))
             return
           url = \
               "https://spreedly.com/%s/subscriber_accounts/%s" % \
               (Config().SPREEDLY_ACCOUNT, account.spreedly_token)
           self.redirect(str(url))
 
-class GenLinkHandler(webapp.RequestHandler):
+class GenLinkHandler(ProjectHandler):
     def get(self,key):
         conf = Config()
         sa = conf.SPREEDLY_ACCOUNT
         u = Membership.get_by_id(int(key))
         plans = conf.PLAN_IDS
-        self.response.out.write(render("templates/genlink.html", locals()))
+        self.response.out.write(self.render("templates/genlink.html", locals()))
 
 
-class CacheUsersCron(webapp.RequestHandler):
+class CacheUsersCron(ProjectHandler):
     def get(self):
         self.post()
 
     def post(self):
         fetch_usernames(use_cache=False)
 
-class GetTwitterHandler(webapp.RequestHandler):
+class GetTwitterHandler(ProjectHandler):
     def get(self):
       user = users.get_current_user()
       if not user:
@@ -913,17 +883,17 @@ class GetTwitterHandler(webapp.RequestHandler):
         self.response.out.write("Need admin access")
 
 
-class TwitterMail(webapp.RequestHandler):
+class TwitterMail(ProjectHandler):
     def post(self):
         user = Membership.get_by_id(int(self.request.get("user")))
         subject = "What's your twitter handle?"
         base = self.request.host
-        body = render("templates/twittermail.txt", locals())
+        body = self.render("templates/twittermail.txt", locals())
         to = "%s <%s@hackerdojo.com>" % (user.full_name(), user.username)
         bcc = "%s <%s>" % ("Robot", "robot@hackerdojo.com")
         mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc, html=body)
 
-class SetTwitterHandler(webapp.RequestHandler):
+class SetTwitterHandler(ProjectHandler):
     def get(self):
       if self.request.get("user"):
         m = Membership.get(self.request.get("user"))
@@ -931,7 +901,7 @@ class SetTwitterHandler(webapp.RequestHandler):
         m.put()
         self.response.out.write("<p>Thanks!  All set now.  <p>We'll send out more information in a week or two.")
 
-class SetHSHandler(webapp.RequestHandler):
+class SetHSHandler(ProjectHandler):
     def get(self):
       if self.request.get("user"):
         m = Membership.get(self.request.get("user"))
@@ -939,7 +909,7 @@ class SetHSHandler(webapp.RequestHandler):
         m.put()
         self.response.out.write("<p>Set.")
 
-class SetExtraHandler(webapp.RequestHandler):
+class SetExtraHandler(ProjectHandler):
     def get(self):
       user = users.get_current_user()
       if not user:
@@ -960,7 +930,7 @@ class SetExtraHandler(webapp.RequestHandler):
       else:
         self.response.out.write("Need admin access")
 
-class CSVHandler(webapp.RequestHandler):
+class CSVHandler(ProjectHandler):
     def get(self):
       self.response.headers["Content-type"] = "text/csv; charset=utf-8"
       self.response.headers["Content-disposition"] = "attachment;filename=HackerDojoMembers.csv"
@@ -1016,6 +986,5 @@ app = webapp.WSGIApplication([
         ("/tasks/areyoustillthere_mail", AreYouStillThereMail),
         ("/tasks/twitter_mail", TwitterMail),
         ("/reactivate", ReactivateHandler),
-
-
+        ("/plan/(.+)", SelectPlanHandler),
         ], debug=True)

@@ -10,11 +10,21 @@ body { font-family: Verdana,Arial,sans-serif; }
 .step.inactive span { background-color: gray;}
 .step.inactive { color: gray; }
 
-h4 { margin-bottom: 0px; padding-left: 50px;}
+.steps h4 { margin-bottom: 0px; padding-left: 50px;}
 
-table { margin-top: 50px;}
 table .label { text-align: right; width: 210px;}
 
 form div { margin-top: 10px; }
 
 .invisibile{display: none;}
+
+input {
+  display: block;
+  margin-bottom: 5px;
+  margin-left: 5px;
+}
+
+.centered div {
+  width: 50%;
+  margin: 0 auto;
+}
