@@ -1,12 +1,13 @@
-{% extends 'base.html' %}
+{% extends 'templates/base.html' %}
 {% block content %}
 
-<h2>
-  Error
-</h2>
+{% if internal %}
+<h2>Oh Crap!</h2>
+<h3>An unexpected error occurred. Please try again later.</h3>
+<p>{{ message }}</p>
+{% else %}
+<h2>Error<h2>
+{{ message|safe }}
+{% endif %}
 
-{{ error|safe }}
-
-
-</form>
 {% endblock %}

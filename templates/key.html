@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'templates/base.html' %}
 {% block extrahead %}
 <link href="/static/bootstrap-signup.css" type="text/css" rel="stylesheet" />
 {% endblock %}
@@ -86,7 +86,7 @@
   {% endif %}
   <br>
   <center>
-    <form action="{{self.request.path}}" method="post" style="width:80%; background:#efe9fe; margin: 5px; padding: 10px; display: block;">
+    <form action="{{request.path}}" method="post" style="width:80%; background:#efe9fe; margin: 5px; padding: 10px; display: block;">
       <p style = "margin-top: 5px;"><b>Enter Parking Pass:</b></p>
       <input type="text" name="parking_pass" style="font-size: larger;  display: block;"/>
       <br>
