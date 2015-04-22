@@ -1,5 +1,7 @@
+import logging
 import os
 
+from google.appengine.api import memcache, urlfetch
 from google.appengine.ext import webapp
 
 import jinja2
@@ -36,3 +38,30 @@ class ProjectHandler(webapp.RequestHandler):
 
       template = JINJA_ENVIRONMENT.get_template(path)
       return template.render(template_vars)
+
+  """ Fetches all the usernames in the datastore.
+  use_cache: Whether or not to use a cached version of the usernames.
+  Returns: A list of the usernames, or None upon failure. """
+  def fetch_usernames(self, use_cache=True):
+    usernames = memcache.get("usernames")
+    if usernames and use_cache:
+        return usernames
+    else:
+        conf = Config()
+        resp = urlfetch.fetch("http://%s/users" % conf.DOMAIN_HOST, deadline=10)
+        if resp.status_code == 200:
+            usernames = [m.lower() for m in json.loads(resp.content)]
+            if not memcache.set("usernames", usernames, 60*60*24):
+                logging.error("Memcache set failed.")
+            return usernames
+        else:
+          logging.critical("Failed to fetch list of users. (%d)" %
+              (resp.status_code))
+
+          # Render error page.
+          error_page = self.render("templates/error.html",
+              message="/users returned non-OK status.",
+              internal=True)
+          self.response.out.write(error_page)
+          return None
+

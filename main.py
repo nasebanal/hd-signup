@@ -20,19 +20,6 @@ import subscriber_api
 import sys
 
 
-def fetch_usernames(use_cache=True):
-    usernames = memcache.get("usernames")
-    if usernames and use_cache:
-        return usernames
-    else:
-        conf = Config()
-        resp = urlfetch.fetch("http://%s/users" % conf.DOMAIN_HOST, deadline=10)
-        if resp.status_code == 200:
-            usernames = [m.lower() for m in json.loads(resp.content)]
-            if not memcache.set("usernames", usernames, 60*60*24):
-                logging.error("Memcache set failed.")
-            return usernames
-
 class UsedCode(db.Model):
     email = db.StringProperty()
     created = db.DateTimeProperty(auto_now_add=True)
@@ -112,7 +99,12 @@ class MainHandler(ProjectHandler):
       if len(first_part)+len(last_part) >= 15:
         last_part = last_part[0]
       username = ".".join([first_part, last_part]).lower()
-      if username in fetch_usernames():
+
+      usernames = self.fetch_usernames()
+      if usernames == None:
+        # Error page is already rendered.
+        return
+      if username in usernames:
         username = email.split("@")[0].lower()
 
       membership = db.GqlQuery("SELECT * FROM Membership WHERE email = :email",
@@ -169,7 +161,12 @@ class AccountHandler(ProjectHandler):
           if len(first_part)+len(last_part) >= 15:
               last_part = last_part[0] # Just last initial
           username = ".".join([first_part, last_part]).lower()
-          if username in fetch_usernames():
+
+          usernames = self.fetch_usernames()
+          if usernames == None:
+            # Error page is already rendered.
+            return
+          if username in usernames:
               username = membership.email.split("@")[0].lower()
           if self.request.get("u"):
               pick_username = True
@@ -217,11 +214,12 @@ class AccountHandler(ProjectHandler):
                 if "1337" in membership.referrer:
 
                     if len(membership.referrer) != 16:
-                        error = "<p>Error: code must be 16 digits."
-                        error += "<p>Please contact %s if you believe this \
+                        message = "<p>Error: code must be 16 digits."
+                        message += "<p>Please contact %s if you believe this \
                                  message is in error and we can help!" % \
                                  (conf.SIGNUP_HELP_EMAIL)
-                        error += "<p><a href="/">Start again</a>"
+                        message += "<p><a href="/">Start again</a>"
+                        internal = False
                         self.response.out.write(self.render("templates/error.html", locals()))
                         return
 
@@ -230,12 +228,13 @@ class AccountHandler(ProjectHandler):
                     confirmation_hash = re.sub("[a-f]","",hashlib.sha1(serial+keymaster.get("code:hash")).hexdigest())[:8]
 
                     if hash != confirmation_hash:
-                        error = "<p>Error: this code was invavlid: %s" % \
+                        message = "<p>Error: this code was invavlid: %s" % \
                             (membership.referrer)
-                        error += "<p>Please contact %s if you believe this \
+                        message += "<p>Please contact %s if you believe this \
                                  message is in error and we can help!" % \
                                  (conf.SIGNUP_HELP_EMAIL)
-                        error += "<p><a href="/">Start again</a>"
+                        message += "<p><a href="/">Start again</a>"
+                        internal = False
                         uc = UsedCode(code=membership.referrer,email=membership.email,extra="invalid code")
                         uc.put()
                         self.response.out.write(self.render("templates/error.html", locals()))
@@ -243,9 +242,10 @@ class AccountHandler(ProjectHandler):
 
                     previous = UsedCode.all().filter("code =", membership.referrer).get()
                     if previous:
-                        error = "<p>Error: this code has already been used: "+ membership.referrer
-                        error += "<p>Please contact "+ SIGNUP_HELP_EMAIL+" if you believe this message is in error and we can help!"
-                        error += "<p><a href="/">Start again</a>"
+                        message = "<p>Error: this code has already been used: "+ membership.referrer
+                        message += "<p>Please contact "+ SIGNUP_HELP_EMAIL+" if you believe this message is in error and we can help!"
+                        message += "<p><a href="/">Start again</a>"
+                        internal = False
                         uc = UsedCode(code=membership.referrer,email=membership.email,extra="2nd+ attempt")
                         uc.put()
                         self.response.out.write(self.render("templates/error.html", locals()))
@@ -688,12 +688,13 @@ class PrefHandler(ProjectHandler):
       else:
           account = Membership.all().filter("username =", user.nickname().split("@")[0]).get()
           if not account:
-            error = "<p>Error - couldn't find your account.</p>"
-            error += "<pre>Nick: "+str(user.nickname().split("@")[0])
-            error += "<pre>Email: "+str(user.email())
-            error += "<pre>Account: "+str(account)
+            message = "<p>Error - couldn't find your account.</p>"
+            message += "<pre>Nick: "+str(user.nickname().split("@")[0])
+            message += "<pre>Email: "+str(user.email())
+            message += "<pre>Account: "+str(account)
             if account:
-              error += "<pre>Token: "+str(account.spreedly_token)
+              message += "<pre>Token: "+str(account.spreedly_token)
+            internal = False
             self.response.out.write(self.render("templates/error.html", locals()))
             return
           auto_signin = account.auto_signin
@@ -706,7 +707,8 @@ class PrefHandler(ProjectHandler):
           return
       account = Membership.all().filter("username =", user.nickname().split("@")[0]).get()
       if not account:
-            error = "<p>Error #1983, which should never happen."
+            message = "Error #1983, which should never happen."
+            internal = True
             self.response.out.write(self.render("templates/error.html", locals()))
             return
       auto_signin = self.request.get("auto").strip()
@@ -726,7 +728,7 @@ class KeyHandler(ProjectHandler):
         else:
             account = Membership.all().filter("username =", user.nickname().split("@")[0]).get()
             if not account or not account.spreedly_token:
-                error = """<p>It appears that you have an account on @%(domain)s, but you do not have a corresponding account in the signup application.</p>
+                message = """<p>It appears that you have an account on @%(domain)s, but you do not have a corresponding account in the signup application.</p>
                 <p>How to remedy:</p>
                 <ol><li>If you <b>are not</b> in the Spreedly system yet, <a href=\"/\">sign up</a> now.</li>
                 <li>If you <b>are</b> in Spreedly already, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a>.</li></ol>
@@ -738,24 +740,27 @@ class KeyHandler(ProjectHandler):
                        "nick": user.nickname().split("@")[0],
                        "email": user.email(), "account": account}
                 if account:
-                    error += "<pre>Token: %s</pre>" % account.spreedly_token
+                    message += "<pre>Token: %s</pre>" % account.spreedly_token
 
+                internal = False
                 self.response.out.write(self.render("templates/error.html", locals()))
                 return
             if account.status != "active":
                 url = "https://spreedly.com/"+conf.SPREEDLY_ACCOUNT+"/subscriber_accounts/" + account.spreedly_token
-                error = """<p>Your Spreedly account status does not appear to me marked as active. This might be a mistake, in which case we apologize. </p>
+                message = """<p>Your Spreedly account status does not appear to me marked as active. This might be a mistake, in which case we apologize. </p>
                 <p>To investigate your account, you may go here: <a href=\"%(url)s\">%(url)s</a> </p>
                 <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a></p>
                 """ % {"url": url, "signup_email": SIGNUP_HELP_EMAIL}
+                internal = False
                 self.response.out.write(self.render("templates/error.html", locals()))
                 return
             delta = datetime.utcnow() - account.created
             if delta.days < DAYS_FOR_KEY:
-                error = """<p>You have been a member for %(deltadays)s days.
+                message = """<p>You have been a member for %(deltadays)s days.
                 After %(days)s days you qualify for a key.  Check back in %(delta)s days!</p>
                 <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Membership+create+date+not+correct\">%(signup_email)s</a>.</p>
                 """ % {"deltadays": delta.days, "days": DAYS_FOR_KEY, "delta": DAYS_FOR_KEY-delta.days, "signup_email": SIGNUP_HELP_EMAIL}
+                internal = False
                 self.response.out.write(self.render("templates/error.html", locals()))
                 return
             bc = BadgeChange.all().filter("username =", account.username).fetch(100)
@@ -769,7 +774,8 @@ class KeyHandler(ProjectHandler):
           return
       account = Membership.all().filter("username =", user.nickname().split("@")[0]).get()
       if not account or not account.spreedly_token or account.status != "active":
-            error = "<p>Error #1982, which should never happen."
+            message = "Error #1982, which should never happen."
+            internal = True
             self.response.out.write(self.render("templates/error.html", locals()))
             return
       is_park = self.request.get("ispark")
@@ -778,7 +784,8 @@ class KeyHandler(ProjectHandler):
         try: #tests if there are only numbers in the parking pass
           float(pass_to_add)
         except ValueError:
-          error = "<p>A Parking Pass may only contain numbers.</p><a href=\"/key\">Try Again</a>"
+          message = "<p>A Parking Pass may only contain numbers.</p><a href=\"/key\">Try Again</a>"
+          internal = False
           self.response.out.write(self.render("templates/error.html", locals()))
           return
         account.parking_pass = pass_to_add
@@ -789,11 +796,13 @@ class KeyHandler(ProjectHandler):
         description = self.request.get("description").strip()
         if rfid_tag.isdigit():
           if Membership.all().filter("rfid_tag =", rfid_tag).get():
-            error = "<p>That RFID tag is in use by someone else.</p>"
+            message = "<p>That RFID tag is in use by someone else.</p>"
+            internal = False
             self.response.out.write(self.render("templates/error.html", locals()))
             return
           if not description:
-            error = "<p>Please enter a reason why you are associating a replacement RFID key.  Please hit BACK and try again.</p>"
+            message = "<p>Please enter a reason why you are associating a replacement RFID key.  Please hit BACK and try again.</p>"
+            internal = False
             self.response.out.write(self.render("templates/error.html", locals()))
             return
           account.rfid_tag = rfid_tag
@@ -803,7 +812,8 @@ class KeyHandler(ProjectHandler):
           self.response.out.write(self.render("templates/key_ok.html", locals()))
           return
         else:
-          error = "<p>That RFID ID seemed invalid. Hit back and try again.</p>"
+          message = "<p>That RFID ID seemed invalid. Hit back and try again.</p>"
+          internal = False
           self.response.out.write(self.render("templates/error.html", locals()))
           return
 
@@ -840,9 +850,10 @@ class ModifyHandler(ProjectHandler):
           return
       else:
           if not account or not account.spreedly_token:
-            error = """<p>Sorry, your %(name)s account does not appear to be linked to a Spreedly account.
+            message = """<p>Sorry, your %(name)s account does not appear to be linked to a Spreedly account.
 Please contact <a href=\"mailto:%(treasurer)s\">%(treasurer)s</a> so they can manually update your account.
 """ % {"treasurer": TREASURER_EMAIL, "name": ORG_NAME}
+            internal = False
             self.response.out.write(self.render("templates/error.html", locals()))
             return
           url = \
@@ -864,7 +875,7 @@ class CacheUsersCron(ProjectHandler):
         self.post()
 
     def post(self):
-        fetch_usernames(use_cache=False)
+        self.fetch_usernames(use_cache=False)
 
 class GetTwitterHandler(ProjectHandler):
     def get(self):
