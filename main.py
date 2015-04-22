@@ -1,12 +1,14 @@
-import wsgiref.handlers
-import datetime, time, hashlib, urllib, urllib2, re, os
-from google.appengine.ext import deferred
-from google.appengine.ext import db
-from google.appengine.api import urlfetch, mail, memcache, users, taskqueue
-from google.appengine.ext import webapp
-import json
 from cgi import escape
 from pprint import pprint
+import json
+
+import wsgiref.handlers
+import datetime, time, hashlib, urllib, urllib2, re, os
+from google.appengine.api import urlfetch, mail, memcache, users, taskqueue
+from google.appengine.ext import deferred
+from google.appengine.ext import db
+from google.appengine.ext.webapp import template
+import webapp2
 
 from config import Config
 from membership import Membership
@@ -961,7 +963,7 @@ class CSVHandler(ProjectHandler):
             self.response.out.write(first+","+last+","+u.username+"@hackerdojo.com,"+twitter+"\r\n")
 
 
-app = webapp.WSGIApplication([
+app = webapp2.WSGIApplication([
         ("/", MainHandler),
         ("/api/rfid", RFIDHandler),
         ("/api/rfidswipe", RFIDSwipeHandler),
