@@ -48,7 +48,8 @@ class ProjectHandler(webapp.RequestHandler):
         return usernames
     else:
         conf = Config()
-        resp = urlfetch.fetch("http://%s/users" % conf.DOMAIN_HOST, deadline=10)
+        resp = urlfetch.fetch("http://%s/users" % conf.DOMAIN_HOST, deadline=10,
+                              follow_redirects=False)
         if resp.status_code == 200:
             usernames = [m.lower() for m in json.loads(resp.content)]
             if not memcache.set("usernames", usernames, 60*60*24):

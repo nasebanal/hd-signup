@@ -34,7 +34,7 @@ class Config():
     self.EMAIL_FROM_AYST = "Billing System <robot@hackerdojo.com>"
     self.DAYS_FOR_KEY = 0
     self.INTERNAL_DEV_EMAIL = "Internal Dev <internal-dev@hackerdojo.com>"
-    self.DOMAIN_HOST = "domain.hackerdojo.com"
+    self.DOMAIN_HOST = "hd-domain-hrd.appspot.com"
     self.DOMAIN_USER = "api@hackerdojo.com"
     self.SUCCESS_HTML_URL = \
         "http://hackerdojo.pbworks.com/api_v2/op/GetPage/page/\
