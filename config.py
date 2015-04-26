@@ -10,7 +10,7 @@ import keymaster
 class Config():
   is_dev = False
   is_prod = True
-  is_testing = True;
+  is_testing = False;
 
   def __init__(self):
     try:
@@ -19,11 +19,9 @@ class Config():
     except KeyError:
       pass
 
-    try:
-      self.APP_NAME = app_identity.get_application_id()
-    except AttributeError:
+    self.APP_NAME = app_identity.get_application_id()
+    if self.APP_NAME == "testbed-test":
       Config.is_testing = True
-      self.APP_NAME = "Testing"
 
     if not Config.is_dev:
       # Check if we are running the dev application.
