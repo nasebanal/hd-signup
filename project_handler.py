@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 
@@ -45,24 +46,24 @@ class ProjectHandler(webapp.RequestHandler):
   def fetch_usernames(self, use_cache=True):
     usernames = memcache.get("usernames")
     if usernames and use_cache:
-        return usernames
+      return usernames
     else:
-        conf = Config()
-        resp = urlfetch.fetch("http://%s/users" % conf.DOMAIN_HOST, deadline=10,
-                              follow_redirects=False)
-        if resp.status_code == 200:
-            usernames = [m.lower() for m in json.loads(resp.content)]
-            if not memcache.set("usernames", usernames, 60*60*24):
-                logging.error("Memcache set failed.")
-            return usernames
-        else:
-          logging.critical("Failed to fetch list of users. (%d)" %
-              (resp.status_code))
+      conf = Config()
+      resp = urlfetch.fetch("http://%s/users" % conf.DOMAIN_HOST, deadline=10,
+                            follow_redirects=False)
+      if resp.status_code == 200:
+          usernames = [m.lower() for m in json.loads(resp.content)]
+          if not memcache.set("usernames", usernames, 60*60*24):
+              logging.error("Memcache set failed.")
+          return usernames
+      else:
+        logging.critical("Failed to fetch list of users. (%d)" %
+            (resp.status_code))
 
-          # Render error page.
-          error_page = self.render("templates/error.html",
-              message="/users returned non-OK status.",
-              internal=True)
-          self.response.out.write(error_page)
-          return None
+      # Render error page.
+      error_page = self.render("templates/error.html",
+          message="/users returned non-OK status.",
+          internal=True)
+      self.response.out.write(error_page)
+      return None
 
