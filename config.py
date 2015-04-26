@@ -53,9 +53,9 @@ class Config():
         # This is the new full membership at $195.
         "newfull": "25716",
         # This is the new hive membership at $325.
-        "newhive": "changeme",
+        "newhive": "25790",
         # A limited membership with a reduced price.
-        "lite": "changeme"}
+        "lite": "25791"}
 
     # How many visits per month we allow on the lite membership.
     #TODO(danielp): Figure out the real number here.
