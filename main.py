@@ -418,7 +418,7 @@ class UpdateHandler(ProjectHandler):
     def post(self):
         subscriber_ids = self.request.get("subscriber_ids").split(",")
         for id in subscriber_ids:
-          subscriber_api.update_subscriber(Membership.get_by_id(id))
+          subscriber_api.update_subscriber(Membership.get_by_id(int(id)))
 
         self.response.out.write("ok")
 
@@ -522,8 +522,8 @@ class AllHandler(ProjectHandler):
       if users.is_current_user_admin():
         signup_users = Membership.all().fetch(10000)
         signup_users = sorted(signup_users, key=lambda user: user.last_name.lower())
-        user_keys = [user.key() for user in signup_users]
-        user_ids = [key.id() for key in user_keys]
+        user_keys = [str(user.key()) for user in signup_users]
+        user_ids = [user.key().id() for user in signup_users]
         self.response.out.write(self.render("templates/users.html", locals()))
       else:
         self.response.out.write("Need admin access")
@@ -754,11 +754,13 @@ class KeyHandler(ProjectHandler):
                 self.response.out.write(self.render("templates/error.html", locals()))
                 return
             delta = datetime.datetime.utcnow() - account.created
-            if delta.days < DAYS_FOR_KEY:
+            if delta.days < conf.DAYS_FOR_KEY:
                 message = """<p>You have been a member for %(deltadays)s days.
                 After %(days)s days you qualify for a key.  Check back in %(delta)s days!</p>
                 <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Membership+create+date+not+correct\">%(signup_email)s</a>.</p>
-                """ % {"deltadays": delta.days, "days": DAYS_FOR_KEY, "delta": DAYS_FOR_KEY-delta.days, "signup_email": SIGNUP_HELP_EMAIL}
+                """ % {"deltadays": delta.days, "days": conf.DAYS_FOR_KEY,
+                       "delta": conf.DAYS_FOR_KEY - delta.days,
+                       "signup_email": SIGNUP_HELP_EMAIL}
                 internal = False
                 self.response.out.write(self.render("templates/error.html", locals()))
                 return

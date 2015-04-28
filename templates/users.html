@@ -26,7 +26,7 @@ h3 {margin-top:3em}
 {% for i in range(0, signup_users|count) %}
   <tr>
     <td><a
-    href="https://appengine.google.com/datastore/edit?app_id=hd-signup-hrd&key={{ user_keys[i].key }}">
+    href="https://appengine.google.com/datastore/edit?app_id=hd-signup-hrd&key={{ user_keys[i] }}">
         {{ signup_users[i].last_name }}, {{ signup_users[i].first_name }}</a></td>
     <td {% if not signup_users[i].username%}class="bad"{% endif %}>
         {{ signup_users[i].username }}</td>
