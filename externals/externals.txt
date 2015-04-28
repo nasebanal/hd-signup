@@ -1,1 +1,2 @@
 python-dateutil == 1.5
+webtest == 2.0.18
