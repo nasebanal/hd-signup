@@ -1,14 +1,14 @@
-Hi {{user.first_name}},
+Hi {{ first_name }},
 
 We miss you!  According to our records, you signed up as a member of Hacker Dojo, but your membership has since lapsed.  We realize that some people might not have realized this happened, so we hope you don't mind this automated e-mail to double check if this was intentional.
 
 This e-mail will continue once a week until you choose one of two paths: (aggressive -- sorry!)
 
 (1) Enter your credit card to get your membership active again: (only takes 1-2 minutes)
-{{user.subscribe_url}}
+{{ subscribe_url }}
 
 (2) If you don't wish to be a member again, please unsubscribe so we stop mailing you:
-{{user.unsubscribe_url}}
+{{ unsubscribe_url }}
 
 If you need billing help, please contact treasurer@hackerdojo.com.
 

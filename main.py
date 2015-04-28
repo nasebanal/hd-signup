@@ -584,7 +584,12 @@ class AreYouStillThereMail(ProjectHandler):
     def post(self):
         user = Membership.get_by_id(int(self.request.get("user")))
         subject = "Hacker Dojo Membership: ACTION REQUIRED"
+
+        first_name = user.first_name
+        subscribe_url = user.subscribe_url()
+        unsubscribe_url = user.unsubscribe_url()
         body = self.render("templates/areyoustillthere.txt", locals())
+
         to = "%s <%s>" % (user.full_name(), user.email)
         bcc = "%s <%s>" % ("Billing System", "robot@hackerdojo.com")
         if user.username:
