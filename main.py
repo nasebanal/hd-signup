@@ -521,17 +521,9 @@ class AllHandler(ProjectHandler):
         self.redirect(users.create_login_url("/userlist"))
       if users.is_current_user_admin():
         signup_users = Membership.all().fetch(10000)
-#        active_users = Membership.all().filter("status =", "active").fetch(10000)
-#        signup_usernames = [m.username for m in signup_users]
-#        domain_usernames = fetch_usernames()
-#        signup_usernames = set(signup_usernames) - set([None])
-#        signup_usernames = [m.lower() for m in signup_usernames]
-#        active_usernames = [m.username for m in active_users]
-#        active_usernames = set(active_usernames) - set([None])
-#        active_usernames = [m.lower() for m in active_usernames]
-#        users_not_on_domain = set(signup_usernames) - set(domain_usernames)
-#        users_not_on_signup = set(domain_usernames) - set(active_usernames)
         signup_users = sorted(signup_users, key=lambda user: user.last_name.lower())
+        user_keys = [user.key() for user in signup_users]
+        user_ids = [key.id() for key in user_keys]
         self.response.out.write(self.render("templates/users.html", locals()))
       else:
         self.response.out.write("Need admin access")

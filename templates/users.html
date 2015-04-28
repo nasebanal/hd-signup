@@ -23,15 +23,20 @@ h3 {margin-top:3em}
   <td>Parking Pass</td>
 </tr>
 
-{% for u in signup_users %}  
+{% for i in range(0, signup_users|count) %}
   <tr>
-    <td><a href="https://appengine.google.com/datastore/edit?app_id=hd-signup-hrd&key={{u.key}}">{{ u.last_name }}, {{ u.first_name }}</a></td>
-    <td {% if not u.username%}class="bad"{% endif %}>{{ u.username }}</td>
-    <td><a href="/genlink/{{u.key.id}}">{{ u.plan }}</a></td>
-    <td {% if not u.status %}class="bad"{% endif %}>{{ u.status }}</td>
-    <td {% if not u.spreedly_token %}class="bad"{% endif %}>{% if u.spreedly_token %}Yes{% else %}No{% endif %}</td>
-    <td>{{ u.rfid_tag }}</td>
-    <td>{{ u.parking_pass }}</td>
+    <td><a
+    href="https://appengine.google.com/datastore/edit?app_id=hd-signup-hrd&key={{ user_keys[i].key }}">
+        {{ signup_users[i].last_name }}, {{ signup_users[i].first_name }}</a></td>
+    <td {% if not signup_users[i].username%}class="bad"{% endif %}>
+        {{ signup_users[i].username }}</td>
+    <td><a href="/genlink/{{ user_ids[i] }}">{{ signup_users[i].plan }}</a></td>
+    <td {% if not signup_users[i].status %}class="bad"{% endif %}>
+        {{ signup_users[i].status }}</td>
+    <td {% if not signup_users[i].spreedly_token %}class="bad"{% endif %}>
+        {% if signup_users[i].spreedly_token %}Yes{% else %}No{% endif %}</td>
+    <td>{{ signup_users[i].rfid_tag }}</td>
+    <td>{{ signup_users[i].parking_pass }}</td>
   </tr>
 {% endfor %}
 </table>
