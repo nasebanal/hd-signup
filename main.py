@@ -418,7 +418,7 @@ class UpdateHandler(ProjectHandler):
     def post(self):
         subscriber_ids = self.request.get("subscriber_ids").split(",")
         for id in subscriber_ids:
-          self.subscriber_api.update_subscriber(Membership.get_by_id(id))
+          subscriber_api.update_subscriber(Membership.get_by_id(id))
 
         self.response.out.write("ok")
 
