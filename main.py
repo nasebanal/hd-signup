@@ -869,11 +869,11 @@ Please contact <a href=\"mailto:%(treasurer)s\">%(treasurer)s</a> so they can ma
           self.redirect(str(url))
 
 class GenLinkHandler(ProjectHandler):
-    def get(self,key):
+    def get(self, key):
         conf = Config()
         sa = conf.SPREEDLY_ACCOUNT
         u = Membership.get_by_id(int(key))
-        plans = conf.PLAN_IDS
+        plans = conf.PLAN_IDS.items()
         self.response.out.write(self.render("templates/genlink.html", locals()))
 
 

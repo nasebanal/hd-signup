@@ -23,12 +23,12 @@ Name: {{u.first_name}} {{u.last_name}}
 
 
 
-{% for p in plans.items %}
+{% for p in plans %}
 <h2>{{p.0|title}}</h2>
 <textarea rows=8 style="width:600px">Hi {{u.first_name}},
 
 You can subscribe at the '{{p.0}}' rate with the following link:
-https://spreedly.com/{{sa}}/subscribers/{{u.key.id}}/{{u.spreedly_token}}/subscribe/{{p.1}}
+https://spreedly.com/{{sa}}/subscribers/{{key}}/{{u.spreedly_token}}/subscribe/{{p.1}}
 
 Let me know if you have any problems!</textarea>
 
