@@ -756,7 +756,7 @@ class KeyHandler(ProjectHandler):
                 internal = False
                 self.response.out.write(self.render("templates/error.html", locals()))
                 return
-            delta = datetime.utcnow() - account.created
+            delta = datetime.datetime.utcnow() - account.created
             if delta.days < DAYS_FOR_KEY:
                 message = """<p>You have been a member for %(deltadays)s days.
                 After %(days)s days you qualify for a key.  Check back in %(delta)s days!</p>
