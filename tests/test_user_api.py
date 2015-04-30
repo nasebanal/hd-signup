@@ -78,3 +78,14 @@ class UserHandlerTest(unittest.TestCase):
     self.assertEqual("422 Unprocessable Entity", response.status)
     self.assertEqual("InvalidParametersException", result["type"])
     self.assertIn("bad_property", result["message"])
+
+  """ Tests that it functions properly if you give it a single property. """
+  def test_singleton_property(self):
+    query = urllib.urlencode({"username": "daniel.petti",
+        "properties": "first_name"})
+    response = self.test_app.get("/api/v1/user?" + query)
+    result = json.loads(response.body)
+
+    self.assertEqual("200 OK", response.status)
+    self.assertEqual("Daniel", result["first_name"])
+

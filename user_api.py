@@ -91,6 +91,10 @@ class UserHandler(ApiHandlerBase):
   @ApiHandlerBase.restricted
   def get(self):
     username, properties = self._get_parameters("username", "properties")
+    if type(properties) is unicode:
+      # A singleton property.
+      properties = [properties]
+
     if not username:
       return
     logging.info("Fetching properties for user '%s'." % (username))
