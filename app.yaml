@@ -29,6 +29,8 @@ handlers:
   login: admin
 - url: /_datasync
   script: datasync.app
+- url: /api/.*
+  script: user_api.app
 - url: .*
   script: main.app
 
