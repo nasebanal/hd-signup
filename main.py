@@ -95,7 +95,8 @@ class MainHandler(ProjectHandler):
 
       if not first_name or not last_name or not email:
         self.response.out.write(self.render("templates/main.html",
-            {"message": "Sorry, we need name and e-mail address."}))
+            {"message": "Sorry, we need name and email address."}))
+        self.response.set_status(400)
         return
 
       first_part = re.compile(r"[^\w]").sub("", first_name.split(" ")[0])
@@ -118,19 +119,27 @@ class MainHandler(ProjectHandler):
         # A membership object already exists in the datastore.
         if membership.extra_dnd == True:
           self.response.out.write("Error #237.  Please contact signupops@hackerdojo.com")
+          self.response.set_status(422)
           return
         if membership.status == "suspended":
           self.response.out.write(self.render("templates/main.html",
               message="Your account has been suspended." \
               " <a href=\"/reactivate\">Click here</a> to reactivate."))
+          self.response.set_status(422)
           return
         elif membership.status == "active":
           self.response.out.write(self.render("templates/main.html",
                                   message="Account already exists."))
+          self.response.set_status(422)
           return
         else:
           # Existing membership never got activated. Overwrite it.
           logging.info("Overwriting existing membership for %s." % (email))
+
+          membership.first_name = first_name
+          membership.last_name = last_name
+          membership.email = email
+          membership.twitter = twitter
       else:
         # Make a new membership object.
         membership = Membership(

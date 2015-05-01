@@ -8,6 +8,8 @@ import keymaster
 
 """ Class for storing specific configuration parameters. """
 class Config():
+  # Mutually exclusive flags that specify whether the application is running on
+  # hd-signup-hrd, signup-dev/dev_appserver, or local unit tests.
   is_dev = False
   is_prod = True
   is_testing = False;

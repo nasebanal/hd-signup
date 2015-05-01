@@ -16,6 +16,20 @@ JINJA_ENVIRONMENT = jinja2.Environment(
 
 """ A generic superclass for all handlers. """
 class ProjectHandler(webapp.RequestHandler):
+  # Usernames to return for testing purposes.
+  testing_usernames = []
+
+  """ Allows the user to set which usernames it returns in testing mode. If
+  someone tries to run this on a production app, it throws an exception.
+  username: The username to add. """
+  @classmethod
+  def add_username(cls, username):
+    if Config().is_prod:
+      logging.critical("Can't fake usernames on a production app.")
+      raise ValueError("Can't fake usernames on a production app.")
+
+    ProjectHandler.testing_usernames.append(username)
+
   """ Render out templates with the proper information.
   path: Path to the template file.
   values: Values to fill in the template with.
@@ -44,11 +58,16 @@ class ProjectHandler(webapp.RequestHandler):
   use_cache: Whether or not to use a cached version of the usernames.
   Returns: A list of the usernames, or None upon failure. """
   def fetch_usernames(self, use_cache=True):
+    conf = Config()
+
+    if not conf.is_prod:
+      logging.info("Using fake usernames: %s" % (self.testing_usernames))
+      return self.testing_usernames
+
     usernames = memcache.get("usernames")
     if usernames and use_cache:
       return usernames
     else:
-      conf = Config()
       resp = urlfetch.fetch("http://%s/users" % conf.DOMAIN_HOST, deadline=10,
                             follow_redirects=False)
       if resp.status_code == 200:
