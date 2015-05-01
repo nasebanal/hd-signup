@@ -574,7 +574,15 @@ class AreYouStillThereHandler(ProjectHandler):
 
 class AreYouStillThereMail(ProjectHandler):
     def post(self):
+        user_id = int(self.request.get("user"))
+        logging.debug("Getting member with id: %d" % (user_id))
         user = Membership.get_by_id(int(self.request.get("user")))
+        if not user:
+          logging.error("Bad ID for member.")
+          self.abort(422)
+
+        logging.info("Sending email to %s %s." % \
+                     (user.first_name, user.last_name))
         subject = "Hacker Dojo Membership: ACTION REQUIRED"
 
         first_name = user.first_name
