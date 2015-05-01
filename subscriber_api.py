@@ -26,7 +26,8 @@ def suspend(username):
     resp = urlfetch.fetch("http://%s/suspend/%s" % \
         (conf.DOMAIN_HOST, username),
         method="POST", deadline=10,
-        payload=urllib.urlencode({"secret": keymaster.get("api")}))
+        payload=urllib.urlencode({"secret": keymaster.get("api")}),
+        follow_redirects=False)
   except IOError as e:
     return fail(e)
 
@@ -45,7 +46,8 @@ def restore(username):
     resp = urlfetch.fetch("http://%s/restore/%s" % \
         (conf.DOMAIN_HOST, username),
         method="POST", deadline=10,
-        payload=urllib.urlencode({"secret": keymaster.get("api")}))
+        payload=urllib.urlencode({"secret": keymaster.get("api")}),
+        follow_redirects=False)
   except Exception, e:
     return fail(e)
 
