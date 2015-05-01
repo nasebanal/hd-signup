@@ -418,6 +418,7 @@ class UpdateHandler(ProjectHandler):
     def post(self):
         subscriber_ids = self.request.get("subscriber_ids").split(",")
         for id in subscriber_ids:
+          logging.debug("Updating subscriber with id %s." % id)
           subscriber_api.update_subscriber(Membership.get_by_id(int(id)))
 
         self.response.out.write("ok")

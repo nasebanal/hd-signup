@@ -95,41 +95,42 @@ member: The Membership object we are updating.
 Returns: True if the member is active,
     False otherwise, and the plan of the member. """
 def update_subscriber(member):
+  if not member:
+    return
+
   conf = Config()
   api = spreedly.Spreedly(conf.SPREEDLY_ACCOUNT, token=conf.SPREEDLY_APIKEY)
   subscriber = api.subscriber_details(sub_id=int(member.key().id()))
   logging.debug("subscriber_info: %s" % (subscriber))
-  logging.debug("customer_id: "+ subscriber["customer-id"])
 
-  if member:
-    if member.status == "paypal":
-      mail.send_mail(sender=conf.EMAIL_FROM,
-      to=conf.PAYPAL_EMAIL,
-      subject="Please cancel PayPal subscription for %s" % member.full_name(),
-      body=member.email)
+  if member.status == "paypal":
+    mail.send_mail(sender=conf.EMAIL_FROM,
+    to=conf.PAYPAL_EMAIL,
+    subject="Please cancel PayPal subscription for %s" % member.full_name(),
+    body=member.email)
 
-    update_plan(subscriber, member)
+  update_plan(subscriber, member)
 
-    if member.status == "active" and not member.username:
-      taskqueue.add(url="/tasks/create_user", method="POST",
-                    params={"hash": member.hash}, countdown=3)
-    if member.status == "active" and member.unsubscribe_reason:
-      member.unsubscribe_reason = None
+  if member.status == "active" and not member.username:
+    taskqueue.add(url="/tasks/create_user", method="POST",
+                  params={"hash": member.hash}, countdown=3)
+  if member.status == "active" and member.unsubscribe_reason:
+    member.unsubscribe_reason = None
 
-    member.spreedly_token = subscriber["token"]
-    member.plan = subscriber["feature-level"] or member.plan
+  member.spreedly_token = subscriber["token"]
+  member.plan = subscriber["feature-level"] or member.plan
 
-    member.put()
+  member.put()
 
-    # TODO: After a few months (now() = 06.13.2011), only suspend/restore if
-    # status CHANGED. As of right now, we can't trust previous status, so lets
-    # take action on each call to /update
-    if member.status == "active" and member.username:
-      logging.info("Restoring User: " + member.username)
-      restore(member.username)
-    if member.status == "suspended" and member.username:
-      logging.info("Suspending User: " + member.username)
-      suspend(member.username)
+  # TODO: After a few months (now() = 06.13.2011), only suspend/restore if
+  # status CHANGED. As of right now, we can't trust previous status, so lets
+  # take action on each call to /update
+  if member.status == "active" and member.username:
+    logging.info("Restoring User: " + member.username)
+    restore(member.username)
+  if member.status == "suspended" and member.username:
+    logging.info("Suspending User: " + member.username)
+    suspend(member.username)
 
-    return ((member.status == "active"), member.plan)
+  return ((member.status == "active"), member.plan)
 
