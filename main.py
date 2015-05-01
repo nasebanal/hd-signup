@@ -83,13 +83,15 @@ class BadgeChange(db.Model):
 
 class MainHandler(ProjectHandler):
     def get(self):
-      self.response.out.write(self.render("templates/main.html"))
+      plan = self.request.get("plan", "choose")
+      self.response.out.write(self.render("templates/main.html", plan=plan))
 
     def post(self):
       first_name = self.request.get("first_name")
       last_name = self.request.get("last_name")
       twitter = self.request.get("twitter").lower().strip().strip("@")
       email = self.request.get("email").lower().strip()
+      plan = self.request.get("plan")
 
       if not first_name or not last_name or not email:
         self.response.out.write(self.render("templates/main.html",
@@ -144,9 +146,15 @@ class MainHandler(ProjectHandler):
         membership.referrer = self.request.get("referrer").replace("\n", " ")
       membership.put()
 
-      # Have the user select a plan.
-      self.redirect(str("/plan/%s" % membership.hash))
-
+      logging.debug("Using plan: %s" % (plan))
+      if plan == "choose":
+        # Have the user select a plan.
+        self.redirect("/plan/%s" % (membership.hash))
+      else:
+        # A plan was specified for us, so go on to creating the account.
+        logging.info("Got plan '%s', skipping plan selection step." % (plan))
+        query = urllib.urlencode({"plan": plan})
+        self.redirect("/account/%s?%s" % (membership.hash, query))
 
 class AccountHandler(ProjectHandler):
     def get(self, hash):
