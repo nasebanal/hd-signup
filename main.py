@@ -833,7 +833,7 @@ class RFIDHandler(ProjectHandler):
         if self.request.get("callback"): # jsonp callback support
           self.response.out.write(self.request.get("callback")+"(");
         if m:
-          email = "%s@%s" % (m.username, APPS_DOMAIN)
+          email = "%s@%s" % (m.username, Config().APPS_DOMAIN)
           gravatar_url = "http://www.gravatar.com/avatar/" + hashlib.md5(email.lower()).hexdigest()
           self.response.out.write(json.dumps({"gravatar": gravatar_url,"auto_signin":m.auto_signin, "status" : m.status, "name" : m.first_name + " " + m.last_name, "rfid_tag" : m.rfid_tag, "username" : m.username }))
         else:
