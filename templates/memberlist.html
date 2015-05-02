@@ -22,12 +22,12 @@ h3 {margin-top:3em}
   <td>Twitter</td>
 </tr>
 
-{% for u in signup_users %}  
+{% for u in signup_users %}
 {% if u.spreedly_token %}
-  <tr style="background: {% ifequal u.status "active" %}#EFFFEF{% else %}#FFF7F7{% endifequal %}">
+  <tr style="background: {% if u.status == "active" %}#EFFFEF{% else %}#FFF7F7{% endif %}">
     <td>{{ u.last_name }}, {{ u.first_name }}</td>
     <td>{{ u.username }}</td>
-    <td>{% ifequal u.status "active" %}current{% else %}expired{% endifequal %}</td>
+    <td>{% if u.status == "active" %}current{% else %}expired{% endif %}</td>
     <td><a href="http://twitter.com/{{u.twitter}}">{{u.twitter}}</a></td>
   </tr>
 {% endif %}
