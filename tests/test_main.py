@@ -49,7 +49,7 @@ class MainHandlerTest(BaseTest):
   """ Tests that a post request works as expected. """
   def test_post(self):
     response = self.test_app.post("/", self._TEST_PARAMS)
-    self.assertEqual("302 Moved Temporarily", response.status)
+    self.assertEqual(302, response.status_int)
 
     # It should have put an entry in the datastore.
     user = Membership.get_by_email("testy.testerson@gmail.com")
@@ -67,19 +67,19 @@ class MainHandlerTest(BaseTest):
     # Required fields.
     del params["first_name"]
     response = self.test_app.post("/", params, expect_errors=True)
-    self.assertEqual("400 Bad Request", response.status)
+    self.assertEqual(400, response.status_int)
     self.assertIn("name and email", response.body)
 
     params["first_name"] = "Testy"
     del params["last_name"]
     response = self.test_app.post("/", params, expect_errors=True)
-    self.assertEqual("400 Bad Request", response.status)
+    self.assertEqual(400, response.status_int)
     self.assertIn("name and email", response.body)
 
     params["last_name"] = "Testerson"
     del params["email"]
     response = self.test_app.post("/", params, expect_errors=True)
-    self.assertEqual("400 Bad Request", response.status)
+    self.assertEqual(400, response.status_int)
     self.assertIn("name and email", response.body)
 
     params["email"] = "testy.testerson@gmail.com"
@@ -87,12 +87,12 @@ class MainHandlerTest(BaseTest):
     # Optional fields.
     del params["twitter"]
     response = self.test_app.post("/", params)
-    self.assertEqual("302 Moved Temporarily", response.status)
+    self.assertEqual(302, response.status_int)
 
     params["twitter"] = "ttesterson"
     del params["referrer"]
     response = self.test_app.post("/", params)
-    self.assertEqual("302 Moved Temporarily", response.status)
+    self.assertEqual(302, response.status_int)
 
   """ Tests that it handles finding an already existing member correctly. """
   def test_already_existing(self):
@@ -105,7 +105,7 @@ class MainHandlerTest(BaseTest):
 
     # Because the user is active, it should prohibit us from overriding.
     response = self.test_app.post("/", self._TEST_PARAMS, expect_errors=True)
-    self.assertEqual("422 Unprocessable Entity", response.status)
+    self.assertEqual(422, response.status_int)
     self.assertIn("already exists", response.body)
 
     # User should stay the same.
@@ -119,7 +119,7 @@ class MainHandlerTest(BaseTest):
     # Even though the user is suspended, it should still prohibit us from
     # overriding.
     response = self.test_app.post("/", self._TEST_PARAMS, expect_errors=True)
-    self.assertEqual("422 Unprocessable Entity", response.status)
+    self.assertEqual(422, response.status_int)
     self.assertIn("suspended", response.body)
 
     # User should stay the same.
@@ -132,7 +132,7 @@ class MainHandlerTest(BaseTest):
 
     # Now the user should get silently overriden.
     response = self.test_app.post("/", self._TEST_PARAMS)
-    self.assertEqual("302 Moved Temporarily", response.status)
+    self.assertEqual(302, response.status_int)
 
     # User should not stay the same.
     user = Membership.get_by_email(self._TEST_PARAMS["email"])
@@ -145,12 +145,12 @@ class MainHandlerTest(BaseTest):
     params = self._TEST_PARAMS.copy()
     params["plan"] = "choose"
     response = self.test_app.post("/", params)
-    self.assertEqual("302 Moved Temporarily", response.status)
+    self.assertEqual(302, response.status_int)
     self.assertIn("plan/", response.location)
 
     # If we have a plan, it should skip the plan selection.
     params["plan"] = "newhive"
     response = self.test_app.post("/", params)
-    self.assertEqual("302 Moved Temporarily", response.status)
+    self.assertEqual(302, response.status_int)
     self.assertIn("account/", response.location)
     self.assertIn("plan=newhive", response.location)

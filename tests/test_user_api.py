@@ -43,7 +43,7 @@ class UserHandlerTest(unittest.TestCase):
     response = self.test_app.get("/api/v1/user?" + query)
     result = json.loads(response.body)
 
-    self.assertEqual("200 OK", response.status)
+    self.assertEqual(200, response.status_int)
     self.assertEqual(result["first_name"], "Daniel")
     self.assertEqual(result["last_name"], "Petti")
     self.assertEqual(2, len(result.keys()))
@@ -54,7 +54,7 @@ class UserHandlerTest(unittest.TestCase):
     response = self.test_app.get("/api/v1/user?" + query, expect_errors=True)
     result = json.loads(response.body)
 
-    self.assertEqual("400 Bad Request", response.status)
+    self.assertEqual(400, response.status_int)
     self.assertEqual("InvalidParametersException", result["type"])
 
   """ Tests that it fails when we give it a nonexistent username. """
@@ -64,7 +64,7 @@ class UserHandlerTest(unittest.TestCase):
     response = self.test_app.get("/api/v1/user?" + query, expect_errors=True)
     result = json.loads(response.body)
 
-    self.assertEqual("422 Unprocessable Entity", response.status)
+    self.assertEqual(422, response.status_int)
     self.assertEqual("InvalidParametersException", result["type"])
     self.assertIn("username", result["message"])
 
@@ -75,7 +75,7 @@ class UserHandlerTest(unittest.TestCase):
     response = self.test_app.get("/api/v1/user?" + query, expect_errors=True)
     result = json.loads(response.body)
 
-    self.assertEqual("422 Unprocessable Entity", response.status)
+    self.assertEqual(422, response.status_int)
     self.assertEqual("InvalidParametersException", result["type"])
     self.assertIn("bad_property", result["message"])
 
@@ -86,6 +86,6 @@ class UserHandlerTest(unittest.TestCase):
     response = self.test_app.get("/api/v1/user?" + query)
     result = json.loads(response.body)
 
-    self.assertEqual("200 OK", response.status)
+    self.assertEqual(200, response.status_int)
     self.assertEqual("Daniel", result["first_name"])
 
