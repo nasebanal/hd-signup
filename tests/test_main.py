@@ -43,6 +43,8 @@ class MainHandlerTest(BaseTest):
     response = self.test_app.get("/")
 
     self.assertIn("Member Signup", response.body)
+    # Plan input element, should default to choose.
+    self.assertIn("choose", response.body)
 
   """ Tests that a post request works as expected. """
   def test_post(self):
@@ -137,3 +139,18 @@ class MainHandlerTest(BaseTest):
     self.assertEqual(self._TEST_PARAMS["first_name"], user.first_name)
     self.assertEqual(self._TEST_PARAMS["last_name"], user.last_name)
 
+  """ Tests that it passes the plan parameter through when there is one. """
+  def test_pass_plan(self):
+    # If we have no plan, it should send us to the plan selection page.
+    params = self._TEST_PARAMS.copy()
+    params["plan"] = "choose"
+    response = self.test_app.post("/", params)
+    self.assertEqual("302 Moved Temporarily", response.status)
+    self.assertIn("plan/", response.location)
+
+    # If we have a plan, it should skip the plan selection.
+    params["plan"] = "newhive"
+    response = self.test_app.post("/", params)
+    self.assertEqual("302 Moved Temporarily", response.status)
+    self.assertIn("account/", response.location)
+    self.assertIn("plan=newhive", response.location)
