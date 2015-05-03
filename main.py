@@ -629,6 +629,7 @@ class ReactivateHandler(ProjectHandler):
                     "?message=You are still an active member"))
             else:
               subject = "Reactivate your Hacker Dojo Membership"
+              subscribe_url = membership.subscribe_url()
               body = self.render("templates/reactivate.txt", locals())
               to = "%s <%s>" % (membership.full_name(), membership.email)
               bcc = "%s <%s>" % ("Billing System", "robot@hackerdojo.com")
