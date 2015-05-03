@@ -648,7 +648,7 @@ class CleanupHandler(ProjectHandler):
     def post(self):
         countdown = 0
         for membership in Membership.all().filter("status =", None):
-            if (datetime.now().date() - membership.created.date()).days > 1:
+            if (datetime.datetime.now().date() - membership.created.date()).days > 1:
                 countdown += 90
                 self.response.out.write("bye %s " % (membership.email))
                 taskqueue.add(url="/tasks/clean_row", params={"user": membership.key().id()}, countdown=countdown)
