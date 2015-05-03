@@ -99,19 +99,6 @@ class MainHandler(ProjectHandler):
         self.response.set_status(400)
         return
 
-      first_part = re.compile(r"[^\w]").sub("", first_name.split(" ")[0])
-      last_part = re.compile(r"[^\w]").sub("", last_name)
-      if len(first_part)+len(last_part) >= 15:
-        last_part = last_part[0]
-      username = ".".join([first_part, last_part]).lower()
-
-      usernames = self.fetch_usernames()
-      if usernames == None:
-        # Error page is already rendered.
-        return
-      if username in usernames:
-        username = email.split("@")[0].lower()
-
       membership = db.GqlQuery("SELECT * FROM Membership WHERE email = :email",
                                email=email).get()
 
@@ -167,35 +154,44 @@ class MainHandler(ProjectHandler):
 
 class AccountHandler(ProjectHandler):
     def get(self, hash):
-        membership = Membership.get_by_hash(hash)
-        if membership:
-          # Save the plan they want.
-          plan = self.request.get("plan", "newfull")
-          membership.plan = plan
-          membership.put()
+      membership = Membership.get_by_hash(hash)
+      if membership:
+        # Save the plan they want.
+        plan = self.request.get("plan", "newfull")
+        membership.plan = plan
+        membership.put()
 
-          # steal this part to detect if they registered with hacker dojo email above
-          first_part = re.compile(r"[^\w]").sub("", membership.first_name.split(" ")[0]) # First word of first name
-          last_part = re.compile(r"[^\w]").sub("", membership.last_name)
-          if len(first_part)+len(last_part) >= 15:
-              last_part = last_part[0] # Just last initial
-          username = ".".join([first_part, last_part]).lower()
+        # steal this part to detect if they registered with hacker dojo email above
+        first_part = re.compile(r"[^\w]").sub("", membership.first_name.split(" ")[0]) # First word of first name
+        last_part = re.compile(r"[^\w]").sub("", membership.last_name)
+        if len(first_part)+len(last_part) >= 15:
+            last_part = last_part[0] # Just last initial
+        username = ".".join([first_part, last_part]).lower()
 
-          usernames = self.fetch_usernames()
-          if usernames == None:
-            # Error page is already rendered.
-            return
-          if username in usernames:
-              username = membership.email.split("@")[0].lower()
-          if self.request.get("u"):
-              pick_username = True
+        usernames = self.fetch_usernames()
+        if usernames == None:
+          # Error page is already rendered.
+          return
+        if username in usernames:
+          # Duplicate username. Use the first part of the email instead.
+          username = membership.email.split("@")[0].lower()
 
-          account_url = str("/account/%s" % membership.hash)
-          self.response.out.write(self.render("templates/account.html", locals()))
-        else:
-          self.response.set_status(422)
-          self.response.out.write("Unknown member hash.")
-          logging.error("Could not find member with hash '%s'." % (hash))
+          user_number = 0
+          base_username = username
+          while username in usernames:
+            # Still a duplicate. Add a number.
+            user_number += 1
+            username = "%s%d" % (base_username, user_number)
+
+        if self.request.get("pick_username"):
+          pick_username = True
+
+        account_url = str("/account/%s" % membership.hash)
+        self.response.out.write(self.render("templates/account.html", locals()))
+      else:
+        self.response.set_status(422)
+        self.response.out.write("Unknown member hash.")
+        logging.error("Could not find member with hash '%s'." % (hash))
 
     def post(self, hash):
         username = self.request.get("username")
@@ -207,15 +203,22 @@ class AccountHandler(ProjectHandler):
         if password != self.request.get("password_confirm"):
             self.response.out.write(self.render("templates/account.html",
                 locals(), message="Passwords do not match."))
+            self.response.set_status(422)
             return
         elif len(password) < 8:
             self.response.out.write(self.render("templates/account.html",
                 locals(), message="Password must be at least 8 characters."))
+            self.response.set_status(422)
             return
         else:
             membership = Membership.get_by_hash(hash)
             if membership.username:
-                self.redirect(str(self.request.path + "?message=You already have a user account"))
+                logging.warning(
+                    "Duplicate user '%s' should have been caught" \
+                    " in first step." % (membership.username))
+                self.response.out.write(self.render("templates/account.html",
+                    locals(), message="You already have an account."))
+                self.response.set_status(422)
                 return
 
             # Yes, storing their username and password temporarily so we can make their account later
@@ -230,7 +233,7 @@ class AccountHandler(ProjectHandler):
                 customer_id = membership.key().id()
 
                 # This code is not weird...
-                if "1337" in membership.referrer:
+                if (membership.referrer and "1337" in membership.referrer):
 
                     if len(membership.referrer) != 16:
                         message = "<p>Error: code must be 16 digits."
@@ -296,9 +299,9 @@ class AccountHandler(ProjectHandler):
                 query_str = urllib.urlencode({"first_name": membership.first_name, "last_name": membership.last_name,
                     "email": membership.email, "return_url":
                     "http://%s/success/%s" % (self.request.host, membership.hash)})
-                # check if they are active already since we didn"t create a new member above
+                # check if they are active already since we didn't create a new member above
                 # apparently the URL will be different
-                self.redirect(str("https://spreedly.com/%s/subscribers/%s/subscribe/%s/%s?%s" %
+                self.redirect(str("https://spreedly.com/%s/subscribers/%d/subscribe/%s/%s?%s" %
                     (conf.SPREEDLY_ACCOUNT, customer_id, conf.PLAN_IDS[plan], username, query_str)))
 
 

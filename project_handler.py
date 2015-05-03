@@ -30,6 +30,15 @@ class ProjectHandler(webapp.RequestHandler):
 
     ProjectHandler.testing_usernames.append(username)
 
+  """ Clears all the fake usernames. """
+  @classmethod
+  def clear_usernames(cls):
+    if Config().is_prod:
+      logging.critical("Can't clear fake usernames on a production app.")
+      raise ValueError("Can't clear fake usernames on a production app.")
+
+    ProjectHandler.testing_usernames = []
+
   """ Render out templates with the proper information.
   path: Path to the template file.
   values: Values to fill in the template with.
