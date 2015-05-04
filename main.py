@@ -767,7 +767,7 @@ class KeyHandler(ProjectHandler):
                 message = """<p>Your Spreedly account status does not appear to me marked as active. This might be a mistake, in which case we apologize. </p>
                 <p>To investigate your account, you may go here: <a href=\"%(url)s\">%(url)s</a> </p>
                 <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a></p>
-                """ % {"url": url, "signup_email": SIGNUP_HELP_EMAIL}
+                """ % {"url": url, "signup_email": conf.SIGNUP_HELP_EMAIL}
                 internal = False
                 self.response.out.write(self.render("templates/error.html", locals()))
                 return
