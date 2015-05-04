@@ -232,7 +232,7 @@ class AccountHandler(ProjectHandler):
             else:
                 customer_id = membership.key().id()
 
-                # This code is not weird...
+                # All our giftcards start out with 1337.
                 if (membership.referrer and "1337" in membership.referrer):
 
                     if len(membership.referrer) != 16:
