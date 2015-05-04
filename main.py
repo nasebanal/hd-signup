@@ -325,7 +325,7 @@ class CreateUserTask(ProjectHandler):
             return fail(Exception("Account information expired for %s" % membership.email))
 
         try:
-            url = "http://%s/users" % DOMAIN_HOST
+            url = "http://%s/users" % Config().DOMAIN_HOST
             payload = urllib.urlencode({
                 "username": username,
                 "password": password,
