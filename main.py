@@ -336,7 +336,8 @@ class CreateUserTask(ProjectHandler):
             logging.info("CreateUserTask: About to create user: "+username)
             logging.info("CreateUserTask: URL: "+url)
             logging.info("CreateUserTask: Payload: "+payload)
-            resp = urlfetch.fetch(url, method="POST", payload=payload, deadline=120)
+            resp = urlfetch.fetch(url, method="POST", payload=payload,
+                                  deadline=120, follow_redirects=False)
             membership.username = username
             membership.put()
             logging.warning("CreateUserTask: I think that worked: HTTP %d" % \
@@ -382,7 +383,7 @@ class SuccessHandler(ProjectHandler):
       spreedly_url = member.spreedly_url()
       dojo_email = "%s@hackerdojo.com" % (member.username)
       name = member.full_name()
-      mail.send_mail(sender=EMAIL_FROM,
+      mail.send_mail(sender=Config().EMAIL_FROM,
           to="%s <%s>; %s <%s>" % (name, member.email, name, dojo_email),
           subject="Welcome to Hacker Dojo, %s!" % member.first_name,
           body=self.render("templates/welcome.txt", locals()))
@@ -921,7 +922,8 @@ class TwitterMail(ProjectHandler):
         body = self.render("templates/twittermail.txt", locals())
         to = "%s <%s@hackerdojo.com>" % (user.full_name(), user.username)
         bcc = "%s <%s>" % ("Robot", "robot@hackerdojo.com")
-        mail.send_mail(sender=EMAIL_FROM_AYST, to=to, subject=subject, body=body, bcc=bcc, html=body)
+        mail.send_mail(sender=Config().EMAIL_FROM_AYST, to=to,
+                       subject=subject, body=body, bcc=bcc, html=body)
 
 class SetTwitterHandler(ProjectHandler):
     def get(self):
