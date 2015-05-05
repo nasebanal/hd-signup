@@ -8,5 +8,5 @@ First of all, you can manage your membership subscription with this link:
 Secondly, your Hacker Dojo username is: {{member.username}}
 
 You will be able to use this for various services provided by Hacker Dojo. If you forget your password, email passwordreset@hackerdojo.com
- 
+
 If you want to log into the members wifi: Switch to hd-members or hd-members5ghz.  The Wifi password is hackerdojo.  You must login to the authentication portal with {{member.username}} and your password.

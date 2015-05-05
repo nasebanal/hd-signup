@@ -323,6 +323,8 @@ class CreateUserTask(ProjectHandler):
                 to=Config().INTERNAL_DEV_EMAIL,
                 subject="[%s] CreateUserTask failure" % Config().APP_NAME,
                 body=str(exception))
+
+            self.response.set_status(500)
         def retry(countdown=3):
             retries = int(self.request.get("retries", 0)) + 1
             if retries <= 5:
@@ -333,12 +335,21 @@ class CreateUserTask(ProjectHandler):
 
         user_hash = self.request.get("hash")
         membership = Membership.get_by_hash(user_hash)
-        if membership is None or membership.username:
+
+        if membership is None:
+            logging.error("Got nonexistent hash: %s" % (user_hash))
+            self.response.set_status(422)
             return
+        if membership.username:
+            logging.warning(
+                "Not creating domain account for already-existing user '%s'." \
+                % (membership.username))
+            self.response.set_status(422)
+            return
+
         if not membership.spreedly_token:
             logging.warn("CreateUserTask: No spreedly token yet, retrying")
             return retry(300)
-
 
         try:
             username, password = memcache.get(hashlib.sha1(membership.hash + \
@@ -353,26 +364,29 @@ class CreateUserTask(ProjectHandler):
                 "password": password,
                 "first_name": membership.first_name,
                 "last_name": membership.last_name,
-                "secret": keymaster.get("api"),
             })
             logging.info("CreateUserTask: About to create user: "+username)
             logging.info("CreateUserTask: URL: "+url)
             logging.info("CreateUserTask: Payload: "+payload)
-            resp = urlfetch.fetch(url, method="POST", payload=payload,
-                                  deadline=120, follow_redirects=False)
+
+            if not Config().is_testing:
+              resp = urlfetch.fetch(url, method="POST", payload=payload,
+                                    deadline=120, follow_redirects=False)
+              logging.warning("CreateUserTask: I think that worked: HTTP %d" % \
+                              (resp.status_code))
+
+            else:
+              # I want to see what query string it would have used.
+              self.response.out.write(payload)
+
             membership.username = username
             membership.put()
-            logging.warning("CreateUserTask: I think that worked: HTTP %d" % \
-                            (resp.status_code))
 
             # Send the welcome email.
-            SuccessHandler.send_email(membership)
+            SuccessHandler.send_email(self, membership)
         except urlfetch.DownloadError, e:
             logging.warn("CreateUserTask: API response error or timeout, retrying")
             return retry()
-        except keymaster.KeymasterError, e:
-            fail(e)
-            return retry(3600)
         except Exception, e:
             return fail(e)
 
@@ -400,15 +414,18 @@ class UnsubscribeHandler(ProjectHandler):
 
 
 class SuccessHandler(ProjectHandler):
+    """ Sends the welcome email to the specified person.
+    handler: The handler that is sending the email. (ProjectHandler)
+    member: The member that will receive the email. (Membership) """
     @classmethod
-    def send_email(cls, member):
+    def send_email(cls, handler, member):
       spreedly_url = member.spreedly_url()
       dojo_email = "%s@hackerdojo.com" % (member.username)
       name = member.full_name()
       mail.send_mail(sender=Config().EMAIL_FROM,
           to="%s <%s>; %s <%s>" % (name, member.email, name, dojo_email),
           subject="Welcome to Hacker Dojo, %s!" % member.first_name,
-          body=self.render("templates/welcome.txt", locals()))
+          body=handler.render("templates/welcome.txt", locals()))
 
     def get(self, hash):
         member = Membership.get_by_hash(hash)

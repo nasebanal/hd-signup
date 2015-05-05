@@ -34,6 +34,7 @@ class BaseTest(unittest.TestCase):
     self.testbed.init_datastore_v3_stub()
     self.testbed.init_memcache_stub()
     self.testbed.init_taskqueue_stub()
+    self.testbed.init_mail_stub()
 
   def tearDown(self):
     self.testbed.deactivate()
@@ -388,3 +389,101 @@ class GiftCodeTest(AccountHandlerBase):
                                   self._TEST_PARAMS, expect_errors=True)
     self.assertEqual(422, response.status_int)
     self.assertIn("code was invalid", response.body)
+
+
+""" Tests that CreateUserTask works correctly. """
+class CreateUserTaskTest(BaseTest):
+  def setUp(self):
+    super(CreateUserTaskTest, self).setUp()
+
+    # Add a user to the datastore.
+    user = Membership(first_name="Testy", last_name="Testerson",
+                      email="ttesterson@gmail.com", hash="notahash",
+                      spreedly_token="notatoken")
+    user.put()
+
+    # Username and password have to go in the memcache.
+    key = hashlib.sha1(user.hash + Config().SPREEDLY_APIKEY).hexdigest()
+    memcache.set(key, "testy.testerson:notasecret")
+
+    self.mail_stub = self.testbed.get_stub(testbed.MAIL_SERVICE_NAME)
+    self.user_hash = user.hash
+    self.params = {"hash": self.user_hash}
+
+  """ Tests that it works under normal conditions. """
+  def test_create_user(self):
+    response = self.test_app.post("/tasks/create_user", self.params)
+    self.assertEqual(200, response.status_int)
+
+    # Check that it's sending the right parameters to the domain app.
+    self.assertIn("username=testy.testerson", response.body)
+    self.assertIn("password=notasecret", response.body)
+    self.assertIn("first_name=Testy", response.body)
+    self.assertIn("last_name=Testerson", response.body)
+
+    # Check that the user ended up with a username.
+    user = Membership.get_by_hash(self.user_hash)
+    self.assertEqual("testy.testerson", user.username)
+
+    # Check that it sent the right email.
+    messages = self.mail_stub.get_sent_messages(to="ttesterson@gmail.com")
+    self.assertEqual(1, len(messages))
+
+    # It should give the user this data.
+    body = str(messages[0].body)
+    self.assertIn(user.spreedly_url(), body)
+    self.assertIn(user.username, body)
+
+  """ Tests that it retries if the user has no spreedly token. """
+  def test_retry_no_token(self):
+    # Make a user with no token.
+    user = Membership.get_by_hash(self.user_hash)
+    user.spreedly_token=None
+    user.put()
+
+    # Try to create an account for this user.
+    response = self.test_app.post("/tasks/create_user", self.params)
+    self.assertEqual(200, response.status_int)
+
+    # We should have a new task now.
+    taskqueue_stub = self.testbed.get_stub(testbed.TASKQUEUE_SERVICE_NAME)
+    tasks = taskqueue_stub.GetTasks("default")
+    self.assertEqual(1, len(tasks))
+
+    # The user shouldn't have a username yet.
+    user = Membership.get_by_hash(self.user_hash)
+    self.assertEqual(None, user.username)
+
+  """ Tests that it fails if the account information isn't in memcache. """
+  def test_account_expired(self):
+    self.assertTrue(memcache.flush_all())
+
+    response = self.test_app.post("/tasks/create_user", self.params,
+                                  expect_errors=True)
+    self.assertEqual(500, response.status_int)
+
+    # It should have sent us a nice email too.
+    messages = self.mail_stub.get_sent_messages(to=Config().INTERNAL_DEV_EMAIL)
+    self.assertEqual(1, len(messages))
+
+    body = str(messages[0].body)
+    self.assertIn("Account information expired", body)
+
+  """ Tests that it fails when it gets a bad hash or when the account is already
+  created. """
+  def test_trivial_failures(self):
+    # Give it a bad hash.
+    bad_params = {"hash": "badhash"}
+
+    response = self.test_app.post("/tasks/create_user", bad_params,
+                                  expect_errors=True)
+    self.assertEqual(422, response.status_int)
+
+    # Give it a user with a username already.
+    user = Membership.get_by_hash(self.user_hash)
+    user.username = "testy.testerson"
+    user.put()
+
+    response = self.test_app.post("/tasks/create_user", self.params,
+                                  expect_errors=True)
+    self.assertEqual(422, response.status_int)
