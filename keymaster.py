@@ -15,7 +15,7 @@ class KeymasterError(Exception): pass
 
 class Keymaster(db.Model):
     secret  = db.BlobProperty(required=True)
-    
+
     @classmethod
     def encrypt(cls, key_name, secret):
         secret  = ARC4.new(os.environ['APPLICATION_ID']).encrypt(secret)
@@ -25,7 +25,7 @@ class Keymaster(db.Model):
         else:
             k = cls(key_name=str(key_name), secret=str(secret))
         return k.put()
-    
+
     @classmethod
     def decrypt(cls, key_name):
         k = cls.get_by_key_name(str(key_name))
@@ -44,7 +44,7 @@ class KeymasterHandler(webapp.RequestHandler):
                 <input type="text" name="key" /><input type="text" name="secret" /><input type="submit" /></form></body></html>""")
         else:
             self.redirect('/')
-        
+
     def post(self):
         if users.is_current_user_admin():
             Keymaster.encrypt(self.request.get('key'), self.request.get('secret'))

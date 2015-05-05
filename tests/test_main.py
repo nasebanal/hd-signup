@@ -1,10 +1,11 @@
-""" Tests for the user API. """
+""" Tests for main.py. """
 
 
 # We need our external modules.
 import appengine_config
 
 import hashlib
+import re
 import unittest
 import urllib
 
@@ -15,6 +16,7 @@ from google.appengine.ext import db
 from google.appengine.ext import testbed
 
 from config import Config
+from keymaster import Keymaster
 from membership import Membership
 from project_handler import ProjectHandler
 import main
@@ -163,15 +165,18 @@ class MainHandlerTest(BaseTest):
     self.assertIn("account/", response.location)
     self.assertIn("plan=newhive", response.location)
 
-""" Tests that AccountHandler works. """
-class AccountHandlerTest(BaseTest):
+
+""" AccountHandler is complicated enough that we split the testing accross two
+cases. This is a base class that both inherit from. """
+class AccountHandlerBase(BaseTest):
   # Parameters that we use for testing post requests.
   _TEST_PARAMS = {"username": "testy.testerson",
                   "password": "notasecret",
                   "password_confirm": "notasecret",
                   "plan": "newfull"}
+
   def setUp(self):
-    super(AccountHandlerTest, self).setUp()
+    super(AccountHandlerBase, self).setUp()
 
     # Start by putting a user in the datastore.
     user = Membership(first_name="Testy", last_name="Testerson",
@@ -184,6 +189,9 @@ class AccountHandlerTest(BaseTest):
     # Clear fake usernames between tests.
     ProjectHandler.clear_usernames()
 
+
+""" Tests that AccountHandler works. """
+class AccountHandlerTest(AccountHandlerBase):
   """ Tests that the get request works. """
   def test_get(self):
     query = urllib.urlencode({"plan": "newhive"})
@@ -292,3 +300,91 @@ class AccountHandlerTest(BaseTest):
     self.assertEqual(302, response.status_int)
     self.assertIn("success", response.location)
     self.assertIn(self.user_hash, response.location)
+
+
+""" A special test case for testing the giftcard stuff. """
+class GiftCodeTest(AccountHandlerBase):
+  def setUp(self):
+    super(GiftCodeTest, self).setUp()
+
+    # Create the a keymaster key for a valid code.
+    self.code = "eulalie"
+    Keymaster.encrypt("code:hash", self.code)
+
+  """ Tests that if we give it a correct code, it gives us a discount, and that
+  if we give it twice, it doesn't. """
+  def test_discount(self):
+    # A unique number on all the giftcards.
+    serial = "1678"
+    # A "correct" hash, based on what the actual code does.
+    correct_hash = hashlib.sha1(serial + self.code).hexdigest()
+    correct_hash = re.sub("[a-f]", "", correct_hash)[:8]
+    gift_code = "1337" + serial + correct_hash
+    print "Using test gift code: %s" % (gift_code)
+
+    # Now try using this code.
+    user = Membership.get_by_hash(self.user_hash)
+    user.referrer = gift_code
+    user.put()
+
+    response = self.test_app.post("/account/" + self.user_hash,
+                                  self._TEST_PARAMS)
+    self.assertEqual(302, response.status_int)
+
+    # We should have a record of the used code.
+    codes = main.UsedCode.all().run()
+    for code in codes:
+      # We should only have one code in there.
+      self.assertEqual(gift_code, code.code)
+      self.assertEqual("ttesterson@gmail.com", code.email)
+      self.assertEqual("OK", code.extra)
+
+    # Try to use the same code again.
+    response = self.test_app.post("/account/" + self.user_hash,
+                                  self._TEST_PARAMS, expect_errors=True)
+    self.assertEqual(422, response.status_int)
+    self.assertIn("already been used", response.body)
+
+    # Now we should have individual records of the same code being used twice.
+    codes = main.UsedCode.all().run()
+    # Turn the iterator into a list.
+    codes = [code for code in codes]
+
+    self.assertEqual(gift_code, codes[0].code)
+    self.assertEqual(gift_code, codes[1].code)
+    self.assertEqual("ttesterson@gmail.com", codes[0].email)
+    self.assertEqual("ttesterson@gmail.com", codes[1].email)
+    if codes[0].extra == "OK":
+      # The other one should be the duplicate.
+      self.assertEqual("2nd+ attempt", codes[1].extra)
+    elif codes[0].extra == "2nd+ attempt":
+      # The other one should be the good one.
+      self.assertEqual("OK", codes[1].extra)
+    else:
+      fail("Got unexpected extra '%s'." % (codes[0].extra))
+
+  """ Tests that it fails when we give it a code that is the wrong length. """
+  def test_bad_length_code(self):
+    code = "133712345"
+
+    user = Membership.get_by_hash(self.user_hash)
+    user.referrer = code
+    user.put()
+
+    response = self.test_app.post("/account/" + self.user_hash,
+                                  self._TEST_PARAMS, expect_errors=True)
+    self.assertEqual(422, response.status_int)
+    self.assertIn("must be 16 digits", response.body)
+
+  """ Tests that it fails when we give it a code that is invalid. """
+  def test_invalid_code(self):
+    code = "1337424242424242"
+
+    user = Membership.get_by_hash(self.user_hash)
+    user.referrer = code
+    user.put()
+
+    response = self.test_app.post("/account/" + self.user_hash,
+                                  self._TEST_PARAMS, expect_errors=True)
+    self.assertEqual(422, response.status_int)
+    self.assertIn("code was invalid", response.body)

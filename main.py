@@ -240,58 +240,68 @@ class AccountHandler(ProjectHandler):
                         message += "<p>Please contact %s if you believe this \
                                  message is in error and we can help!" % \
                                  (conf.SIGNUP_HELP_EMAIL)
-                        message += "<p><a href="/">Start again</a>"
+                        message += "<p><a href=\"/\">Start again</a>"
                         internal = False
                         self.response.out.write(self.render("templates/error.html", locals()))
+                        self.response.set_status(422)
                         return
 
+                    # A unique number on all the giftcards.
                     serial = membership.referrer[4:8]
+                    # How we know it's valid.
                     hash = membership.referrer[8:16]
                     confirmation_hash = re.sub("[a-f]","",hashlib.sha1(serial+keymaster.get("code:hash")).hexdigest())[:8]
 
                     if hash != confirmation_hash:
-                        message = "<p>Error: this code was invavlid: %s" % \
+                        message = "<p>Error: this code was invalid: %s" % \
                             (membership.referrer)
                         message += "<p>Please contact %s if you believe this \
                                  message is in error and we can help!" % \
                                  (conf.SIGNUP_HELP_EMAIL)
-                        message += "<p><a href="/">Start again</a>"
+                        message += "<p><a href=\"/\">Start again</a>"
                         internal = False
                         uc = UsedCode(code=membership.referrer,email=membership.email,extra="invalid code")
                         uc.put()
                         self.response.out.write(self.render("templates/error.html", locals()))
+                        self.response.set_status(422)
                         return
 
                     previous = UsedCode.all().filter("code =", membership.referrer).get()
                     if previous:
                         message = "<p>Error: this code has already been used: "+ membership.referrer
-                        message += "<p>Please contact "+ SIGNUP_HELP_EMAIL+" if you believe this message is in error and we can help!"
-                        message += "<p><a href="/">Start again</a>"
+                        message += "<p>Please contact %s if you believe this" \
+                                   " message is in error and we can help!" % \
+                                   (conf.SIGNUP_HELP_EMAIL)
+                        message += "<p><a href=\"/\">Start again</a>"
                         internal = False
                         uc = UsedCode(code=membership.referrer,email=membership.email,extra="2nd+ attempt")
                         uc.put()
                         self.response.out.write(self.render("templates/error.html", locals()))
+                        self.response.set_status(422)
                         return
 
-                    headers = {"Authorization": "Basic %s" % \
-                        base64.b64encode("%s:X" % conf.SPREEDLY_APIKEY),
-                        "Content-Type":"application/xml"}
-                    # Create subscriber
-                    data = "<subscriber><customer-id>%s</customer-id><email>%s</email></subscriber>" % (customer_id, membership.email)
-                    resp = \
-                        urlfetch.fetch("https://subs.pinpayments.com"
-                                       "/api/v4/%s/subscribers.xml" % \
-                                       (conf.SPREEDLY_ACCOUNT),
-                                       method="POST", payload=data,
-                                       headers = headers, deadline=5)
-                    # Credit
-                    data = "<credit><amount>95.00</amount></credit>"
-                    resp = \
-                        urlfetch.fetch("https://subs.pinpayments.com/api/v4"
-                                       "/%s/subscribers/%s/credits.xml" % \
-                                       (conf.SPREEDLY_ACCOUNT, customer_id),
-                                       method="POST", payload=data,
-                                       headers=headers, deadline=5)
+                    # If we're testing, I don't want it doing random things on
+                    # pinpayments.
+                    if not Config().is_testing:
+                      headers = {"Authorization": "Basic %s" % \
+                          base64.b64encode("%s:X" % conf.SPREEDLY_APIKEY),
+                          "Content-Type":"application/xml"}
+                      # Create subscriber
+                      data = "<subscriber><customer-id>%s</customer-id><email>%s</email></subscriber>" % (customer_id, membership.email)
+                      resp = \
+                          urlfetch.fetch("https://subs.pinpayments.com"
+                                        "/api/v4/%s/subscribers.xml" % \
+                                        (conf.SPREEDLY_ACCOUNT),
+                                        method="POST", payload=data,
+                                        headers = headers, deadline=5)
+                      # Credit
+                      data = "<credit><amount>95.00</amount></credit>"
+                      resp = \
+                          urlfetch.fetch("https://subs.pinpayments.com/api/v4"
+                                        "/%s/subscribers/%s/credits.xml" % \
+                                        (conf.SPREEDLY_ACCOUNT, customer_id),
+                                        method="POST", payload=data,
+                                        headers=headers, deadline=5)
 
                     uc = UsedCode(code=membership.referrer,email=membership.email,extra="OK")
                     uc.put()
