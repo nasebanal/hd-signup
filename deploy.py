@@ -86,16 +86,20 @@ def get_external(external):
         print "Found unusable version of '%s'" % (name)
         shutil.rmtree(os.path.join("externals", installed))
 
-  os.mkdir(os.path.join("externals", module_name))
+  # Make a special directory to install it in.
+  install_location = os.path.join("externals", module_name)
+  os.mkdir(install_location)
 
   pip_location = get_location("pip")
 
   # Install the module.
   try:
-    subprocess.check_call([os.path.join(pip_location, "pip"), "install", "-t",
-        os.path.join("externals", module_name), external.replace(" ", "")])
+    subprocess.check_call([os.path.join(pip_location, "pip"), "install",
+                           "-t", install_location, external.replace(" ", "")])
   except subprocess.CalledProcessError:
     print "ERROR: Installation of '%s' failed." % (name)
+    # Get rid of the installation directory.
+    shutil.rmtree(install_location)
     os._exit(0)
 
 """ Runs all the unit tests.
