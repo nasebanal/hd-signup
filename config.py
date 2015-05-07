@@ -57,7 +57,9 @@ class Config():
         # This is the new hive membership at $325.
         "newhive": "25790",
         # A limited membership with a reduced price.
-        "lite": "25791"}
+        "lite": "25791",
+        # New, more expensive versions of student and yearly.
+        "newstudent": "25967", "newyearly": "25968"}
 
     # How many visits per month we allow on the lite membership.
     #TODO(danielp): Figure out the real number here.

@@ -15,7 +15,7 @@ class SelectPlanHandler(ProjectHandler):
     full_url = "%s?%s" % (base_url, urllib.urlencode({"plan": "newfull"}))
     premium_url = "%s?%s" % (base_url, urllib.urlencode({"plan": "newhive"}))
     lite_url = "%s?%s" % (base_url, urllib.urlencode({"plan": "lite"}))
-    yearly_url = "%s?%s" % (base_url, urllib.urlencode({"plan": "yearly"}))
+    yearly_url = "%s?%s" % (base_url, urllib.urlencode({"plan": "newyearly"}))
 
     self.response.out.write(self.render("templates/select_plan.html",
                             full_url=full_url, premium_url=premium_url,
