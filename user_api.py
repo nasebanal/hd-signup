@@ -10,6 +10,7 @@ from google.appengine.ext import db
 import webapp2
 
 from config import Config
+from membership import Membership
 
 
 """ Generic superclass for all API Handlers. """
