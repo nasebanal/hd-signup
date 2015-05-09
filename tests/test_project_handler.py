@@ -1,17 +1,12 @@
 """ Tests for the subscriber api handler. """
 
+
 import os
 import unittest
 
 from google.appengine.ext import testbed
 
 import project_handler
-
-
-TEMPLATE_LOADERS_STRING = (
-'django.template.loaders.filesystem.loader',
-'django.template.loaders.app_directories.loader',
-)
 
 
 """ Test case for the ProjectHandler class """
