@@ -2,11 +2,22 @@ Hello and welcome to our community!
 
 Save this email because it contains important information regarding your membership.
 
-First of all, you can manage your membership subscription with this link:
-{{spreedly_url}}
-
-Secondly, your Hacker Dojo username is: {{member.username}}
+Your Hacker Dojo username is: {{member.username}}@hackedojo.com
 
 You will be able to use this for various services provided by Hacker Dojo. If you forget your password, email passwordreset@hackerdojo.com
 
-If you want to log into the members wifi: Switch to hd-members or hd-members5ghz.  The Wifi password is hackerdojo.  You must login to the authentication portal with {{member.username}} and your password.
+If you want to log into the members wifi: Switch to hd-members.  The Wifi password is hackerdojo.  You must login to the authentication portal with {{member.username}}@hackerdojo and your password.
+
+1. Sign in to the wi-fi. Log in to the wifi "HD-Members". The first password you’ll be prompted to enter is “hackerdojo.” You will then see a Google login screen which will ask for your HD username and password. If you were able to successfully sign in to your inbox, these are the same credentials you will use to get on the wifi.
+
+2. Locate and sign in to your Hacker Dojo Dashboard. This is where you control billing, register your RFID key and parking pass, reserve a meeting room, and so much more. The same login as your email is used.
+
+3. Register an RFID key. RFID keys are available for pickup in the Dojo at the front desk in a glass bowl. Self-registration is done through the Dashboard.
+
+4. Register your parking pass. You will need to ask a staff member for a parking pass, which is needed to park in the main lot during the week. This is also then registered through your Dashboard.
+
+5. Sign in to your Hacker Dojo email using the username {{member.username}}@hackedojo.com for you, and the password you created. If you are having trouble remembering any of this, please email passwordreset@hackerdojo.com, and someone will help you out ASAP.
+It is extremely important that you either check this inbox regularly or set up forwarding- this is the main method of communication we use with our membership to get important news and updates out.
+ 
+You can manage your membership subscription with this link:
+{{spreedly_url}}
