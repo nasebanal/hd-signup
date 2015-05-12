@@ -484,6 +484,7 @@ class CreateUserTaskTest(BaseTest):
     user.username = "testy.testerson"
     user.put()
 
-    response = self.test_app.post("/tasks/create_user", self.params,
-                                  expect_errors=True)
-    self.assertEqual(422, response.status_int)
+    response = self.test_app.post("/tasks/create_user", self.params)
+    # This should be okay, because we don't want PinPayments to think it needs
+    # to retry the call.
+    self.assertEqual(200, response.status_int)

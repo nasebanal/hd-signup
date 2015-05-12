@@ -344,7 +344,8 @@ class CreateUserTask(ProjectHandler):
             logging.warning(
                 "Not creating domain account for already-existing user '%s'." \
                 % (membership.username))
-            self.response.set_status(422)
+            # Don't set another status here, because we don't want the
+            # PinPayments system to keep retrying the call.
             return
 
         if not membership.spreedly_token:
