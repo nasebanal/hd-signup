@@ -488,7 +488,9 @@ class MemberListHandler(ProjectHandler):
       user = users.get_current_user()
       if not user:
         self.redirect(users.create_login_url("/memberlist"))
-      signup_users = Membership.all().order("last_name").fetch(10000);
+      signup_users = db.GqlQuery("SELECT * FROM Membership WHERE" \
+                                 " status = 'active' ORDER BY last_name") \
+                                 .fetch(10000);
       self.response.out.write(self.render("templates/memberlist.html", locals()))
 
 
