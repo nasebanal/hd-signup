@@ -78,7 +78,7 @@ class Plan:
       if plan.name == name:
         return plan
 
-    logging.error("Could not find plan '%s'." % (plan))
+    logging.error("Could not find plan '%s'." % (name))
     raise ValueError("Could not find that plan.")
 
   """ Get a list of the plans to show on the selection page.
@@ -133,22 +133,22 @@ class Plan:
 
   """ Checks whether a user requesting this plan at the beginning of the signup
   process should be allowed to use it.
-  plan: The name of the plan being requested.
+  name: The name of the plan being requested.
   Returns: True if they can use the plan, False if they can't, None if no such
   plan exists. """
   @classmethod
-  def can_subscribe(cls, plan):
+  def can_subscribe(cls, name):
     try:
-      plan = cls.get_by_name(plan)
+      plan = cls.get_by_name(name)
     except ValueError:
       # The plan doesn't exist. We shouldn't use it.
       return None
 
     if plan.is_full():
-      logging.warning("Can't use plan '%s' because it's full." % (plan))
+      logging.warning("Can't use plan '%s' because it's full." % (name))
       return False
     if plan.admin_only:
-      logging.warning("Only an admin can put someone on plan '%s'." % (plan))
+      logging.warning("Only an admin can put someone on plan '%s'." % (name))
       return False
 
     return True

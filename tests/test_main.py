@@ -18,6 +18,7 @@ from google.appengine.ext import testbed
 from config import Config
 from keymaster import Keymaster
 from membership import Membership
+from plans import Plan
 from project_handler import ProjectHandler
 import main
 
@@ -165,6 +166,23 @@ class MainHandlerTest(BaseTest):
     self.assertEqual(302, response.status_int)
     self.assertIn("account/", response.location)
     self.assertIn("plan=newhive", response.location)
+
+  """ Tests that it behaves correctly when someone gives it a bad plan. """
+  def test_bad_plan(self):
+    # If we give it a nonexistent plan, it should ignore it.
+    query = urllib.urlencode({"plan": "badplan"})
+    response = self.test_app.get("/?" + query)
+    self.assertEqual(200, response.status_int)
+    self.assertIn("value=choose", response.body)
+
+    # If we give it a plan that is not available, it should show us an error.
+    unavailable_plan = Plan("test_plan", 1, 100, "A test plan.",
+                            admin_only=True)
+    query = urllib.urlencode({"plan": unavailable_plan.name})
+    response = self.test_app.get("/?" + query, expect_errors=True)
+    self.assertEqual(422, response.status_int)
+    self.assertIn(unavailable_plan.name, response.body)
+    self.assertIn("is not available", response.body)
 
 
 """ AccountHandler is complicated enough that we split the testing accross two

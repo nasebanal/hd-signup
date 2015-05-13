@@ -17,6 +17,7 @@ from select_plan import SelectPlanHandler
 import base64
 import keymaster
 import logging
+import plans
 import spreedly
 import subscriber_api
 import sys
@@ -84,6 +85,22 @@ class BadgeChange(db.Model):
 class MainHandler(ProjectHandler):
     def get(self):
       plan = self.request.get("plan", "choose")
+
+      if plan != "choose":
+        # A plan was specified. Make sure it's valid.
+        valid = plans.Plan.can_subscribe(plan)
+        if valid == None:
+          # Nonexistent plan. Just ignore it.
+          plan = "choose"
+        elif valid == False:
+          # Bad plan. Show error.
+          self.response.out.write(self.render("templates/error.html",
+                                  internal=False,
+                                  message="Plan '%s' is not available." % \
+                                      (plan)))
+          self.response.set_status(422)
+          return
+
       self.response.out.write(self.render("templates/main.html", plan=plan))
 
     def post(self):
