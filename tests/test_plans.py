@@ -20,6 +20,7 @@ class PlanTests(unittest.TestCase):
 
     # Clear all the real plans.
     Plan.all_plans = []
+    Plan.legacy_pairs.clear()
 
     # Make some test plans.
     self.plan1 = Plan("plan1", 1, 25, "Test plan 1")
@@ -28,7 +29,7 @@ class PlanTests(unittest.TestCase):
     self.plan3 = Plan("plan3", 3, 100, "Test plan 3",
                       full=True)
     self.plan4 = Plan("plan4", 4, 75, "Test plan 4",
-                      legacy=True)
+                      legacy=self.plan1)
 
   """ Cleanup for every test. """
   def tearDown(self):
@@ -98,3 +99,17 @@ class PlanTests(unittest.TestCase):
     self.assertTrue(Plan.can_subscribe("plan2"))
     self.assertFalse(Plan.can_subscribe("plan3"))
     self.assertFalse(Plan.can_subscribe("plan4"))
+
+  """ Tests that it correctly counts members from normal plans and their legacy
+  versions together. """
+  def test_legacy_pairing(self):
+    self.plan1.member_limit = 2
+
+    user1 = Membership(first_name="Testy1", last_name="Testerson",
+                       email="ttesterson1@gmail.com", plan="plan1")
+    user1.put()
+    user2 = Membership(first_name="Testy2", last_name="Testerson",
+                       email="ttesterson2@gmail.com", plan="plan4")
+    user2.put()
+
+    self.assertTrue(self.plan1.is_full())

@@ -13,10 +13,12 @@ from membership import Membership
 class Plan:
   # A list of all the plans that have been created.
   all_plans = []
+  # A list of pairs of plans and their legacy plans.
+  legacy_pairs = set()
 
   def __init__(self, name, plan_id, price_per_month, description,
                human_name=None, signin_limit=None, member_limit=None,
-               legacy=False, selectable=True, full=False, admin_only=False,
+               legacy=None, selectable=True, full=False, admin_only=False,
                desk=False):
     """ The name of the plan in PinPayments. """
     self.name = name
@@ -30,9 +32,11 @@ class Plan:
     """ A description of the plan. """
     self.description = description
 
-    """ Whether this is a legacy plan. By definition, making it a legacy plan
-    also makes it unselectable and admin-only. """
+    """ None if this is not a legacy plan, otherwise the non-legacy version of
+    the plan. """
     self.legacy = legacy
+    if self.legacy:
+      self.legacy_pairs.add((self, self.legacy))
     """ Whether this plan is available for general selection. """
     self.selectable = False if self.legacy else selectable
     """ Whether this plan is currently full. """
@@ -57,8 +61,17 @@ class Plan:
     if self.member_limit == None:
       return
 
-    query = db.GqlQuery("SELECT * FROM Membership WHERE plan = '%s'" \
-        % (self.name))
+    # If this plan has a legacy version or is a legacy version of another plan,
+    # we combine the members on both versions.
+    counterpart = self.__get_legacy_pair()
+    if counterpart:
+      logging.debug("Including members from legacy pair '%s'." % \
+                    (counterpart.name))
+      query_end = "plan in ('%s', '%s')" % (self.name, counterpart.name)
+    else:
+      query_end = "plan = '%s'" % (self.name)
+
+    query = db.GqlQuery("SELECT * FROM Membership WHERE %s" % (query_end))
     num_members = query.count()
     logging.debug("Found %d members on plan %s." % (num_members, self.name))
 
@@ -68,6 +81,19 @@ class Plan:
     else:
       # This plan has space.
       self.full = False
+
+  """ Returns the plan that is either the legacy or non-legacy version of this
+  one. If that plan does not exist, it returns None. """
+  def __get_legacy_pair(self):
+    for pair in self.legacy_pairs:
+      # See if we are part of the pair.
+      plan1, plan2 = pair
+      if plan1 == self:
+        return plan2
+      if plan2 == self:
+        return plan1
+
+    return None
 
   """ Gets a plan object based on the name of the plan.
   name: The name of the plan.
@@ -155,12 +181,23 @@ class Plan:
 
 
 # Plans
+newfull = Plan("newfull", 25716, 195, "The standard plan.",
+               human_name="Standard")
+newstudent = Plan("newstudent", 25967, 60, "A cheap plan for students.",
+                  human_name="Student",
+                  selectable=False)
+newyearly = Plan("newyearly", 25968, 97.5, "Bills every year instead.",
+                 human_name="Yearly")
+newhive = Plan("newhive", 25790, 325, "You get a private desk too!",
+               human_name="Premium", member_limit=Config().HIVE_MAX_OCCUPANCY,
+               desk=True)
+
 full = Plan("full", 1987, 125, "The old standard plan.",
             human_name="Old Standard",
-            legacy=True)
+            legacy=newfull)
 hardship = Plan("hardship", 2537, 50, "Old version of the student plan.",
                 human_name="Old Student",
-                legacy=True)
+                legacy=newstudent)
 supporter = Plan("supporter", 1988, 10, "A monthly donation to the dojo.",
                  human_name="Monthly Donation", signin_limit=0)
 family = Plan("family", 3659, 50, "Get a family discount.",
@@ -177,22 +214,12 @@ threecomp = Plan("threecomp", 18158, 0, "Three months free.",
                  selectable=False, admin_only=True)
 yearly = Plan("yearly", 18552, 125, "Old yearly plan.",
               human_name="Old Yearly",
-              legacy=True)
+              legacy=newyearly)
 fiveyear = Plan("fiveyear", 18853, 83, "Pay for five years now.",
                 human_name="Five Years",
                 selectable=False)
 hive = Plan("hive", 19616, 275, "Old premium plan.",
             human_name="Old Premium", member_limit=Config().HIVE_MAX_OCCUPANCY,
-            legacy=True, desk=True)
-newfull = Plan("newfull", 25716, 195, "The standard plan.",
-               human_name="Standard")
-newhive = Plan("newhive", 25790, 325, "You get a private desk too!",
-               human_name="Premium", member_limit=Config().HIVE_MAX_OCCUPANCY,
-               desk=True)
+            legacy=newhive, desk=True)
 lite = Plan("lite", 25791, 125, "A limited but cheaper plan.",
             signin_limit=Config().LITE_VISITS)
-newstudent = Plan("newstudent", 25967, 60, "A cheap plan for students.",
-                  human_name="Student",
-                  selectable=False)
-newyearly = Plan("newyearly", 25968, 97.5, "Bills every year instead.",
-                 human_name="Yearly")
