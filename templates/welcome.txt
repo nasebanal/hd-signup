@@ -1,26 +1,48 @@
-Hello and welcome to our community!
+Now that you are a member of the HackerDojo, here are some helpful links and information to help you start using the Dojo today.  It's important to remember, that the Dojo is a member run institution.  The first person you should ask fro help from is yourself.  How can you get things done?  
 
-Save this email because it contains important information regarding your membership.
+To help you, help yourself, here are some useful links and guides:
 
-Your Hacker Dojo username is: {{member.username}}@hackerdojo.com
+Hours:  The Dojo is open for members 24 hours per day, 7 days per week.  Come any time you like.
 
-You will be able to use this for various services provided by Hacker Dojo. If you forget your password, email passwordreset@hackerdojo.com
+<b>Account: {{member.username}}@hackerdojo.com</b>
+All the Dojo software, and services are run by Google, and are associated with your HackerDojo email account, hosted by Google.
 
-If you want to log into the members wifi: Switch to hd-members.  The Wifi
-password is "hackerdojo".  You must login to the authentication portal with {{member.username}}@hackerdojo and your password.
+<b>Wifi / Internet:</b>  To get on the internet, you will use a Wifi Connection.  The Dojo has THREE Wifi access points:  HD-Members, HD-Guests and HD-Day Pass.  As a member, you want to use the "HD-Members" connection.  To connect, there are TWO steps:  1.) Connect to the Wifi AP,  2.) Authenticate your with Dojo email account.   To connect to the AP (Access Point) you should be prompted for a password.  That password is: hackerdojo
 
-1. Sign in to the wifi. Log in to the wifi "HD-Members". The first password
-you'll be prompted to enter is "hackerdojo." You will then see a Google login screen which will ask for your HD username and password. If you were able to successfully sign in to your inbox, these are the same credentials you will use to get on the wifi.
+Next, you should be prompted for your Google+ (Gmail) account.  Enter your hacker dojo account name: {{member.username}}@hackerdojo.com, then the password you used when setting up your account during membership enrollment.
 
-2. Locate and sign in to your Hacker Dojo Dashboard. This is where you control billing, register your RFID key and parking pass, reserve a meeting room, and so much more. The same login as your email is used.
+<b>New Member Guide:</b>
 
-3. Register an RFID key. RFID keys are available for pickup in the Dojo at the front desk in a glass bowl. Self-registration is done through the Dashboard.
+1.) How to Dojo: www.hackerdojo.com/HowToDojo This is a 'How To'  on many common things at the Dojo.
 
-4. Register your parking pass. You will need to ask a staff member for a parking pass, which is needed to park in the main lot during the week. This is also then registered through your Dashboard.
+2.) The Dojo Dashboard: dashboard.hackerdojo.com/ The dashboard, is your portal to the applications and automated services for the Dojo.  Here you can get your RFID key setup, reserve the meeting room, schedule your OWN event in one of the Dojo rooms and plenty more! 
 
-5. Sign in to your Hacker Dojo email using the username
-{{member.username}}@hackerdojo.com for you, and the password you created. If you are having trouble remembering any of this, please email passwordreset@hackerdojo.com, and someone will help you out ASAP.
-It is extremely important that you either check this inbox regularly or set up forwarding- this is the main method of communication we use with our membership to get important news and updates out.
+3.) The Wiki: wiki.hackerdojo.com  The Wiki is a member updated website, where anyone can read, write or update content.  Plenty of hidden gems reside in the wiki.  You can browse, or search for pages that have great content.  For example, here is a link on the wiki on how to run an awesome event:  How to throw a successful event
 
-You can manage your membership subscription with this link:
-{{spreedly_url}}
+4.) Events:  As a member YOU can reserve one of the rooms at the Dojo to have an event.  Events typically have five or more people attending.  To request a room for your event, visit: events.hackerdojo.com  Also, you should checkout events.hackerdojo.com to see any events you might like to attend.  Note: There is no charge to reserve the room, however, you CAN change money for your event if you like.   Also, if you need to reserve a room, for just you and a few other people for a meeting, visit: hackerdojo-room.appspot.com
+
+5.) Happy Hour and Members meeting:  The Dojo has several key social events, that you should try to come to.  These events are a good time, to meet and socialize with other Dojo members.  We are all so busy working on our projects, we rarely get the time to meet other people, so come to one of these events and meet your fellow Dojo'ers.
+
+6.) FAQ: Common questions you might have: Dojo FAQ
+
+7.) Get Social:  The Dojo has several Social Network sites you should connect with.    Members
+can use these networks to communicate with each other, and  all Dojo members:
+
+Fans of HackerDojo on Facebook: Fans of HackerDojo (moderated, all members are joined)
+HackerDojo on Facebook: Official HackerDojo (Mostly announcements)
+LinkedIn: HackerDojo on LinkedIn (make some business connections!)
+Meetup: Official Dojo Meetup announcements (Ask to get your meetup announced here too!)
+
+8.) Find a member:  Here is a list of members.  Some are current, some are not.  Generally, you can always email a member at: firstname.lastname@hackerdojo.com
+
+8.) Want to know more?  Here are some past media coverage about the Dojo: http://wiki.hackerdojo.com/w/page/25455/MediaCoverage
+
+9.) Asking for help...
+
+If none of these resource are helpful, you can always ask another Dojo member for help.  Usually, hanging around the kitchen, or front lobby you will run into people you can ask.  
+
+There are also e-mail addresses you can ask for help as well... keep in mind, these addresses can take some time to get a response.  Most people who can respond are volunteers, so it can take a few hours to a few days to hear back... Help
+
+10.) Policies:  If you have made it this far, good for you!  Here are the list of Dojo Policies that makes all our lives easier.  
+
+11.) Tour of the Dojo:  Here is a video of a personal tour of the Dojo.  This video is for the Old Dojo building, HOWEVER, much of "What the Dojo is about " is covered in the video: https://youtu.be/l9wz8I4S5FQ
