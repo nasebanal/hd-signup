@@ -449,7 +449,6 @@ class CreateUserTaskTest(BaseTest):
 
     # It should give the user this data.
     body = str(messages[0].body)
-    self.assertIn(user.spreedly_url(), body)
     self.assertIn(user.username, body)
 
   """ Tests that it retries if the user has no spreedly token. """
