@@ -40,7 +40,7 @@
         <tr><td title="{{ plan.description }}">{{ plan.human_name }}</td>
             <td>${{ plan.price_per_month }}</td>
             <td>{% if plan.signin_limit == None %}
-              &infin;
+              Unlimited
             {% else %}
               {{ plan.signin_limit }}
             {% endif %}</td>
