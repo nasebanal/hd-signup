@@ -218,7 +218,7 @@ yearly = Plan("yearly", 18552, 125, "Old yearly plan.",
 fiveyear = Plan("fiveyear", 18853, 83, "Pay for five years now.",
                 human_name="Five Years",
                 selectable=False)
-hive = Plan("hive", 19616, 275, "Old premium plan.",
+hive = Plan("Hive", 19616, 275, "Old premium plan.",
             human_name="Old Premium", member_limit=Config().HIVE_MAX_OCCUPANCY,
             legacy=newhive, desk=True)
 lite = Plan("lite", 25791, 125, "A limited but cheaper plan.",
