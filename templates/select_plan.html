@@ -16,18 +16,42 @@
     <h4>Please select your plan: (You can change it later.)</h4>
     <table class="table table-striped">
     <thead>
-      <tr><th>Name</th><th>Price/Month</th><th>Visits/Month</th><th>Desk</th></tr>
+      <tr><th>Name</th><th>Price/Month</th><th>Visits/Month</th>
+          <th>Hive (Dedicated Desk)</th></tr>
     </thead>
     <tbody>
-      <tr><td title="Our standard membership.">Full</td><td>$195</td><td>&infin;</td><td>&#x2718;</td>
-          <td><a href="{{ full_url }}" role="button" class="btn btn-primary">Buy</a></td></tr>
-      <tr><td title="Get your own desk to work at!">Premium</td><td>$325</td><td>&infin;</td><td>&#x2714;</td>
-          <td><a href="{{ premium_url }}" role="button" class="btn btn-primary">Buy</a></td></tr>
-      <tr><td title="Limited but cheaper.">Lite</td><td>$125</td><td>{{ lite_visits }}</td><td>&#x2718;</td>
-          <td><a href="{{ lite_url }}" role="button" class="btn btn-primary">Buy</a></td></tr>
-      <tr><td title="Pay per year instead.">Yearly <span class="label label-success">Best Value!</span>
-          </td><td>$125</td><td>&infin;</td><td>&#x2718;</td>
-          <td><a href="{{ yearly_url }}" role="button" class="btn btn-primary">Buy</a></td></tr>
+      {% for plan in selectable %}
+        <tr><td title="{{ plan.plan.description }}">{{ plan.plan.human_name }}</td>
+            <td>${{ plan.plan.price_per_month }}</td>
+            <td>{% if plan.plan.signin_limit == None %}
+              Unlimited
+            {% else %}
+              {{ plan.plan.signin_limit }}
+            {% endif %}</td>
+            <td>{% if plan.plan.desk %}
+              &#x2714;
+            {% else %}
+              &#x2718;
+            {% endif %}</td>
+            <td><a href="{{ plan.url }}" role="button" class="btn btn-primary">Buy</a></td>
+        </tr>
+      {% endfor %}
+      {% for plan in unavailable %}
+        <tr><td title="{{ plan.description }}">{{ plan.human_name }}</td>
+            <td>${{ plan.price_per_month }}</td>
+            <td>{% if plan.signin_limit == None %}
+              &infin;
+            {% else %}
+              {{ plan.signin_limit }}
+            {% endif %}</td>
+            <td>{% if plan.desk %}
+              &#x2714;
+            {% else %}
+              &#x2718;
+            {% endif %}</td>
+            <td><a role="button" class="btn btn-primary disabled">Full</a></td>
+        </tr>
+      {% endfor %}
     </tbody>
     </table>
   </div>

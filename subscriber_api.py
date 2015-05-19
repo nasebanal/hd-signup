@@ -8,7 +8,9 @@ import dateutil.parser
 
 from config import Config
 import keymaster
+import plans
 import spreedly
+
 
 """ Suspend the requested user.
 username: The username of the user to suspend. """
@@ -64,7 +66,9 @@ def update_plan(subscriber, member):
     # Membership is not active.
     member.status = "suspended"
 
-    if member.plan == "full":
+    plan = plans.Plan.get_by_name(member.plan)
+
+    if plan.legacy:
       # If they are on a legacy plan, we have to figure out
       # whether they can stay on it.
       if subscriber["ready-to-renew"] == "true":
@@ -83,13 +87,13 @@ def update_plan(subscriber, member):
           logging.info("Not renewing legacy plan for %s"
                        " due to excessive wait time." %
                        (member.username))
-          member.plan = "newfull"
+          member.plan = plan.get_legacy_pair().name
       else:
         # Membership was cancelled. In this case, they don't
         # get to stay on the legacy plan.
         logging.info("Not renewing legacy plan for %s because"
                      " it was cancelled." % (member.username))
-        member.plan = "newfull"
+        member.plan = plan.get_legacy_pair().name
 
 """ Gets the data from PinPayments for a particular subscriber and updates
 their status accordingly.

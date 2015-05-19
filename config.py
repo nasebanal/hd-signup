@@ -21,12 +21,16 @@ class Config():
     except KeyError:
       pass
 
-    self.APP_NAME = app_identity.get_application_id()
+    try:
+      self.APP_NAME = app_identity.get_application_id()
+    except AttributeError:
+      # We're calling code outside of GAE, so we must be testing.
+      self.APP_NAME = "testbed-test"
     if self.APP_NAME == "testbed-test":
       Config.is_testing = True
 
     if not Config.is_dev:
-      # Check if we are running the dev application.
+      # Check if we are running on the dev application.
       Config.is_dev = "-dev" in self.APP_NAME
     Config.is_prod = not (Config.is_dev or Config.is_testing)
 
@@ -64,6 +68,8 @@ class Config():
     # How many visits per month we allow on the lite membership.
     #TODO(danielp): Figure out the real number here.
     self.LITE_VISITS = 8
+    # How many people can have desks in the hive at any one time.
+    self.HIVE_MAX_OCCUPANCY = 10
 
     if Config.is_testing:
       self.SPREEDLY_ACCOUNT = "hackerdojotest"

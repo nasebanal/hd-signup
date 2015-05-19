@@ -28,6 +28,9 @@ class Membership(db.Model):
   created = db.DateTimeProperty(auto_now_add=True)
   updated = db.DateTimeProperty(auto_now=True)
 
+  # How many times the user has signed in this month.
+  signins = db.IntegerProperty(default=0)
+
   def icon(self):
     return str("http://www.gravatar.com/avatar/" + hashlib.md5(self.email.lower()).hexdigest())
 

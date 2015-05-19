@@ -18,6 +18,7 @@ from google.appengine.ext import testbed
 from config import Config
 from keymaster import Keymaster
 from membership import Membership
+from plans import Plan
 from project_handler import ProjectHandler
 import main
 
@@ -165,6 +166,23 @@ class MainHandlerTest(BaseTest):
     self.assertEqual(302, response.status_int)
     self.assertIn("account/", response.location)
     self.assertIn("plan=newhive", response.location)
+
+  """ Tests that it behaves correctly when someone gives it a bad plan. """
+  def test_bad_plan(self):
+    # If we give it a nonexistent plan, it should ignore it.
+    query = urllib.urlencode({"plan": "badplan"})
+    response = self.test_app.get("/?" + query)
+    self.assertEqual(200, response.status_int)
+    self.assertIn("value=choose", response.body)
+
+    # If we give it a plan that is not available, it should show us an error.
+    unavailable_plan = Plan("test_plan", 1, 100, "A test plan.",
+                            admin_only=True)
+    query = urllib.urlencode({"plan": unavailable_plan.name})
+    response = self.test_app.get("/?" + query, expect_errors=True)
+    self.assertEqual(422, response.status_int)
+    self.assertIn(unavailable_plan.name, response.body)
+    self.assertIn("is not available", response.body)
 
 
 """ AccountHandler is complicated enough that we split the testing accross two
@@ -488,3 +506,44 @@ class CreateUserTaskTest(BaseTest):
     # This should be okay, because we don't want PinPayments to think it needs
     # to retry the call.
     self.assertEqual(200, response.status_int)
+
+
+""" Tests that the plan selector page works. """
+class PlanSelectionTest(BaseTest):
+  def setUp(self):
+    super(PlanSelectionTest, self).setUp()
+
+    # Clear all the real plans.
+    Plan.all_plans = []
+
+    # Make a couple of plans to test with.
+    self.plan1 = Plan("plan1", 1, 101, "", human_name="First Plan")
+    self.plan2 = Plan("plan2", 2, 102, "", human_name="Second Plan")
+    self.plan3 = Plan("plan3", 3, 103, "", selectable=False,
+                      human_name="Third Plan")
+    # Will always be full.
+    self.plan4 = Plan("plan4", 4, 104, "", member_limit=0,
+                      human_name="Fourth Plan")
+
+  """ Tests that the plans end up getting shown correctly. """
+  def test_plan_page(self):
+    response = self.test_app.get("/plan/notahash")
+    self.assertEqual(200, response.status_int)
+
+    # It should show the human name, and the link.
+    self.assertIn(self.plan1.human_name, response.body)
+    self.assertIn(self.plan1.name, response.body)
+    self.assertIn(self.plan2.human_name, response.body)
+    self.assertIn(self.plan2.name, response.body)
+    # Not selectable, so it shouldn't be in there at all.
+    self.assertNotIn(self.plan3.human_name, response.body)
+    self.assertNotIn(self.plan3.name, response.body)
+    # Unavailable, so the name should be there, but the link should not.
+    self.assertIn(self.plan4.human_name, response.body)
+    self.assertNotIn(self.plan4.name, response.body)
+
+    # It should also show the price.
+    self.assertIn("$%d" % (self.plan1.price_per_month), response.body)
+    self.assertIn("$%d" % (self.plan2.price_per_month), response.body)
+    self.assertNotIn("$%d" % (self.plan3.price_per_month), response.body)
+    self.assertIn("$%d" % (self.plan4.price_per_month), response.body)
