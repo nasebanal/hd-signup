@@ -63,7 +63,7 @@ class Plan:
 
     # If this plan has a legacy version or is a legacy version of another plan,
     # we combine the members on both versions.
-    counterpart = self.__get_legacy_pair()
+    counterpart = self.get_legacy_pair()
     if counterpart:
       logging.debug("Including members from legacy pair '%s'." % \
                     (counterpart.name))
@@ -84,7 +84,7 @@ class Plan:
 
   """ Returns the plan that is either the legacy or non-legacy version of this
   one. If that plan does not exist, it returns None. """
-  def __get_legacy_pair(self):
+  def get_legacy_pair(self):
     for pair in self.legacy_pairs:
       # See if we are part of the pair.
       plan1, plan2 = pair

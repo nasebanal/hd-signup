@@ -6,6 +6,7 @@ import unittest
 from google.appengine.ext import testbed
 
 from membership import Membership
+import plans
 import subscriber_api
 
 
@@ -146,7 +147,14 @@ class UpdateTests(unittest.TestCase):
     self.api_simulation = PinPaymentsApiSimulator()
 
     self.test_member = Membership(first_name = "Test", last_name = "Tester",
-                                  email = "test@gmail.com", plan = "newfull")
+                                  email = "test@gmail.com", plan = "normal")
+
+    # Make sure all the plans we're testing with get constructed correctly.
+    plans.Plan.all_plans = []
+    plans.Plan.legacy_pairs = set([])
+    self.normal = plans.Plan("normal", 1, 100, "A test plan.")
+    self.legacy = plans.Plan("legacy", 1, 100, "A test plan.",
+                             legacy=self.normal)
 
   """ Cleanup for every test. """
   def tearDown(self):
@@ -159,56 +167,56 @@ class UpdateTests(unittest.TestCase):
         self.test_member, 10)
     subscriber_api.update_plan(member_info, self.test_member)
     self.assertEqual("active", self.test_member.status)
-    self.assertEqual("newfull", self.test_member.plan)
+    self.assertEqual("normal", self.test_member.plan)
 
     # This member is active, so nothing should get messed with, even though they
     # are on the legacy plan.
-    self.test_member.plan = "full"
+    self.test_member.plan = "legacy"
     member_info = self.api_simulation.generate_subscriber_info(
         self.test_member, 10)
     subscriber_api.update_plan(member_info, self.test_member)
     self.assertEqual("active", self.test_member.status)
-    self.assertEqual("full", self.test_member.plan)
+    self.assertEqual("legacy", self.test_member.plan)
 
     # This member has allowed their subscription to lapse.
-    self.test_member.plan = "newfull"
+    self.test_member.plan = "normal"
     member_info = self.api_simulation.generate_subscriber_info(
         self.test_member, 40)
     subscriber_api.update_plan(member_info, self.test_member)
     self.assertEqual("suspended", self.test_member.status)
-    self.assertEqual("newfull", self.test_member.plan)
+    self.assertEqual("normal", self.test_member.plan)
 
     # This member has allowed their subscription to lapse, but has not yet lost
     # their chance to stay on the legacy plan.
-    self.test_member.plan = "full"
+    self.test_member.plan = "legacy"
     member_info = self.api_simulation.generate_subscriber_info(
         self.test_member, 40)
     subscriber_api.update_plan(member_info, self.test_member)
     self.assertEqual("suspended", self.test_member.status)
-    self.assertEqual("full", self.test_member.plan)
+    self.assertEqual("legacy", self.test_member.plan)
 
     # This member has allowed their subscription to lapse, and missed their
     # chance to stay on the legacy plan.
-    self.test_member.plan = "full"
+    self.test_member.plan = "legacy"
     member_info = self.api_simulation.generate_subscriber_info(
         self.test_member, 60)
     subscriber_api.update_plan(member_info, self.test_member)
     self.assertEqual("suspended", self.test_member.status)
-    self.assertEqual("newfull", self.test_member.plan)
+    self.assertEqual("normal", self.test_member.plan)
 
     # This member cancelled their subscription.
-    self.test_member.plan = "newfull"
+    self.test_member.plan = "normal"
     member_info = self.api_simulation.generate_subscriber_info(
         self.test_member, 10, cancelled=True)
     subscriber_api.update_plan(member_info, self.test_member)
     self.assertEqual("suspended", self.test_member.status)
-    self.assertEqual("newfull", self.test_member.plan)
+    self.assertEqual("normal", self.test_member.plan)
 
     # This member cancelled their subscription. They don't get to stay on the
     # legacy plan.
-    self.test_member.plan = "full"
+    self.test_member.plan = "legacy"
     member_info = self.api_simulation.generate_subscriber_info(
         self.test_member, 10, cancelled=True)
     subscriber_api.update_plan(member_info, self.test_member)
     self.assertEqual("suspended", self.test_member.status)
-    self.assertEqual("newfull", self.test_member.plan)
+    self.assertEqual("normal", self.test_member.plan)
