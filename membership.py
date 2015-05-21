@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 
 from google.appengine.ext import db
@@ -26,10 +27,20 @@ class Membership(db.Model):
   parking_pass = db.StringProperty()
 
   created = db.DateTimeProperty(auto_now_add=True)
-  updated = db.DateTimeProperty(auto_now=True)
+  updated = db.DateTimeProperty()
 
   # How many times the user has signed in this month.
   signins = db.IntegerProperty(default=0)
+
+  """ Override of the default put method which allows us to skip changing the
+  updated property for testing purposes.
+  skip_time_update: Whether or not to set updated to the current date and time.
+  """
+  def put(self, *args, **kwargs):
+    if not kwargs.pop("skip_time_update", False):
+      self.updated = datetime.datetime.now()
+
+    super(Membership, self).put(*args, **kwargs)
 
   def icon(self):
     return str("http://www.gravatar.com/avatar/" + hashlib.md5(self.email.lower()).hexdigest())

@@ -7,7 +7,7 @@ import keymaster
 
 
 """ Class for storing specific configuration parameters. """
-class Config():
+class Config:
   # Mutually exclusive flags that specify whether the application is running on
   # hd-signup-hrd, signup-dev/dev_appserver, or local unit tests.
   is_dev = False
@@ -70,6 +70,9 @@ class Config():
     self.LITE_VISITS = 8
     # How many people can have desks in the hive at any one time.
     self.HIVE_MAX_OCCUPANCY = 10
+    # How long someone can be suspended in days before we stop counting them
+    # when calculating whether their plan is full or not.
+    self.PLAN_USER_IGNORE_THRESHOLD = 30
 
     if Config.is_testing:
       self.SPREEDLY_ACCOUNT = "hackerdojotest"

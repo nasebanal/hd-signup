@@ -1,6 +1,7 @@
 """ Manages different plans. """
 
 
+import datetime
 import logging
 
 from google.appengine.ext import db
@@ -67,13 +68,29 @@ class Plan:
     if counterpart:
       logging.debug("Including members from legacy pair '%s'." % \
                     (counterpart.name))
-      query_end = "plan in ('%s', '%s')" % (self.name, counterpart.name)
+      query_plan = "plan in ('%s', '%s')" % (self.name, counterpart.name)
     else:
-      query_end = "plan = '%s'" % (self.name)
+      query_plan = "plan = '%s'" % (self.name)
 
-    query = db.GqlQuery("SELECT * FROM Membership WHERE %s" % (query_end))
-    num_members = query.count()
-    logging.debug("Found %d members on plan %s." % (num_members, self.name))
+    last_month = datetime.datetime.now() - \
+        datetime.timedelta(days=Config().PLAN_USER_IGNORE_THRESHOLD)
+    # We don't have an OR operator, so do two separate queries for suspended
+    # (or members who haven't yet created their accounts), and non-suspended
+    # members.
+    suspended_query = db.GqlQuery("SELECT * FROM Membership WHERE %s AND " \
+        " status in ('suspended', NULL) AND updated >" \
+        " DATETIME(%d, %d, %d, %d, %d, %d)" % \
+        (query_plan, last_month.year, last_month.month, last_month.day,
+         last_month.hour, last_month.minute, last_month.second))
+    active_query = db.GqlQuery("SELECT * FROM Membership WHERE %s" \
+        " AND status = 'active'" % (query_plan))
+    suspended_members = suspended_query.count()
+    active_members = active_query.count()
+    logging.debug("Found %d suspended members on plan %s." % \
+        (suspended_members, self.name))
+    logging.debug("Found %d active members on plan %s." % \
+        (active_members, self.name))
+    num_members = active_members + suspended_members
 
     if num_members >= self.member_limit:
       # This plan is full.

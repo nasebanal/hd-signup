@@ -1,10 +1,12 @@
 """ Tests for the plans manager. """
 
 
+import datetime
 import unittest
 
 from google.appengine.ext import testbed
 
+from config import Config
 from membership import Membership
 from plans import Plan
 
@@ -113,3 +115,40 @@ class PlanTests(unittest.TestCase):
     user2.put()
 
     self.assertTrue(self.plan1.is_full())
+
+  """ Tests that it correctly fails to include members who have been suspended
+  for too long when it checks if a plan is full. """
+  def test_ignore_long_suspensions(self):
+    # Ensure that we have a known value for when we start ignoring plans.
+    conf = Config()
+    conf.PLAN_USER_IGNORE_THRESHOLD = 30
+
+    self.plan1.member_limit = 1
+
+    user = Membership(first_name="Testy", last_name="Testerson",
+                      email="ttesterson@gmail.com", plan="plan1",
+                      status="active")
+    user.put()
+
+    # Initially, the plan should be full, for every status.
+    self.assertTrue(self.plan1.is_full())
+    user.status = "suspended"
+    user.put()
+    self.assertTrue(self.plan1.is_full())
+    user.status = None
+    user.put()
+    self.assertTrue(self.plan1.is_full())
+
+    # If we mess with the updated time, it should be ignored when the plan is
+    # not active.
+    user.updated = datetime.datetime.now() - datetime.timedelta(days=31)
+
+    user.status = "active"
+    user.put(skip_time_update=True)
+    self.assertTrue(self.plan1.is_full())
+    user.status = "suspended"
+    user.put(skip_time_update=True)
+    self.assertFalse(self.plan1.is_full())
+    user.status = None
+    user.put(skip_time_update=True)
+    self.assertFalse(self.plan1.is_full())
