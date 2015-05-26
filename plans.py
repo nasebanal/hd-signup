@@ -18,9 +18,9 @@ class Plan:
   legacy_pairs = set()
 
   def __init__(self, name, plan_id, price_per_month, description,
-               human_name=None, signin_limit=None, member_limit=None,
-               legacy=None, selectable=True, full=False, admin_only=False,
-               desk=False):
+               human_name=None, aliases=[], signin_limit=None,
+               member_limit=None, legacy=None, selectable=True, full=False,
+               admin_only=False, desk=False):
     """ The name of the plan in PinPayments. """
     self.name = name
     """ The user-facing name of this plan. """
@@ -32,6 +32,8 @@ class Plan:
     self.plan_id = str(plan_id)
     """ A description of the plan. """
     self.description = description
+    """ Any other names that this plan could be referred to by. """
+    self.aliases = aliases
 
     """ None if this is not a legacy plan, otherwise the non-legacy version of
     the plan. """
@@ -118,7 +120,7 @@ class Plan:
   @classmethod
   def get_by_name(cls, name):
     for plan in cls.all_plans:
-      if plan.name == name:
+      if (plan.name == name or name in plan.aliases):
         return plan
 
     logging.error("Could not find plan '%s'." % (name))
@@ -212,8 +214,8 @@ newhive = Plan("newhive", 25790, 325, "You get a private desk too!",
 full = Plan("full", 1987, 125, "The old standard plan.",
             human_name="Old Standard",
             legacy=newfull)
-hardship = Plan("hardship", 2537, 50, "Old version of the student plan.",
-                human_name="Old Student",
+student = Plan("student", 2537, 50, "Old version of the student plan.",
+                human_name="Old Student", aliases=["hardship"],
                 legacy=newstudent)
 supporter = Plan("supporter", 1988, 10, "A monthly donation to the dojo.",
                  human_name="Monthly Donation", signin_limit=0)

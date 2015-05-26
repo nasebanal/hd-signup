@@ -152,3 +152,10 @@ class PlanTests(unittest.TestCase):
     user.status = None
     user.put(skip_time_update=True)
     self.assertFalse(self.plan1.is_full())
+
+  """ Tests that plan aliases work as expected. """
+  def test_aliases(self):
+    self.plan1.aliases = ["alias"]
+
+    plan1 = Plan.get_by_name("alias")
+    self.assertEqual(self.plan1, plan1)
