@@ -146,16 +146,11 @@ class Plan:
     return (selectable, unavailable)
 
   """ Figures out how many more signins a user has.
-  email: The email of the user to check.
-  Returns: The number of visits remaining, on None if this user has unlimmited
+  user: The Membership object representing the user to check.
+  Returns: The number of visits remaining, on None if this user has unlimited
   visits. """
   @classmethod
-  def signins_remaining(cls, email):
-    user = Membership.get_by_email(email)
-    if not user:
-      logging.error("Cannot find user with email '%s'." % (email))
-      raise ValueError("Could not find that user.")
-
+  def signins_remaining(cls, user):
     plan = cls.get_by_name(user.plan)
 
     try:

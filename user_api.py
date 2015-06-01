@@ -11,6 +11,7 @@ import webapp2
 
 from config import Config
 from membership import Membership
+import plans
 
 
 """ Generic superclass for all API Handlers. """
@@ -73,10 +74,17 @@ class ApiHandlerBase(webapp2.RequestHandler):
           message = "Expected argument '%s'." % (arg)
           self._rest_error("InvalidParameters", message, 400)
           # So unpacking doesn't fail annoyingly...
+          if len(args) == 1:
+            return None
           return [None] * len(args)
 
       values.append(value)
 
+    # If it is a singleton, it is easier not to return it as a list, because
+    # then the syntax can just stay the same as if we were unpacking multiple
+    # values.
+    if len(values) == 1:
+      return values[0]
     return values
 
 
@@ -134,6 +142,38 @@ class UserHandler(ApiHandlerBase):
     self.response.out.write(response)
 
 
+""" Handles user signin events. """
+class SigninHandler(ApiHandlerBase):
+  """ Called when a particular user signs in using their email.
+  Properties for this request:
+  email: The email of the user.
+  Response: Has a 'visits_remaining' parameter that indicates how many visits
+  this user has remaining. It could also be None, which indicates that there are
+  no limitations on number of visits for this user. """
+  @ApiHandlerBase.restricted
+  def post(self):
+    email = self._get_parameters("email")
+    if not email:
+      return
+
+    # Get information on the user from the datastore.
+    user = Membership.get_by_email(email)
+    if not user:
+      self._rest_error("InvalidParameters",
+          "Could not find user with email '%s'." % (email), 422)
+      return
+
+    # Increment signins.
+    user.signins += 1
+    user.put()
+
+    remaining = plans.Plan.signins_remaining(user)
+
+    response = json.dumps({"visits_remaining": remaining})
+    self.response.out.write(response)
+
+
 app = webapp2.WSGIApplication([
-    ("/api/v1/user", UserHandler)],
+    ("/api/v1/user", UserHandler),
+    ("/api/v1/signin", SigninHandler)],
     debug=True)

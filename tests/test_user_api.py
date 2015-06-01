@@ -14,11 +14,12 @@ from google.appengine.ext import db
 from google.appengine.ext import testbed
 
 from membership import Membership
+from plans import Plan
 import user_api
 
 
-""" Tests that UserHandler works properly. """
-class UserHandlerTest(unittest.TestCase):
+""" Common superclass for all API tests. """
+class ApiTest(unittest.TestCase):
   def setUp(self):
     # Set up testing for application.
     self.test_app = webtest.TestApp(user_api.app)
@@ -28,14 +29,21 @@ class UserHandlerTest(unittest.TestCase):
     self.testbed.activate()
     self.testbed.init_datastore_v3_stub()
 
+    # Create a new plan for testing.
+    Plan.all_plans = []
+    self.test_plan = Plan("test", 1, 100, "A test plan.", signin_limit = 10)
+
     # Add a user to the datastore.
-    user = Membership(first_name="Daniel", last_name="Petti",
-        email="djpetti@gmail.com", plan="newfull", username="daniel.petti")
-    user.put()
+    self.user = Membership(first_name="Daniel", last_name="Petti",
+        email="djpetti@gmail.com", plan="test", username="daniel.petti")
+    self.user.put()
 
   def tearDown(self):
     self.testbed.deactivate()
 
+
+""" Tests that UserHandler works properly. """
+class UserHandlerTest(ApiTest):
   """ Tests that a valid request to get a user works. """
   def test_valid_user_request(self):
     query = urllib.urlencode({"username": "daniel.petti",
@@ -89,3 +97,43 @@ class UserHandlerTest(unittest.TestCase):
     self.assertEqual(200, response.status_int)
     self.assertEqual("Daniel", result["first_name"])
 
+
+""" Tests that the signin handler works properly. """
+class SigninHandlerTest(ApiTest):
+  def setUp(self):
+    super(SigninHandlerTest, self).setUp()
+
+    # Reset user signins.
+    self.user.signins = 0
+    self.user.put()
+
+  """ Tests that signing in a normal user works properly. """
+  def test_signin(self):
+    params = {"email": "djpetti@gmail.com"}
+    response = self.test_app.post("/api/v1/signin", params)
+    result = json.loads(response.body)
+
+    self.assertEqual(9, result["visits_remaining"])
+
+    # Check that our user signing in got recorded.
+    user = Membership.get_by_email("djpetti@gmail.com")
+    self.assertEqual(1, user.signins)
+
+  """ Tests that it gives us an error if we give it a bad email. """
+  def test_bad_email(self):
+    params = {"email": "bad_email@gmail.com"}
+    response = self.test_app.post("/api/v1/signin", params, expect_errors=True)
+    result = json.loads(response.body)
+
+    self.assertEqual(422, response.status_int)
+    self.assertIn("Could not find user", result["message"])
+
+  """ Tests that it works properly on a plan with no signin limit. """
+  def test_unlimited_signins(self):
+    self.test_plan.signin_limit = None
+
+    params = {"email": "djpetti@gmail.com"}
+    response = self.test_app.post("/api/v1/signin", params)
+    result = json.loads(response.body)
+
+    self.assertEqual(None, result["visits_remaining"])

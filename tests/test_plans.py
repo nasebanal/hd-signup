@@ -73,26 +73,26 @@ class PlanTests(unittest.TestCase):
     user.put()
 
     # We should have all 2 signins left.
-    self.assertEqual(2, Plan.signins_remaining(user.email))
+    self.assertEqual(2, Plan.signins_remaining(user))
 
     # Signin once.
     user.signins = 1
     user.put()
-    self.assertEqual(1, Plan.signins_remaining(user.email))
+    self.assertEqual(1, Plan.signins_remaining(user))
 
     # Signin again.
     user.signins = 2
     user.put()
-    self.assertEqual(0, Plan.signins_remaining(user.email))
+    self.assertEqual(0, Plan.signins_remaining(user))
 
     # Should never be less than zero.
     user.signins = 3
     user.put()
-    self.assertEqual(0, Plan.signins_remaining(user.email))
+    self.assertEqual(0, Plan.signins_remaining(user))
 
     # Give ourselves unlimited signins!
     self.plan1.signin_limit = None
-    self.assertEqual(None, Plan.signins_remaining(user.email))
+    self.assertEqual(None, Plan.signins_remaining(user))
 
   """ Tests that it correctly detects when we can and can't put people on
   various plans. """
