@@ -4,6 +4,7 @@
 import datetime
 import logging
 
+from google.appengine.api import users
 from google.appengine.ext import db
 
 from config import Config
@@ -40,12 +41,12 @@ class Plan:
     self.legacy = legacy
     if self.legacy:
       self.legacy_pairs.add((self, self.legacy))
-    """ Whether this plan is available for general selection. """
-    self.selectable = False if self.legacy else selectable
-    """ Whether this plan is currently full. """
-    self.full = full
     """ Whether only an admin can put people on this plan. """
     self.admin_only = True if self.legacy else admin_only
+    """ Whether this plan is available for general selection. """
+    self.selectable = False if (self.legacy or self.admin_only) else selectable
+    """ Whether this plan is currently full. """
+    self.full = full
 
     """ The monthly price of this plan. """
     self.price_per_month = price_per_month
@@ -188,6 +189,8 @@ class Plan:
       logging.warning("Can't use plan '%s' because it's full." % (name))
       return False
     if plan.admin_only:
+      if users.is_current_user_admin():
+        return True
       logging.warning("Only an admin can put someone on plan '%s'." % (name))
       return False
 

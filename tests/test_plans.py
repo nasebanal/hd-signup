@@ -32,6 +32,8 @@ class PlanTests(unittest.TestCase):
                       full=True)
     self.plan4 = Plan("plan4", 4, 75, "Test plan 4",
                       legacy=self.plan1)
+    self.plan5 = Plan("plan5", 5, 100, "Test plan 5",
+                      admin_only=True)
 
   """ Cleanup for every test. """
   def tearDown(self):
@@ -101,6 +103,12 @@ class PlanTests(unittest.TestCase):
     self.assertTrue(Plan.can_subscribe("plan2"))
     self.assertFalse(Plan.can_subscribe("plan3"))
     self.assertFalse(Plan.can_subscribe("plan4"))
+    self.assertFalse(Plan.can_subscribe("plan5"))
+
+    # Test that it lets us sign up for plan 5 if we are an admin.
+    self.testbed.setup_env(user_is_admin="1")
+
+    self.assertTrue(Plan.can_subscribe("plan5"))
 
   """ Tests that it correctly counts members from normal plans and their legacy
   versions together. """
