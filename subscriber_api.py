@@ -125,14 +125,15 @@ def update_subscriber(member):
       # username and password values.
       logging.warning("Cannot handle old member with expired login info: %s." % \
                       (member.email))
-      # We don't want it to retry, so we don't change the exit status.
-      return
+      # Set domain_user so that it stops bothering us.
+      member.domain_user = True
 
-    taskqueue.add(url="/tasks/create_user", method="POST",
-                  params={"hash": member.hash,
-                          "username": member.username,
-                          "password": member.password},
-                  countdown=3)
+    else:
+      taskqueue.add(url="/tasks/create_user", method="POST",
+                    params={"hash": member.hash,
+                            "username": member.username,
+                            "password": member.password},
+                    countdown=3)
   if member.status == "active" and member.unsubscribe_reason:
     member.unsubscribe_reason = None
 
