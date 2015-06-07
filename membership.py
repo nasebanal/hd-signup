@@ -16,6 +16,7 @@ class Membership(db.Model):
   referuserid = db.StringProperty()
   referrer  = db.StringProperty()
   username = db.StringProperty()
+  password = db.StringProperty(default=None)
   rfid_tag = db.StringProperty()
   extra_599main = db.StringProperty()
   extra_dnd = db.BooleanProperty(default=False)
@@ -28,6 +29,9 @@ class Membership(db.Model):
 
   created = db.DateTimeProperty(auto_now_add=True)
   updated = db.DateTimeProperty()
+
+  # Whether we've created a google apps user yet.
+  domain_user = db.BooleanProperty(default=False)
 
   # How many times the user has signed in this month.
   signins = db.IntegerProperty(default=0)

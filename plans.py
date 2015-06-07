@@ -189,10 +189,9 @@ class Plan:
       logging.warning("Can't use plan '%s' because it's full." % (name))
       return False
     if plan.admin_only:
-      if users.is_current_user_admin():
-        return True
-      logging.warning("Only an admin can put someone on plan '%s'." % (name))
-      return False
+      if not users.is_current_user_admin():
+        logging.warning("Only an admin can put someone on plan '%s'." % (name))
+        return False
 
     return True
 

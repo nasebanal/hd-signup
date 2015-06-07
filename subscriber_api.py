@@ -117,9 +117,22 @@ def update_subscriber(member):
 
   update_plan(subscriber, member)
 
-  if member.status == "active" and not member.username:
+  if member.status == "active" and not member.domain_user:
+    if not member.password:
+      # In this case, it pulled an old datastore entry and updated the schema,
+      # which defaulted the password value. In this case, there is nothing we can
+      # really do besides exiting gracefully, because we have permanently lost the
+      # username and password values.
+      logging.warning("Cannot handle old member with expired login info: %s." % \
+                      (member.email))
+      # We don't want it to retry, so we don't change the exit status.
+      return
+
     taskqueue.add(url="/tasks/create_user", method="POST",
-                  params={"hash": member.hash}, countdown=3)
+                  params={"hash": member.hash,
+                          "username": member.username,
+                          "password": member.password},
+                  countdown=3)
   if member.status == "active" and member.unsubscribe_reason:
     member.unsubscribe_reason = None
 

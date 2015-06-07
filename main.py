@@ -24,17 +24,19 @@ import sys
 
 
 class UsedCode(db.Model):
-    email = db.StringProperty()
-    created = db.DateTimeProperty(auto_now_add=True)
-    code = db.StringProperty()
-    extra = db.StringProperty()
-    completed = db.DateTimeProperty()
+  email = db.StringProperty()
+  created = db.DateTimeProperty(auto_now_add=True)
+  code = db.StringProperty()
+  extra = db.StringProperty()
+  completed = db.DateTimeProperty()
+
 
 class RFIDSwipe(db.Model):
-    username = db.StringProperty()
-    rfid_tag = db.StringProperty()
-    created = db.DateTimeProperty(auto_now_add=True)
-    success = db.BooleanProperty()
+  username = db.StringProperty()
+  rfid_tag = db.StringProperty()
+  created = db.DateTimeProperty(auto_now_add=True)
+  success = db.BooleanProperty()
+
 
 class RFIDSwipeHandler(ProjectHandler):
     def get(self):
@@ -238,13 +240,17 @@ class AccountHandler(ProjectHandler):
                 self.response.set_status(422)
                 return
 
-            # Yes, storing their username and password temporarily so we can make their account later
-            memcache.set(str(hashlib.sha1(str(membership.hash) \
-                + conf.SPREEDLY_APIKEY).hexdigest()),
-                "%s:%s" % (username, password), time=3600)
+            # Set a username and password in the datastore.
+            membership.username = username
+            membership.password = password
+            membership.put()
 
             if membership.status == "active":
-                taskqueue.add(url="/tasks/create_user", method="POST", params={"hash": membership.hash}, countdown=3)
+                taskqueue.add(url="/tasks/create_user", method="POST",
+                              params={"hash": membership.hash,
+                                      "username": username,
+                                      "password": password},
+                              countdown=3)
                 self.redirect(str("http://%s/success/%s" % (self.request.host, membership.hash)))
             else:
                 customer_id = membership.key().id()
@@ -346,7 +352,10 @@ class CreateUserTask(ProjectHandler):
             retries = int(self.request.get("retries", 0)) + 1
             if retries <= 5:
                 taskqueue.add(url="/tasks/create_user", method="POST", countdown=countdown,
-                    params={"hash": self.request.get("hash"), "retries": retries})
+                    params={"hash": self.request.get("hash"),
+                            "username": self.request.get("username"),
+                            "password": self.request.get("password"),
+                            "retries": retries})
             else:
                 fail(Exception("Too many retries for %s" % self.request.get("hash")))
 
@@ -357,7 +366,7 @@ class CreateUserTask(ProjectHandler):
             logging.error("Got nonexistent hash: %s" % (user_hash))
             self.response.set_status(422)
             return
-        if membership.username:
+        if membership.domain_user:
             logging.warning(
                 "Not creating domain account for already-existing user '%s'." \
                 % (membership.username))
@@ -369,11 +378,8 @@ class CreateUserTask(ProjectHandler):
             logging.warn("CreateUserTask: No spreedly token yet, retrying")
             return retry(300)
 
-        try:
-            username, password = memcache.get(hashlib.sha1(membership.hash + \
-                Config().SPREEDLY_APIKEY).hexdigest()).split(":")
-        except (AttributeError, ValueError):
-            return fail(Exception("Account information expired for %s" % membership.email))
+        username = self.request.get("username")
+        password = self.request.get("password")
 
         try:
             url = "http://%s/users" % Config().DOMAIN_HOST
@@ -397,7 +403,11 @@ class CreateUserTask(ProjectHandler):
               # I want to see what query string it would have used.
               self.response.out.write(payload)
 
-            membership.username = username
+            membership.domain_user = True
+            # We'll never use the password again, and there's no sense in
+            # leaving this sensitive information sitting in the datastore, so we
+            # might as well get rid of it.
+            membership.password = None
             membership.put()
 
             # Send the welcome email.

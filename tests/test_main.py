@@ -265,10 +265,13 @@ class AccountHandlerTest(AccountHandlerBase):
     self.assertIn(str(user.key().id()), response.location)
     self.assertIn("testy.testerson", response.location)
 
-    # It should have put stuff in the memcache.
-    key = hashlib.sha1(self.user_hash + Config().SPREEDLY_APIKEY).hexdigest()
-    user_data = memcache.get(key)
-    self.assertEqual("testy.testerson:notasecret", user_data)
+    # The account information should be in the datastore.
+    user = Membership.get_by_hash(self.user_hash)
+    self.assertEqual("testy.testerson", user.username)
+    self.assertEqual("notasecret", user.password)
+
+    # We shouldn't have a domain account yet.
+    self.assertFalse(user.domain_user)
 
   """ Tests that it fails if the required fields are invalid. """
   def test_requirements(self):
@@ -358,6 +361,10 @@ class GiftCodeTest(AccountHandlerBase):
       self.assertEqual("ttesterson@gmail.com", code.email)
       self.assertEqual("OK", code.extra)
 
+    user = Membership.get_by_hash(self.user_hash)
+    user.username = None
+    user.put()
+
     # Try to use the same code again.
     response = self.test_app.post("/account/" + self.user_hash,
                                   self._TEST_PARAMS, expect_errors=True)
@@ -417,16 +424,14 @@ class CreateUserTaskTest(BaseTest):
     # Add a user to the datastore.
     user = Membership(first_name="Testy", last_name="Testerson",
                       email="ttesterson@gmail.com", hash="notahash",
-                      spreedly_token="notatoken")
+                      spreedly_token="notatoken", username="testy.testerson",
+                      password="notasecret")
     user.put()
-
-    # Username and password have to go in the memcache.
-    key = hashlib.sha1(user.hash + Config().SPREEDLY_APIKEY).hexdigest()
-    memcache.set(key, "testy.testerson:notasecret")
 
     self.mail_stub = self.testbed.get_stub(testbed.MAIL_SERVICE_NAME)
     self.user_hash = user.hash
-    self.params = {"hash": self.user_hash}
+    self.params = {"hash": self.user_hash, "username": "testy.testerson",
+                   "password": "notasecret"}
 
   """ Tests that it works under normal conditions. """
   def test_create_user(self):
@@ -439,9 +444,13 @@ class CreateUserTaskTest(BaseTest):
     self.assertIn("first_name=Testy", response.body)
     self.assertIn("last_name=Testerson", response.body)
 
-    # Check that the user ended up with a username.
     user = Membership.get_by_hash(self.user_hash)
+    # Check that the user ended up with a username.
     self.assertEqual("testy.testerson", user.username)
+    # Check that domain_user got set.
+    self.assertTrue(user.domain_user)
+    # Check that the password got cleared.
+    self.assertEqual(None, user.password)
 
     # Check that it sent the right email.
     messages = self.mail_stub.get_sent_messages(to="ttesterson@gmail.com")
@@ -467,24 +476,9 @@ class CreateUserTaskTest(BaseTest):
     tasks = taskqueue_stub.GetTasks("default")
     self.assertEqual(1, len(tasks))
 
-    # The user shouldn't have a username yet.
+    # The user shouldn't have a domain account yet.
     user = Membership.get_by_hash(self.user_hash)
-    self.assertEqual(None, user.username)
-
-  """ Tests that it fails if the account information isn't in memcache. """
-  def test_account_expired(self):
-    self.assertTrue(memcache.flush_all())
-
-    response = self.test_app.post("/tasks/create_user", self.params,
-                                  expect_errors=True)
-    self.assertEqual(500, response.status_int)
-
-    # It should have sent us a nice email too.
-    messages = self.mail_stub.get_sent_messages(to=Config().INTERNAL_DEV_EMAIL)
-    self.assertEqual(1, len(messages))
-
-    body = str(messages[0].body)
-    self.assertIn("Account information expired", body)
+    self.assertFalse(user.domain_user)
 
   """ Tests that it fails when it gets a bad hash or when the account is already
   created. """
