@@ -154,15 +154,10 @@ class Plan:
   def signins_remaining(cls, user):
     plan = cls.get_by_name(user.plan)
 
-    try:
-      if plan.signin_limit == None:
-        # Unlimited signins.
-        return None
-      remaining = max(0, plan.signin_limit - user.signins)
-    except AttributeError:
-      # Model hasn't been updated to include this attribute. This can only
-      # happen if the user hasn't signed in yet, so we should let them.
-      return plan.signin_limit
+    if plan.signin_limit == None:
+      # Unlimited signins.
+      return None
+    remaining = max(0, plan.signin_limit - user.signins)
 
     return remaining
 
