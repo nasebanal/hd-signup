@@ -145,10 +145,10 @@ def update_subscriber(member):
   # TODO: After a few months (now() = 06.13.2011), only suspend/restore if
   # status CHANGED. As of right now, we can't trust previous status, so lets
   # take action on each call to /update
-  if member.status == "active" and member.username:
+  if member.status == "active" and member.domain_user:
     logging.info("Restoring User: " + member.username)
     restore(member.username)
-  if member.status == "suspended" and member.username:
+  if member.status == "suspended" and member.domain_user:
     logging.info("Suspending User: " + member.username)
     suspend(member.username)
 
