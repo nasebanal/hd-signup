@@ -12,7 +12,7 @@ from google.appengine.ext import webapp
 from config import Config
 from membership import Membership
 
-# Datastore model to keep track of DataSync information.
+""" Datastore model to keep track of DataSync information. """
 class SyncRunInfo(db.Model):
   run_times = db.IntegerProperty(default = 0)
   # The most recent cursor.
@@ -20,7 +20,7 @@ class SyncRunInfo(db.Model):
   # The last time we ran this successfully.
   last_run = db.DateTimeProperty()
 
-# Handler for syncing data between dev and production apps.
+""" Handler for syncing data between dev and production apps. """
 class DataSyncHandler(webapp.RequestHandler):
   dev_url = "http://signup-dev.appspot.com/_datasync"
   time_format = "%Y %B %d %H %M %S"
@@ -48,7 +48,7 @@ class DataSyncHandler(webapp.RequestHandler):
           last_run = run_info.last_run
           logging.info("Last successful run: " + str(last_run))
           self.__batch_loop(run_info.cursor, "updated >", last_run)
-        
+
         # Update the number of times we've run this.
         run_info = SyncRunInfo().all().get()
         run_info.run_times = run_info.run_times + 1
@@ -72,13 +72,13 @@ class DataSyncHandler(webapp.RequestHandler):
         query = Membership.all().filter(*args, **kwargs)
       query.with_cursor(start_cursor = cursor)
       members = query.fetch(self.batch_size)
-    
+
       if len(members) == 0:
         break
       for member in members:
         member = self.__strip_sensitive(member)
         self.__post_member(member)
-     
+
       cursor = query.cursor()
       run_info = SyncRunInfo.all().get()
       run_info.cursor = cursor
@@ -92,7 +92,7 @@ class DataSyncHandler(webapp.RequestHandler):
       if hasattr(data[key], "strftime"):
         data[key] = data[key].strftime(self.time_format)
     data = json.dumps(data)
-    
+
     logging.debug("Posting entry: " + data)
     response = urlfetch.fetch(url = self.dev_url, payload = data,
         method = urlfetch.POST,
@@ -107,7 +107,7 @@ class DataSyncHandler(webapp.RequestHandler):
     member.spreedly_token = None
     member.hash = None
     return member
-  
+
   def post(self):
     if Config.is_dev:
       # Only allow this if it's the dev server.
