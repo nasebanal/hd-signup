@@ -4,7 +4,7 @@ import json
 
 import wsgiref.handlers
 import datetime, time, hashlib, urllib, urllib2, re, os
-from google.appengine.api import urlfetch, mail, memcache, users, taskqueue
+from google.appengine.api import urlfetch, mail, users, taskqueue
 from google.appengine.ext import deferred
 from google.appengine.ext import db
 from google.appengine.ext.webapp import template
