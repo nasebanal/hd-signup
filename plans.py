@@ -8,7 +8,7 @@ from google.appengine.api import users
 from google.appengine.ext import db
 
 from config import Config
-from membership import Membership
+import membership
 
 
 """ Represents a single subscription plan. """
@@ -77,6 +77,8 @@ class Plan:
 
     last_month = datetime.datetime.now() - \
         datetime.timedelta(days=Config().PLAN_USER_IGNORE_THRESHOLD)
+    # Do it this way to avoid circular imports.
+    Membership = membership.Membership
     # We don't have an OR operator, so do two separate queries for suspended
     # (or members who haven't yet created their accounts), and non-suspended
     # members.

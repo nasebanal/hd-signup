@@ -3,6 +3,7 @@ import hashlib
 
 from google.appengine.ext import db
 from config import Config
+import plans
 
 # A class for managing HackerDojo members.
 class Membership(db.Model):
@@ -67,18 +68,18 @@ class Membership(db.Model):
     try:
       url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % \
           (config.SPREEDLY_ACCOUNT, self.key().id(),
-          self.spreedly_token, config.PLAN_IDS[self.plan])
+          self.spreedly_token, plans.Plan.get_by_name(self.plan).plan_id)
     except KeyError:
       url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % \
           (config.SPREEDLY_ACCOUNT, self.key().id(),
-          self.spreedly_token, config.PLAN_IDS["newfull"])
+          self.spreedly_token, plans.newfull.plan_id)
     return str(url)
 
   def force_full_subscribe_url(self):
     config = Config()
     url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % \
         (config.SPREEDLY_ACCOUNT, self.key().id(),
-        self.spreedly_token, Membership.config.PLAN_IDS["newfull"])
+        self.spreedly_token, plans.newfull.plan_id)
     return str(url)
 
   def unsubscribe_url(self):
