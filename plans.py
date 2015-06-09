@@ -210,7 +210,7 @@ newfull = Plan("newfull", 25716, 195, "The standard plan.",
 newstudent = Plan("newstudent", 25967, 60, "A cheap plan for students.",
                   human_name="Student",
                   selectable=False)
-newyearly = Plan("newyearly", 25968, 97.5, "Bills every year instead.",
+newyearly = Plan("newyearly", 25968, 162, "Bills every year instead.",
                  human_name="Yearly")
 newhive = Plan("newhive", 25790, 325, "You get a private desk too!",
                human_name="Premium", member_limit=Config().HIVE_MAX_OCCUPANCY,
@@ -239,9 +239,8 @@ threecomp = Plan("threecomp", 18158, 0, "Three months free.",
 yearly = Plan("yearly", 18552, 125, "Old yearly plan.",
               human_name="Old Yearly",
               legacy=newyearly)
-fiveyear = Plan("fiveyear", 18853, 83, "Pay for five years now.",
-                human_name="Five Years",
-                selectable=False)
+fiveyear = Plan("fiveyear", 18853, 83.33, "Pay for five years now.",
+                human_name="Five Years")
 hive = Plan("Hive", 19616, 275, "Old premium plan.",
             human_name="Old Premium", member_limit=Config().HIVE_MAX_OCCUPANCY,
             legacy=newhive, desk=True)
