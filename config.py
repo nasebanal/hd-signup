@@ -51,20 +51,6 @@ class Config:
     self.TREASURER_EMAIL = "treasurer@hackerdojo.com"
     self.GOOGLE_ANALYTICS_ID = "UA-11332872-2"
 
-    self.PLAN_IDS = {"full": "1987", "hardship": "2537",
-        "supporter": "1988", "family": "3659",
-        "worktrade": "6608", "comped": "15451",
-        "threecomp": "18158", "yearly":"18552",
-        "fiveyear": "18853", "hive": "19616",
-        # This is the new full membership at $195.
-        "newfull": "25716",
-        # This is the new hive membership at $325.
-        "newhive": "25790",
-        # A limited membership with a reduced price.
-        "lite": "25791",
-        # New, more expensive versions of student and yearly.
-        "newstudent": "25967", "newyearly": "25968"}
-
     # How many visits per month we allow on the lite membership.
     #TODO(danielp): Figure out the real number here.
     self.LITE_VISITS = 8

@@ -215,7 +215,7 @@ class AccountHandler(ProjectHandler):
     def post(self, hash):
         username = self.request.get("username")
         password = self.request.get("password")
-        plan = self.request.get("plan")
+        plan = plans.Plan.get_by_name(self.request.get("plan"))
         account_url = str("/account/%s" % hash)
 
         conf = Config()
@@ -335,7 +335,7 @@ class AccountHandler(ProjectHandler):
                 # check if they are active already since we didn't create a new member above
                 # apparently the URL will be different
                 self.redirect(str("https://spreedly.com/%s/subscribers/%d/subscribe/%s/%s?%s" %
-                    (conf.SPREEDLY_ACCOUNT, customer_id, conf.PLAN_IDS[plan], username, query_str)))
+                    (conf.SPREEDLY_ACCOUNT, customer_id, plan.plan_id, username, query_str)))
 
 
 class CreateUserTask(ProjectHandler):
@@ -955,7 +955,7 @@ class GenLinkHandler(ProjectHandler):
         conf = Config()
         sa = conf.SPREEDLY_ACCOUNT
         u = Membership.get_by_id(int(key))
-        plans = conf.PLAN_IDS.items()
+        plan_ids = plans.Plan.get_all_plan_ids()
         self.response.out.write(self.render("templates/genlink.html", locals()))
 
 

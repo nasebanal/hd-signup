@@ -190,6 +190,17 @@ class Plan:
 
     return True
 
+  """ Builds a list of the ids of all known plans.
+  Returns: A list, where each item is a tuple. The first item in the tuple is
+  the name of a plan, and the second is the ID of that plan. """
+  @classmethod
+  def get_all_plan_ids(cls):
+    ids = []
+    for plan in cls.all_plans:
+      ids.append((plan.name, plan.plan_id))
+
+    return ids
+
 
 # Plans
 newfull = Plan("newfull", 25716, 195, "The standard plan.",

@@ -167,3 +167,9 @@ class PlanTests(unittest.TestCase):
 
     plan1 = Plan.get_by_name("alias")
     self.assertEqual(self.plan1, plan1)
+
+  """ Tests that we can get all the plan ids as expected. """
+  def test_get_all_plan_ids(self):
+    ids = Plan.get_all_plan_ids()
+    self.assertEqual([("plan1", "1"), ("plan2", "2"), ("plan3", "3"),
+                      ("plan4", "4"), ("plan5", "5")], ids)

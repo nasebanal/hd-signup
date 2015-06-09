@@ -192,7 +192,7 @@ class AccountHandlerBase(BaseTest):
   _TEST_PARAMS = {"username": "testy.testerson",
                   "password": "notasecret",
                   "password_confirm": "notasecret",
-                  "plan": "newfull"}
+                  "plan": "test"}
 
   def setUp(self):
     super(AccountHandlerBase, self).setUp()
@@ -204,6 +204,11 @@ class AccountHandlerBase(BaseTest):
     user.put()
 
     self.user_hash = user.hash
+
+    # Add the plans we need.
+    Plan.all_plans = []
+    Plan.legacy_pairs = set()
+    self.test_plan = Plan("test", 0, 100, "A test plan.")
 
     # Clear fake usernames between tests.
     ProjectHandler.clear_usernames()
@@ -261,7 +266,7 @@ class AccountHandlerTest(AccountHandlerBase):
 
     # We should be redirected to a personal spreedly page.
     self.assertIn("spreedly.com", response.location)
-    self.assertIn(Config().PLAN_IDS["newfull"], response.location)
+    self.assertIn(self.test_plan.plan_id, response.location)
     self.assertIn(str(user.key().id()), response.location)
     self.assertIn("testy.testerson", response.location)
 
