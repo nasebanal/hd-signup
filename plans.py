@@ -246,5 +246,4 @@ hive = Plan("Hive", 19616, 275, "Old premium plan.",
             human_name="Old Premium", member_limit=Config().HIVE_MAX_OCCUPANCY,
             legacy=newhive, desk=True)
 lite = Plan("lite", 25791, 125, "A limited but cheaper plan.",
-            aliases=["light"],
             signin_limit=Config().LITE_VISITS, selectable=False)
