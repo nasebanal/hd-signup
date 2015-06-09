@@ -290,6 +290,8 @@ class AccountHandlerTest(AccountHandlerBase):
 
     self.assertEqual(422, response.status_int)
     self.assertIn("do not match", response.body)
+    # The plan should be in there correctly.
+    self.assertIn("value=\"test\"", response.body)
 
     # Giving it a password that is too short should also be a problem.
     params = self._TEST_PARAMS.copy()
@@ -301,6 +303,7 @@ class AccountHandlerTest(AccountHandlerBase):
 
     self.assertEqual(422, response.status_int)
     self.assertIn("at least 8 characters", response.body)
+    self.assertIn("value=\"test\"", response.body)
 
     user = Membership.get_by_hash(self.user_hash)
     user.username = "testy.testerson"
@@ -314,6 +317,7 @@ class AccountHandlerTest(AccountHandlerBase):
 
     self.assertEqual(422, response.status_int)
     self.assertIn("already have an account", response.body)
+    self.assertIn("value=\"test\"", response.body)
 
   """ Checks that it redirects correctly if we the user is already active. """
   def test_already_active(self):

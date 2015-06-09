@@ -215,7 +215,8 @@ class AccountHandler(ProjectHandler):
     def post(self, hash):
         username = self.request.get("username")
         password = self.request.get("password")
-        plan = plans.Plan.get_by_name(self.request.get("plan"))
+        plan = self.request.get("plan")
+        plan_object = plans.Plan.get_by_name(plan)
         account_url = str("/account/%s" % hash)
 
         conf = Config()
@@ -335,7 +336,8 @@ class AccountHandler(ProjectHandler):
                 # check if they are active already since we didn't create a new member above
                 # apparently the URL will be different
                 self.redirect(str("https://spreedly.com/%s/subscribers/%d/subscribe/%s/%s?%s" %
-                    (conf.SPREEDLY_ACCOUNT, customer_id, plan.plan_id, username, query_str)))
+                    (conf.SPREEDLY_ACCOUNT, customer_id, plan_object.plan_id,
+                     username, query_str)))
 
 
 class CreateUserTask(ProjectHandler):
