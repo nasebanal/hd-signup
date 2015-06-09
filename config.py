@@ -55,7 +55,7 @@ class Config:
     #TODO(danielp): Figure out the real number here.
     self.LITE_VISITS = 8
     # How many people can have desks in the hive at any one time.
-    self.HIVE_MAX_OCCUPANCY = 10
+    self.HIVE_MAX_OCCUPANCY = 15
     # How long someone can be suspended in days before we stop counting them
     # when calculating whether their plan is full or not.
     self.PLAN_USER_IGNORE_THRESHOLD = 30
