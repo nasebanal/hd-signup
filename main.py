@@ -114,7 +114,7 @@ class MainHandler(ProjectHandler):
 
       if not first_name or not last_name or not email:
         self.response.out.write(self.render("templates/main.html",
-            {"message": "Sorry, we need name and email address."}))
+            message="Sorry, we need name and email address.", plan=plan))
         self.response.set_status(400)
         return
 
@@ -130,12 +130,14 @@ class MainHandler(ProjectHandler):
         if membership.status == "suspended":
           self.response.out.write(self.render("templates/main.html",
               message="Your account has been suspended." \
-              " <a href=\"/reactivate\">Click here</a> to reactivate."))
+              " <a href=\"/reactivate\">Click here</a> to reactivate.",
+              plan=plan))
           self.response.set_status(422)
           return
         elif membership.status == "active":
           self.response.out.write(self.render("templates/main.html",
-                                  message="Account already exists."))
+                                  message="Account already exists.",
+                                  plan=plan))
           self.response.set_status(422)
           return
         else:

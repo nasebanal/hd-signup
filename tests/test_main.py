@@ -173,7 +173,7 @@ class MainHandlerTest(BaseTest):
     query = urllib.urlencode({"plan": "badplan"})
     response = self.test_app.get("/?" + query)
     self.assertEqual(200, response.status_int)
-    self.assertIn("value=choose", response.body)
+    self.assertIn("value=\"choose\"", response.body)
 
     # If we give it a plan that is not available, it should show us an error.
     unavailable_plan = Plan("test_plan", 1, 100, "A test plan.",
@@ -183,6 +183,29 @@ class MainHandlerTest(BaseTest):
     self.assertEqual(422, response.status_int)
     self.assertIn(unavailable_plan.name, response.body)
     self.assertIn("is not available", response.body)
+
+  """ Tests that the plan gets written through even when we rerender the
+  template. """
+  def test_pass_plan_on_error(self):
+    params = self._TEST_PARAMS.copy()
+    params["plan"] = "newfull"
+
+    # Remove required parameters one by one.
+    del params["first_name"]
+    response = self.test_app.post("/", params, expect_errors=True)
+    # Make sure the plan stayed in there.
+    self.assertIn("value=\"newfull\"", response.body)
+    params["first_name"] = self._TEST_PARAMS["first_name"]
+
+    del params["last_name"]
+    response = self.test_app.post("/", params, expect_errors=True)
+    self.assertIn("value=\"newfull\"", response.body)
+    params["last_name"] = self._TEST_PARAMS["last_name"]
+
+    del params["email"]
+    response = self.test_app.post("/", params, expect_errors=True)
+    self.assertIn("value=\"newfull\"", response.body)
+    params["email"] = self._TEST_PARAMS["email"]
 
 
 """ AccountHandler is complicated enough that we split the testing accross two
@@ -240,7 +263,6 @@ class AccountHandlerTest(AccountHandlerBase):
     response = self.test_app.get("/account/" + self.user_hash)
     self.assertEqual(200, response.status_int)
     self.assertIn("ttesterson", response.body)
-
 
     ProjectHandler.add_username("ttesterson")
 
