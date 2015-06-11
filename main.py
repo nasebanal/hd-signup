@@ -140,6 +140,12 @@ class MainHandler(ProjectHandler):
                                   plan=plan))
           self.response.set_status(422)
           return
+        elif ((membership.username and membership.password) and not \
+              membership.spreedly_token):
+          self.response.out.write(self.render("templates/main.html",
+              message="We're processing your payment. Be patient.", plan=plan))
+          self.response.set_status(422)
+          return
         else:
           # Existing membership never got activated. Overwrite it.
           logging.info("Overwriting existing membership for %s." % (email))

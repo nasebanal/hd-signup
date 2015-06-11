@@ -207,6 +207,22 @@ class MainHandlerTest(BaseTest):
     self.assertIn("value=\"newfull\"", response.body)
     params["email"] = self._TEST_PARAMS["email"]
 
+  """ Tests that it won't let us continue if we have already set up our account.
+  """
+  def test_failure_if_account(self):
+    existing_user = Membership(first_name=self._TEST_PARAMS["first_name"],
+                               last_name=self._TEST_PARAMS["last_name"],
+                               email=self._TEST_PARAMS["email"],
+                               spreedly_token=None,
+                               username="testy.testerson",
+                               password="notasecret")
+    existing_user.put()
+
+    response = self.test_app.post("/", self._TEST_PARAMS, expect_errors=True)
+    self.assertEqual(422, response.status_int)
+
+    self.assertIn("payment", response.body)
+
 
 """ AccountHandler is complicated enough that we split the testing accross two
 cases. This is a base class that both inherit from. """
