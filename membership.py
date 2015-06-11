@@ -65,14 +65,18 @@ class Membership(db.Model):
 
   def subscribe_url(self):
     config = Config()
-    try:
-      url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % \
-          (config.SPREEDLY_ACCOUNT, self.key().id(),
-          self.spreedly_token, plans.Plan.get_by_name(self.plan).plan_id)
-    except KeyError:
-      url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % \
-          (config.SPREEDLY_ACCOUNT, self.key().id(),
-          self.spreedly_token, plans.newfull.plan_id)
+    url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % \
+        (config.SPREEDLY_ACCOUNT, self.key().id(),
+         self.spreedly_token, plans.Plan.get_by_name(self.plan).plan_id)
+    return str(url)
+
+  """ URL we use to subscribe a person for the first time.
+  query_str: The query string to use. """
+  def new_subscribe_url(self, query_str):
+    config = Config()
+    url = "https://spreedly.com/%s/subscribers/%i/subscribe/%s/%s?%s" % \
+        (config.SPREEDLY_ACCOUNT, self.key().id(),
+         plans.Plan.get_by_name(self.plan).plan_id, self.username, query_str)
     return str(url)
 
   def force_full_subscribe_url(self):

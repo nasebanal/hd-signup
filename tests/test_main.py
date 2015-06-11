@@ -328,11 +328,11 @@ class AccountHandlerTest(AccountHandlerBase):
     self.assertIn("value=\"test\"", response.body)
 
     user = Membership.get_by_hash(self.user_hash)
-    user.username = "testy.testerson"
+    user.domain_user = True
     user.put()
 
-    # If there is already a username associated with this user, we should fail
-    # as well.
+    # If there is already a domain account associated with this user, we should
+    # fail as well.
     query = urllib.urlencode(self._TEST_PARAMS)
     response = self.test_app.post("/account/" + self.user_hash, query,
                                   expect_errors=True)
@@ -353,6 +353,25 @@ class AccountHandlerTest(AccountHandlerBase):
     self.assertEqual(302, response.status_int)
     self.assertIn("success", response.location)
     self.assertIn(self.user_hash, response.location)
+
+  """ Checks that it redirects correctly if the user has already entered their
+  account information. """
+  def test_already_entered(self):
+    user = Membership.get_by_hash(self.user_hash)
+    user.username = "testy.testerson"
+    user.password = "notasecret"
+    user.spreedly_token = None
+    user.put()
+
+    response = self.test_app.get("/account/" + self.user_hash,
+                                 self._TEST_PARAMS)
+
+    # We should be redirected to a personal spreedly page.
+    self.assertEqual(302, response.status_int)
+    self.assertIn("spreedly.com", response.location)
+    self.assertIn(self.test_plan.plan_id, response.location)
+    self.assertIn(str(user.key().id()), response.location)
+    self.assertIn("testy.testerson", response.location)
 
 
 """ A special test case for testing the giftcard stuff. """

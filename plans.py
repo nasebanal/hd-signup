@@ -126,8 +126,7 @@ class Plan:
       if (plan.name == name or name in plan.aliases):
         return plan
 
-    logging.error("Could not find plan '%s'." % (name))
-    raise ValueError("Could not find that plan.")
+    raise ValueError("Could not find plan '%s'." % (name))
 
   """ Get a list of the plans to show on the selection page.
   Returns: A tuple. The first item is a list of the plans to show as selectable,

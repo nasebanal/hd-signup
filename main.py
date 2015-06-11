@@ -176,43 +176,57 @@ class MainHandler(ProjectHandler):
 class AccountHandler(ProjectHandler):
     def get(self, hash):
       membership = Membership.get_by_hash(hash)
-      if membership:
-        # Save the plan they want.
-        plan = self.request.get("plan", "newfull")
-        membership.plan = plan
-        membership.put()
-
-        # steal this part to detect if they registered with hacker dojo email above
-        first_part = re.compile(r"[^\w]").sub("", membership.first_name.split(" ")[0]) # First word of first name
-        last_part = re.compile(r"[^\w]").sub("", membership.last_name)
-        if len(first_part)+len(last_part) >= 15:
-            last_part = last_part[0] # Just last initial
-        username = ".".join([first_part, last_part]).lower()
-
-        usernames = self.fetch_usernames()
-        if usernames == None:
-          # Error page is already rendered.
-          return
-        if username in usernames:
-          # Duplicate username. Use the first part of the email instead.
-          username = membership.email.split("@")[0].lower()
-
-          user_number = 0
-          base_username = username
-          while username in usernames:
-            # Still a duplicate. Add a number.
-            user_number += 1
-            username = "%s%d" % (base_username, user_number)
-
-        if self.request.get("pick_username"):
-          pick_username = True
-
-        account_url = str("/account/%s" % membership.hash)
-        self.response.out.write(self.render("templates/account.html", locals()))
-      else:
+      if not membership:
         self.response.set_status(422)
         self.response.out.write("Unknown member hash.")
         logging.error("Could not find member with hash '%s'." % (hash))
+        return
+
+      # Save the plan they want.
+      plan = self.request.get("plan", "newfull")
+      membership.plan = plan
+      membership.put()
+
+      if ((membership.username and membership.password) and not \
+          membership.spreedly_token):
+        # We've filled out our account information, but we never started a
+        # subscription. (This could be reached by going back and trying to
+        # change our plan after we were already taken to the PinPayments
+        # page.) In this case, just pass them through to PinPayments.
+        query_str = urllib.urlencode({"first_name": membership.first_name,
+                                      "last_name": membership.last_name,
+                                      "email": membership.email,
+                                      "return_url": "http://%s/success/%s" % \
+                                          (self.request.host, membership.hash)})
+        self.redirect(membership.new_subscribe_url(query_str))
+
+      # steal this part to detect if they registered with hacker dojo email above
+      first_part = re.compile(r"[^\w]").sub("", membership.first_name.split(" ")[0]) # First word of first name
+      last_part = re.compile(r"[^\w]").sub("", membership.last_name)
+      if len(first_part)+len(last_part) >= 15:
+          last_part = last_part[0] # Just last initial
+      username = ".".join([first_part, last_part]).lower()
+
+      usernames = self.fetch_usernames()
+      if usernames == None:
+        # Error page is already rendered.
+        return
+      if username in usernames:
+        # Duplicate username. Use the first part of the email instead.
+        username = membership.email.split("@")[0].lower()
+
+        user_number = 0
+        base_username = username
+        while username in usernames:
+          # Still a duplicate. Add a number.
+          user_number += 1
+          username = "%s%d" % (base_username, user_number)
+
+      if self.request.get("pick_username"):
+        pick_username = True
+
+      account_url = str("/account/%s" % membership.hash)
+      self.response.out.write(self.render("templates/account.html", locals()))
 
     def post(self, hash):
         username = self.request.get("username")
@@ -232,114 +246,118 @@ class AccountHandler(ProjectHandler):
                 locals(), message="Password must be at least 8 characters."))
             self.response.set_status(422)
             return
-        else:
-            membership = Membership.get_by_hash(hash)
-            if membership.username:
-                logging.warning(
-                    "Duplicate user '%s' should have been caught" \
-                    " in first step." % (membership.username))
-                self.response.out.write(self.render("templates/account.html",
-                    locals(), message="You already have an account."))
+
+        membership = Membership.get_by_hash(hash)
+
+        if membership.domain_user:
+            logging.warning(
+                "Duplicate user '%s' should have been caught" \
+                " in first step." % (membership.username))
+            self.response.out.write(self.render("templates/account.html",
+                locals(), message="You already have an account."))
+            self.response.set_status(422)
+            return
+
+        # Set a username and password in the datastore.
+        membership.username = username
+        membership.password = password
+        membership.put()
+
+        if membership.status == "active":
+            taskqueue.add(url="/tasks/create_user", method="POST",
+                          params={"hash": membership.hash,
+                                  "username": username,
+                                  "password": password},
+                          countdown=3)
+            self.redirect(str("http://%s/success/%s" % (self.request.host, membership.hash)))
+            return
+
+        customer_id = membership.key().id()
+
+        # All our giftcards start out with 1337.
+        if (membership.referrer and "1337" in membership.referrer):
+
+            if len(membership.referrer) != 16:
+                message = "<p>Error: code must be 16 digits."
+                message += "<p>Please contact %s if you believe this \
+                          message is in error and we can help!" % \
+                          (conf.SIGNUP_HELP_EMAIL)
+                message += "<p><a href=\"/\">Start again</a>"
+                internal = False
+                self.response.out.write(self.render("templates/error.html", locals()))
                 self.response.set_status(422)
                 return
 
-            # Set a username and password in the datastore.
-            membership.username = username
-            membership.password = password
-            membership.put()
+            # A unique number on all the giftcards.
+            serial = membership.referrer[4:8]
+            # How we know it's valid.
+            hash = membership.referrer[8:16]
+            confirmation_hash = re.sub("[a-f]","",hashlib.sha1(serial+keymaster.get("code:hash")).hexdigest())[:8]
 
-            if membership.status == "active":
-                taskqueue.add(url="/tasks/create_user", method="POST",
-                              params={"hash": membership.hash,
-                                      "username": username,
-                                      "password": password},
-                              countdown=3)
-                self.redirect(str("http://%s/success/%s" % (self.request.host, membership.hash)))
-            else:
-                customer_id = membership.key().id()
+            if hash != confirmation_hash:
+                message = "<p>Error: this code was invalid: %s" % \
+                    (membership.referrer)
+                message += "<p>Please contact %s if you believe this \
+                          message is in error and we can help!" % \
+                          (conf.SIGNUP_HELP_EMAIL)
+                message += "<p><a href=\"/\">Start again</a>"
+                internal = False
+                uc = UsedCode(code=membership.referrer,email=membership.email,extra="invalid code")
+                uc.put()
+                self.response.out.write(self.render("templates/error.html", locals()))
+                self.response.set_status(422)
+                return
 
-                # All our giftcards start out with 1337.
-                if (membership.referrer and "1337" in membership.referrer):
+            previous = UsedCode.all().filter("code =", membership.referrer).get()
+            if previous:
+                message = "<p>Error: this code has already been used: "+ membership.referrer
+                message += "<p>Please contact %s if you believe this" \
+                            " message is in error and we can help!" % \
+                            (conf.SIGNUP_HELP_EMAIL)
+                message += "<p><a href=\"/\">Start again</a>"
+                internal = False
+                uc = UsedCode(code=membership.referrer,email=membership.email,extra="2nd+ attempt")
+                uc.put()
+                self.response.out.write(self.render("templates/error.html", locals()))
+                self.response.set_status(422)
+                return
 
-                    if len(membership.referrer) != 16:
-                        message = "<p>Error: code must be 16 digits."
-                        message += "<p>Please contact %s if you believe this \
-                                 message is in error and we can help!" % \
-                                 (conf.SIGNUP_HELP_EMAIL)
-                        message += "<p><a href=\"/\">Start again</a>"
-                        internal = False
-                        self.response.out.write(self.render("templates/error.html", locals()))
-                        self.response.set_status(422)
-                        return
+            # If we're testing, I don't want it doing random things on
+            # pinpayments.
+            if not Config().is_testing:
+              headers = {"Authorization": "Basic %s" % \
+                  base64.b64encode("%s:X" % conf.SPREEDLY_APIKEY),
+                  "Content-Type":"application/xml"}
+              # Create subscriber
+              data = "<subscriber><customer-id>%s</customer-id><email>%s</email></subscriber>" % (customer_id, membership.email)
+              resp = \
+                  urlfetch.fetch("https://subs.pinpayments.com"
+                                "/api/v4/%s/subscribers.xml" % \
+                                (conf.SPREEDLY_ACCOUNT),
+                                method="POST", payload=data,
+                                headers = headers, deadline=5)
+              # Credit
+              data = "<credit><amount>95.00</amount></credit>"
+              resp = \
+                  urlfetch.fetch("https://subs.pinpayments.com/api/v4"
+                                "/%s/subscribers/%s/credits.xml" % \
+                                (conf.SPREEDLY_ACCOUNT, customer_id),
+                                method="POST", payload=data,
+                                headers=headers, deadline=5)
 
-                    # A unique number on all the giftcards.
-                    serial = membership.referrer[4:8]
-                    # How we know it's valid.
-                    hash = membership.referrer[8:16]
-                    confirmation_hash = re.sub("[a-f]","",hashlib.sha1(serial+keymaster.get("code:hash")).hexdigest())[:8]
+            uc = UsedCode(code=membership.referrer,email=membership.email,extra="OK")
+            uc.put()
 
-                    if hash != confirmation_hash:
-                        message = "<p>Error: this code was invalid: %s" % \
-                            (membership.referrer)
-                        message += "<p>Please contact %s if you believe this \
-                                 message is in error and we can help!" % \
-                                 (conf.SIGNUP_HELP_EMAIL)
-                        message += "<p><a href=\"/\">Start again</a>"
-                        internal = False
-                        uc = UsedCode(code=membership.referrer,email=membership.email,extra="invalid code")
-                        uc.put()
-                        self.response.out.write(self.render("templates/error.html", locals()))
-                        self.response.set_status(422)
-                        return
-
-                    previous = UsedCode.all().filter("code =", membership.referrer).get()
-                    if previous:
-                        message = "<p>Error: this code has already been used: "+ membership.referrer
-                        message += "<p>Please contact %s if you believe this" \
-                                   " message is in error and we can help!" % \
-                                   (conf.SIGNUP_HELP_EMAIL)
-                        message += "<p><a href=\"/\">Start again</a>"
-                        internal = False
-                        uc = UsedCode(code=membership.referrer,email=membership.email,extra="2nd+ attempt")
-                        uc.put()
-                        self.response.out.write(self.render("templates/error.html", locals()))
-                        self.response.set_status(422)
-                        return
-
-                    # If we're testing, I don't want it doing random things on
-                    # pinpayments.
-                    if not Config().is_testing:
-                      headers = {"Authorization": "Basic %s" % \
-                          base64.b64encode("%s:X" % conf.SPREEDLY_APIKEY),
-                          "Content-Type":"application/xml"}
-                      # Create subscriber
-                      data = "<subscriber><customer-id>%s</customer-id><email>%s</email></subscriber>" % (customer_id, membership.email)
-                      resp = \
-                          urlfetch.fetch("https://subs.pinpayments.com"
-                                        "/api/v4/%s/subscribers.xml" % \
-                                        (conf.SPREEDLY_ACCOUNT),
-                                        method="POST", payload=data,
-                                        headers = headers, deadline=5)
-                      # Credit
-                      data = "<credit><amount>95.00</amount></credit>"
-                      resp = \
-                          urlfetch.fetch("https://subs.pinpayments.com/api/v4"
-                                        "/%s/subscribers/%s/credits.xml" % \
-                                        (conf.SPREEDLY_ACCOUNT, customer_id),
-                                        method="POST", payload=data,
-                                        headers=headers, deadline=5)
-
-                    uc = UsedCode(code=membership.referrer,email=membership.email,extra="OK")
-                    uc.put()
-
-                query_str = urllib.urlencode({"first_name": membership.first_name, "last_name": membership.last_name,
-                    "email": membership.email, "return_url":
-                    "http://%s/success/%s" % (self.request.host, membership.hash)})
-                # check if they are active already since we didn't create a new member above
-                # apparently the URL will be different
-                self.redirect(str("https://spreedly.com/%s/subscribers/%d/subscribe/%s/%s?%s" %
-                    (conf.SPREEDLY_ACCOUNT, customer_id, plan_object.plan_id,
-                     username, query_str)))
+        query_str = urllib.urlencode({"first_name": membership.first_name,
+                                      "last_name": membership.last_name,
+                                      "email": membership.email,
+                                      "return_url": "http://%s/success/%s" % \
+                                          (self.request.host, membership.hash)})
+        # The plan should already be written, so no point in doing another put.
+        # It might have been recent enough that we wouldn't see it, though.
+        membership.plan = plan
+        # Redirect them to the PinPayments page, where they actually pay.
+        self.redirect(membership.new_subscribe_url(query_str))
 
 
 class CreateUserTask(ProjectHandler):
