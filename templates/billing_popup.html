@@ -1,0 +1,13 @@
+{% extends 'templates/base.html' %}
+{% block content %}
+
+<div style="background-color: lightyellow; border: 1px solid goldenrod; padding: 10px; margin-top: 40px;">
+You are currently on a legacy plan. If you pause your membership, this plan will not be available when you reactivate.
+</div>
+<form action="{{url}}" style="padding:5px;">
+	<div style="margin: auto 0; text-align: center">
+    	<input type="submit" value="Okay" style ="margin-left: auto; margin-right: auto;">
+	</div>
+</form>
+
+{% endblock %}
