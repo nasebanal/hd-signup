@@ -937,29 +937,6 @@ class KeyHandler(ProjectHandler):
           self.response.out.write(self.render("templates/error.html", locals()))
           return
 
-class RFIDHandler(ProjectHandler):
-    def get(self):
-      if self.request.get("id"):
-        m = Membership.all().filter("rfid_tag ==", self.request.get("id")).filter("status =", "active").get()
-        if self.request.get("callback"): # jsonp callback support
-          self.response.out.write(self.request.get("callback")+"(");
-        if m:
-          email = "%s@%s" % (m.username, Config().APPS_DOMAIN)
-          gravatar_url = "http://www.gravatar.com/avatar/" + hashlib.md5(email.lower()).hexdigest()
-          self.response.out.write(json.dumps({"gravatar": gravatar_url,"auto_signin":m.auto_signin, "status" : m.status, "name" : m.first_name + " " + m.last_name, "rfid_tag" : m.rfid_tag, "username" : m.username }))
-        else:
-          self.response.out.write(json.dumps({}))
-        if self.request.get("callback"):
-          self.response.out.write(")");
-      else:
-        if self.request.get("maglock:key") == keymaster.get("maglock:key"):
-          if self.request.get("machine"):
-            members = Membership.all().filter("rfid_tag !=", None).filter("status =", "active").filter("extra_"+self.request.get("machine")+" =","True")
-          else:
-            members = Membership.all().filter("rfid_tag !=", None).filter("status =", "active")
-          self.response.out.write(json.dumps([ {"rfid_tag" : m.rfid_tag, "username" : m.username } for m in members]))
-        else:
-          self.response.out.write("Access denied")
 
 class ModifyHandler(ProjectHandler):
     def get(self):
@@ -1077,7 +1054,6 @@ class CSVHandler(ProjectHandler):
 
 app = webapp2.WSGIApplication([
         ("/", MainHandler),
-        ("/api/rfid", RFIDHandler),
         ("/api/rfidswipe", RFIDSwipeHandler),
         ("/userlist", AllHandler),
         ("/suspended", SuspendedHandler),
