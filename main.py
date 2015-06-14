@@ -686,7 +686,9 @@ class AreYouStillThereMail(ProjectHandler):
         user = Membership.get_by_id(int(self.request.get("user")))
         if not user:
           logging.error("Bad ID for member.")
-          self.abort(422)
+          # Don't change the status, because we don't want it to try the request
+          # again.
+          return
 
         logging.info("Sending email to %s %s." % \
                      (user.first_name, user.last_name))
