@@ -242,6 +242,7 @@ fiveyear = Plan("fiveyear", 18853, 83.33, "Pay for five years now.",
                 human_name="Five Years")
 hive = Plan("Hive", 19616, 275, "Old premium plan.",
             human_name="Old Premium", member_limit=Config().HIVE_MAX_OCCUPANCY,
+            aliases=["thielcomp"],
             legacy=newhive, desk=True)
 lite = Plan("lite", 25791, 125, "A limited but cheaper plan.",
             signin_limit=Config().LITE_VISITS, selectable=False)
