@@ -163,7 +163,7 @@ class SigninHandler(ApiHandlerBase):
     # Get information on the user from the datastore.
     user = Membership.get_by_email(email)
     if not user:
-      self._rest_error("InvalidParameters",
+      self._rest_error("InvalidEmail",
           "Could not find user with email '%s'." % (email), 422)
       return
 
