@@ -14,6 +14,28 @@ from config import Config
 from membership import Membership
 import keymaster
 import plans
+import subscriber_api
+
+
+""" Increments the number of signins for a user. Also suspends the user if they
+are out of visits.
+user: The user to increment signins for.
+Returns: The number of visits remaining for a user. """
+def _increment_signins(user):
+  # Increment signins.
+  user.signins += 1
+
+  remaining = plans.Plan.signins_remaining(user)
+  logging.info("Visits remaining for %s: %s" % \
+              (user.username, str(remaining)))
+
+  if remaining == 0:
+    # No more visits left. Suspend the user.
+    user.status = "no_visits"
+    subscriber_api.suspend(user.username)
+
+  user.put()
+  return remaining
 
 
 """ Generic superclass for all API Handlers. """
@@ -162,18 +184,12 @@ class SigninHandler(ApiHandlerBase):
 
     # Get information on the user from the datastore.
     user = Membership.get_by_email(email)
-    if not user:
+    if (not user or user.status not in ("active", "no_visits")):
       self._rest_error("InvalidEmail",
-          "Could not find user with email '%s'." % (email), 422)
+          "Could not find an active user with email '%s'." % (email), 422)
       return
 
-    # Increment signins.
-    user.signins += 1
-    user.put()
-
-    remaining = plans.Plan.signins_remaining(user)
-    logging.info("Visits remaining for %s: %s" % \
-                 (user.username, str(remaining)))
+    remaining = _increment_signins(user)
 
     response = json.dumps({"visits_remaining": remaining})
     self.response.out.write(response)
@@ -194,19 +210,14 @@ class RfidHandler(ApiHandlerBase):
 
     # Sign in a member.
     member = db.GqlQuery("SELECT * FROM Membership WHERE rfid_tag = :1" \
-                          " AND status = 'active'", rfid).get()
+                          " AND status IN ('active', 'no_visits')", rfid).get()
     if not member:
       self._rest_error("InvalidKey",
                         "This key does not exist, or is suspended.", 422)
       return
 
     # Record the signin.
-    member.signins += 1
-    member.put()
-    remaining = plans.Plan.signins_remaining(member)
-    logging.info("Visits remaining for %s: %s" % \
-                  (member.username, str(remaining)))
-
+    remaining = _increment_signins(member)
 
     email = "%s.%s@%s" % (member.first_name, member.last_name,
                           Config().APPS_DOMAIN)

@@ -16,6 +16,9 @@ import spreedly
 username: The username of the user to suspend. """
 def suspend(username):
   conf = Config()
+  if conf.is_testing:
+    # Don't do this if we're testing.
+    return
 
   def fail(exception):
     mail.send_mail(sender=conf.EMAIL_FROM,
@@ -37,6 +40,9 @@ def suspend(username):
 username: The username of the user to restore. """
 def restore(username):
   conf = Config()
+  if conf.is_testing:
+    # Don't do this if we're testing.
+    return
 
   def fail(exception):
     mail.send_mail(sender=conf.EMAIL_FROM,
@@ -61,7 +67,8 @@ member: The membership object to update. """
 def update_plan(subscriber, member):
   if subscriber["active"] == "true":
     # Membership is active.
-    member.status = "active"
+    if (not member.status or member.status == "suspended"):
+      member.status = "active"
   else:
     # Membership is not active.
     member.status = "suspended"
@@ -117,7 +124,7 @@ def update_subscriber(member):
 
   update_plan(subscriber, member)
 
-  if member.status == "active" and not member.domain_user:
+  if (member.status in ("active", "no_visits") and not member.domain_user):
     if not member.password:
       # In this case, it pulled an old datastore entry and updated the schema,
       # which defaulted the password value. In this case, there is nothing we can
@@ -134,7 +141,7 @@ def update_subscriber(member):
                             "username": member.username,
                             "password": member.password},
                     countdown=3)
-  if member.status == "active" and member.unsubscribe_reason:
+  if member.status in ("active", "no_visits") and member.unsubscribe_reason:
     member.unsubscribe_reason = None
 
   member.spreedly_token = subscriber["token"]
@@ -145,12 +152,12 @@ def update_subscriber(member):
   # TODO: After a few months (now() = 06.13.2011), only suspend/restore if
   # status CHANGED. As of right now, we can't trust previous status, so lets
   # take action on each call to /update
-  if member.status == "active" and member.domain_user:
+  if member.status in ("active", "no_visits") and member.domain_user:
     logging.info("Restoring User: " + member.username)
     restore(member.username)
   if member.status == "suspended" and member.domain_user:
     logging.info("Suspending User: " + member.username)
     suspend(member.username)
 
-  return ((member.status == "active"), member.plan)
+  return ((member.status in ("active", no_visits)), member.plan)
 

@@ -135,7 +135,7 @@ class MainHandler(ProjectHandler):
               plan=plan))
           self.response.set_status(422)
           return
-        elif membership.status == "active":
+        elif membership.status in ("active", "no_visits"):
           self.response.out.write(self.render("templates/main.html",
                                   message="Account already exists.",
                                   plan=plan))
@@ -270,7 +270,7 @@ class AccountHandler(ProjectHandler):
         membership.password = password
         membership.put()
 
-        if membership.status == "active":
+        if membership.status in ("active", "no_visits"):
             taskqueue.add(url="/tasks/create_user", method="POST",
                           params={"hash": membership.hash,
                                   "username": username,
@@ -726,8 +726,11 @@ class ReactivateHandler(ProjectHandler):
             subscriber_api.update_subscriber(membership)
 
             if membership.status == "active":
-                self.redirect(str(self.request.path + \
-                    "?message=You are still an active member"))
+              self.redirect("%s?message=You are still an active member." % \
+                            (self.request.path))
+            elif membership.status == "no_visits":
+              self.redirect("%s?message=Your plan is active, but you need to" \
+                            " upgrade it." % (self.request.path))
             else:
               subject = "Reactivate your Hacker Dojo Membership"
               subscribe_url = membership.subscribe_url()

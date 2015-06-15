@@ -128,7 +128,7 @@ class SigninHandlerTest(ApiTest):
     result = json.loads(response.body)
 
     self.assertEqual(422, response.status_int)
-    self.assertIn("Could not find user", result["message"])
+    self.assertIn("Could not find", result["message"])
 
   """ Tests that it works properly on a plan with no signin limit. """
   def test_unlimited_signins(self):
@@ -139,6 +139,37 @@ class SigninHandlerTest(ApiTest):
     result = json.loads(response.body)
 
     self.assertEqual(None, result["visits_remaining"])
+
+  """ Tests that it doesn't work with a suspended user. """
+  def test_suspended_user(self):
+    user = Membership.get_by_email("djpetti@gmail.com")
+    user.status = "suspended"
+    user.put()
+
+    params = {"email": "djpetti@gmail.com"}
+    response = self.test_app.post("/api/v1/signin", params, expect_errors=True)
+    result = json.loads(response.body)
+
+    self.assertEqual(422, response.status_int)
+    self.assertIn("Could not find", result["message"])
+
+  """ Tests that it properly suspends a user when they run out of visits. """
+  def test_user_suspending(self):
+    user = Membership.get_by_email("djpetti@gmail.com")
+    # The next one should suspend us.
+    user.signins = 9
+    user.put()
+
+    params = {"email": "djpetti@gmail.com"}
+    response = self.test_app.post("/api/v1/signin", params)
+    result = json.loads(response.body)
+
+    self.assertEqual(200, response.status_int)
+    self.assertEqual(0, result["visits_remaining"])
+
+    user = Membership.get_by_email("djpetti@gmail.com")
+    self.assertEqual(10, user.signins)
+    self.assertEqual("no_visits", user.status)
 
 
 """ Tests that the RFID handler works properly. """
@@ -192,6 +223,25 @@ class RfidHandlerTest(ApiTest):
     error = json.loads(response.body)
     self.assertIn("InvalidKey", error["type"])
     self.assertIn("or is suspended", error["message"])
+
+  """ Tests that it properly suspends a user when they run out of visits. """
+  def test_user_suspending(self):
+    user = Membership.get_by_email("djpetti@gmail.com")
+    # The next one should suspend us.
+    user.signins = 9
+    user.rfid_tag = "1337"
+    user.put()
+
+    params = {"id": "1337"}
+    response = self.test_app.post("/api/v1/rfid", params)
+    result = json.loads(response.body)
+
+    self.assertEqual(200, response.status_int)
+    self.assertEqual(0, result["visits_remaining"])
+
+    user = Membership.get_by_email("djpetti@gmail.com")
+    self.assertEqual(10, user.signins)
+    self.assertEqual("no_visits", user.status)
 
 
 """ Tests that the Maglock handler works properly. """
