@@ -166,6 +166,7 @@ class RfidHandlerTest(ApiTest):
     self.assertEqual("%s %s" % (self.user.first_name, self.user.last_name),
                      result["name"])
     self.assertEqual(self.user.username, result["username"])
+    self.assertEqual(self.user.email, result["email"])
 
   """ Tests that it won't sign in a suspended user. """
   def test_suspended_signin(self):

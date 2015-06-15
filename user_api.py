@@ -180,8 +180,7 @@ class SigninHandler(ApiHandlerBase):
 
 """ Handles RFID tag events. """
 class RfidHandler(ApiHandlerBase):
-  """ Signs in people using an RFID tag, or gets a list of all valid RFID tags
-  for the maglock.
+  """ Signs in people using their RFID tag.
   Properties for this request:
   id: The number on the RFID tag.
   Response: A json object with some information about the user signed in. It
@@ -217,7 +216,7 @@ class RfidHandler(ApiHandlerBase):
     name = "%s %s" % (member.first_name, member.last_name)
     response = {"gravatar": gravatar_url, "auto_signin": member.auto_signin,
                 "name": name, "username": member.username,
-                "visits_remaining": remaining}
+                "email": member.email, "visits_remaining": remaining}
     self.response.out.write(json.dumps(response))
 
 
