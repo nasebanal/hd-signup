@@ -14,3 +14,6 @@ cron:
 - description: send unsensitive member info to dev app.
   url: /cron/datasync
   schedule: every 1 hours
+- description: reset the signins counter for all users.
+  url: /cron/reset_signins
+  schedule: 1 of month 00:00
