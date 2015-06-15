@@ -1,6 +1,8 @@
 from cgi import escape
 from pprint import pprint
+import base64
 import json
+import sys
 
 import wsgiref.handlers
 import datetime, time, hashlib, urllib, urllib2, re, os
@@ -14,13 +16,12 @@ from config import Config
 from membership import Membership
 from project_handler import ProjectHandler
 from select_plan import SelectPlanHandler
-import base64
+import cron
 import keymaster
 import logging
 import plans
 import spreedly
 import subscriber_api
-import sys
 
 
 class UsedCode(db.Model):
@@ -989,13 +990,6 @@ class GenLinkHandler(ProjectHandler):
         self.response.out.write(self.render("templates/genlink.html", locals()))
 
 
-class CacheUsersCron(ProjectHandler):
-    def get(self):
-        self.post()
-
-    def post(self):
-        self.fetch_usernames(use_cache=False)
-
 class GetTwitterHandler(ProjectHandler):
     def get(self):
       user = users.get_current_user()
@@ -1113,7 +1107,7 @@ app = webapp2.WSGIApplication([
         ("/api/seths", SetHSHandler),
         ("/tasks/create_user", CreateUserTask),
         ("/tasks/clean_row", CleanupTask),
-        ("/cron/cache_users", CacheUsersCron),
+        ("/cron/cache_users", cron.CacheUsersCronHandler),
         ("/tasks/areyoustillthere_mail", AreYouStillThereMail),
         ("/tasks/twitter_mail", TwitterMail),
         ("/reactivate", ReactivateHandler),

@@ -12,5 +12,5 @@ cron:
   url: /areyoustillthere
   schedule: every monday 15:00
 - description: send unsensitive member info to dev app.
-  url: /_datasync
+  url: /cron/datasync
   schedule: every 1 hours
