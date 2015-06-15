@@ -671,9 +671,8 @@ class AreYouStillThereHandler(ProjectHandler):
           if (not membership.unsubscribe_reason and membership.spreedly_token \
               and "Deleted" not in membership.last_name and \
               membership.extra_dnd != True):
-            # One e-mail every 20 min = 72 e-mails a day (100 is free appengine
-            # limit)
-            countdown += 1200
+            # One e-mail every 90 seconds = 960 e-mails a day.
+            countdown += 90
             self.response.out.write("Are you still there %s ?<br/>" % \
                                     (membership.email))
             taskqueue.add(url="/tasks/areyoustillthere_mail",
