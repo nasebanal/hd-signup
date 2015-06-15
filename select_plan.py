@@ -1,6 +1,8 @@
 import logging
 import urllib
 
+from google.appengine.api import users
+
 from config import Config
 from membership import Membership
 from project_handler import ProjectHandler
@@ -32,14 +34,28 @@ class SelectPlanHandler(ProjectHandler):
 
 """ Allows the user to change their plan. """
 class ChangePlanHandler(ProjectHandler):
-  """ member_hash: The hash of the member we are selecting a plan for. """
-  def get(self, member_hash):
-    member = Membership.get_by_hash(member_hash)
+  def get(self):
+    user = users.get_current_user()
+    if not user:
+      self.redirect(users.create_login_url(self.request.uri))
+      return
+
+    member = None
+    if "@hackerdojo.com" in user.email():
+      # Use the HackerDojo email account.
+      username = user.email().replace("@hackerdojo.com", "")
+      member = Membership.get_by_username(username)
+    else:
+      # Use the normal email account.
+      member = Membership.get_by_email(user.email())
+
     if not member:
       # This member doesn't exist.
-      logging.error("No member with hash '%s'." % (member_hash))
+      logging.error("No member with email '%s'." % (user.email()))
+      logout_url = users.create_logout_url(self.request.uri)
       error = self.render("templates/error.html",
-                          message="No member with this hash.")
+                          message="No member with your email was found.<br>" \
+                          "<a href=%s>Try Again</a>" % (logout_url))
       self.response.out.write(error)
       self.response.set_status(422)
       return

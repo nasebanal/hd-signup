@@ -1112,5 +1112,5 @@ app = webapp2.WSGIApplication([
         ("/tasks/twitter_mail", TwitterMail),
         ("/reactivate", ReactivateHandler),
         ("/plan/(.+)", SelectPlanHandler),
-        ("/change_plan/(.+)", ChangePlanHandler),
+        ("/change_plan", ChangePlanHandler),
         ], debug=True)

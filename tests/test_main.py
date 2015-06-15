@@ -618,13 +618,18 @@ class ChangePlanHandlerTest(PlanSelectionTestBase):
 
     # Add a user to test with.
     self.user = Membership(first_name="Testy", last_name="Testerson",
-                           email="ttesterson@gmail.com", hash="notasecret",
-                           plan="plan1", spreedly_token="notatoken")
+                           email="ttesterson@gmail.com", plan="plan1",
+                           spreedly_token="notatoken",
+                           username="testy.testerson")
     self.user.put()
 
-  """ Tests that the plans end up getting shown correctly. """
-  def test_plan_page(self):
-    response = self.test_app.get("/change_plan/notasecret")
+    # Login our test user.
+    self.testbed.init_user_stub()
+    self.testbed.setup_env(user_email="ttesterson@gmail.com", overwrite=True)
+
+  """ Tests that the plan selection page looks normal. """
+  def __check_page(self):
+    response = self.test_app.get("/change_plan")
     self.assertEqual(200, response.status_int)
 
     # It should show the human name, and the link. (The plan ID should be in the
@@ -646,17 +651,30 @@ class ChangePlanHandlerTest(PlanSelectionTestBase):
     self.assertNotIn("$%d" % (self.plan3.price_per_month), response.body)
     self.assertIn("$%d" % (self.plan4.price_per_month), response.body)
 
+  """ Tests that the plans end up getting shown correctly. """
+  def test_plan_page(self):
+    self.__check_page()
+
   """ Tests that it responds properly when the user has no spreedly token. """
   def test_no_spreedly_token(self):
     self.user.spreedly_token = None
     self.user.put()
 
-    response = self.test_app.get("/change_plan/notasecret", expect_errors=True)
+    response = self.test_app.get("/change_plan", expect_errors=True)
     self.assertEqual(422, response.status_int)
     self.assertIn("any plan", response.body)
 
-  """ Tests that it responds properly when we give it a bad hash. """
-  def test_bad_hash(self):
-    response = self.test_app.get("/change_plan/badhash", expect_errors=True)
+  """ Tests that it deals with using the hackerdojo email properly. """
+  def test_hackerdojo_email(self):
+    self.testbed.setup_env(user_email="testy.testerson@hackerdojo.com",
+                           overwrite=True)
+
+    self.__check_page()
+
+  """ Tests that it responds properly when an invalid person logs in. """
+  def test_invalid_email(self):
+    self.testbed.setup_env(user_email="bad_email@gmail.com", overwrite=True)
+
+    response = self.test_app.get("/change_plan", expect_errors=True)
     self.assertEqual(422, response.status_int)
-    self.assertIn("with this hash", response.body)
+    self.assertIn("your email", response.body)
