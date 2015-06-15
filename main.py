@@ -15,7 +15,7 @@ import webapp2
 from config import Config
 from membership import Membership
 from project_handler import ProjectHandler
-from select_plan import SelectPlanHandler
+from select_plan import SelectPlanHandler, ChangePlanHandler
 import cron
 import keymaster
 import logging
@@ -1112,4 +1112,5 @@ app = webapp2.WSGIApplication([
         ("/tasks/twitter_mail", TwitterMail),
         ("/reactivate", ReactivateHandler),
         ("/plan/(.+)", SelectPlanHandler),
+        ("/change_plan/(.+)", ChangePlanHandler),
         ], debug=True)

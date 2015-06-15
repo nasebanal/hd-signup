@@ -567,10 +567,10 @@ class CreateUserTaskTest(BaseTest):
     self.assertEqual(200, response.status_int)
 
 
-""" Tests that the plan selector page works. """
-class PlanSelectionTest(BaseTest):
+""" Base class for testing plan selection handlers. """
+class PlanSelectionTestBase(BaseTest):
   def setUp(self):
-    super(PlanSelectionTest, self).setUp()
+    super(PlanSelectionTestBase, self).setUp()
 
     # Clear all the real plans.
     Plan.all_plans = []
@@ -584,6 +584,9 @@ class PlanSelectionTest(BaseTest):
     self.plan4 = Plan("plan4", 4, 104, "", member_limit=0,
                       human_name="Fourth Plan")
 
+
+""" Tests that the plan selector page works. """
+class SelectPlanHandlerTest(PlanSelectionTestBase):
   """ Tests that the plans end up getting shown correctly. """
   def test_plan_page(self):
     response = self.test_app.get("/plan/notahash")
@@ -606,3 +609,54 @@ class PlanSelectionTest(BaseTest):
     self.assertIn("$%d" % (self.plan2.price_per_month), response.body)
     self.assertNotIn("$%d" % (self.plan3.price_per_month), response.body)
     self.assertIn("$%d" % (self.plan4.price_per_month), response.body)
+
+
+""" Tests that the plan change page works. """
+class ChangePlanHandlerTest(PlanSelectionTestBase):
+  def setUp(self):
+    super(ChangePlanHandlerTest, self).setUp()
+
+    # Add a user to test with.
+    self.user = Membership(first_name="Testy", last_name="Testerson",
+                           email="ttesterson@gmail.com", hash="notasecret",
+                           plan="plan1", spreedly_token="notatoken")
+    self.user.put()
+
+  """ Tests that the plans end up getting shown correctly. """
+  def test_plan_page(self):
+    response = self.test_app.get("/change_plan/notasecret")
+    self.assertEqual(200, response.status_int)
+
+    # It should show the human name, and the link. (The plan ID should be in the
+    # spreedly subscribe url.)
+    self.assertIn(self.plan1.human_name, response.body)
+    self.assertIn("subscribe/" + self.plan1.plan_id, response.body)
+    self.assertIn(self.plan2.human_name, response.body)
+    self.assertIn("subscribe/" + self.plan2.plan_id, response.body)
+    # Not selectable, so it shouldn't be in there at all.
+    self.assertNotIn(self.plan3.human_name, response.body)
+    self.assertNotIn("subscribe/" + self.plan3.plan_id, response.body)
+    # Unavailable, so the name should be there, but the link should not.
+    self.assertIn(self.plan4.human_name, response.body)
+    self.assertNotIn("subscribe/" + self.plan4.plan_id, response.body)
+
+    # It should also show the price.
+    self.assertIn("$%d" % (self.plan1.price_per_month), response.body)
+    self.assertIn("$%d" % (self.plan2.price_per_month), response.body)
+    self.assertNotIn("$%d" % (self.plan3.price_per_month), response.body)
+    self.assertIn("$%d" % (self.plan4.price_per_month), response.body)
+
+  """ Tests that it responds properly when the user has no spreedly token. """
+  def test_no_spreedly_token(self):
+    self.user.spreedly_token = None
+    self.user.put()
+
+    response = self.test_app.get("/change_plan/notasecret", expect_errors=True)
+    self.assertEqual(422, response.status_int)
+    self.assertIn("any plan", response.body)
+
+  """ Tests that it responds properly when we give it a bad hash. """
+  def test_bad_hash(self):
+    response = self.test_app.get("/change_plan/badhash", expect_errors=True)
+    self.assertEqual(422, response.status_int)
+    self.assertIn("with this hash", response.body)
