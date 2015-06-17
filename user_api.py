@@ -17,7 +17,7 @@ import plans
 """ Generic superclass for all API Handlers. """
 class ApiHandlerBase(webapp2.RequestHandler):
   # Apps that can use this API.
-  _AUTHORIZED_APPS = ("hd-events", "hd-signin")
+  _AUTHORIZED_APPS = ("hd-events", "hd-signin-hrd")
 
   """ A function meant to be used as a decorator. It ensures that an authorized
   app is making the request before running the function.
