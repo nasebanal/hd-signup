@@ -13,6 +13,7 @@ import webtest
 from google.appengine.ext import db
 from google.appengine.ext import testbed
 
+from keymaster import Keymaster
 from membership import Membership
 from plans import Plan
 import user_api
@@ -31,11 +32,12 @@ class ApiTest(unittest.TestCase):
 
     # Create a new plan for testing.
     Plan.all_plans = []
-    self.test_plan = Plan("test", 1, 100, "A test plan.", signin_limit = 10)
+    self.test_plan = Plan("test", 1, 100, "A test plan.", signin_limit=10)
 
     # Add a user to the datastore.
     self.user = Membership(first_name="Daniel", last_name="Petti",
-        email="djpetti@gmail.com", plan="test", username="daniel.petti")
+        email="djpetti@gmail.com", plan="test", username="daniel.petti",
+        status="active")
     self.user.put()
 
   def tearDown(self):
@@ -126,7 +128,7 @@ class SigninHandlerTest(ApiTest):
     result = json.loads(response.body)
 
     self.assertEqual(422, response.status_int)
-    self.assertIn("Could not find user", result["message"])
+    self.assertIn("Could not find", result["message"])
 
   """ Tests that it works properly on a plan with no signin limit. """
   def test_unlimited_signins(self):
@@ -137,3 +139,156 @@ class SigninHandlerTest(ApiTest):
     result = json.loads(response.body)
 
     self.assertEqual(None, result["visits_remaining"])
+
+  """ Tests that it doesn't work with a suspended user. """
+  def test_suspended_user(self):
+    user = Membership.get_by_email("djpetti@gmail.com")
+    user.status = "suspended"
+    user.put()
+
+    params = {"email": "djpetti@gmail.com"}
+    response = self.test_app.post("/api/v1/signin", params, expect_errors=True)
+    result = json.loads(response.body)
+
+    self.assertEqual(422, response.status_int)
+    self.assertIn("Could not find", result["message"])
+
+  """ Tests that it properly suspends a user when they run out of visits. """
+  def test_user_suspending(self):
+    user = Membership.get_by_email("djpetti@gmail.com")
+    # The next one should suspend us.
+    user.signins = 9
+    user.put()
+
+    params = {"email": "djpetti@gmail.com"}
+    response = self.test_app.post("/api/v1/signin", params)
+    result = json.loads(response.body)
+
+    self.assertEqual(200, response.status_int)
+    self.assertEqual(0, result["visits_remaining"])
+
+    user = Membership.get_by_email("djpetti@gmail.com")
+    self.assertEqual(10, user.signins)
+    self.assertEqual("no_visits", user.status)
+
+
+""" Tests that the RFID handler works properly. """
+class RfidHandlerTest(ApiTest):
+  def setUp(self):
+    super(RfidHandlerTest, self).setUp()
+
+    # Reset user signins.
+    self.user.signins = 0
+    # Set rfid tag.
+    self.user.rfid_tag = "1337"
+    self.user.put()
+
+  """ Tests that signing in a normal user with RFID works properly. """
+  def test_rfid_signin(self):
+    params = {"id": "1337"}
+    response = self.test_app.post("/api/v1/rfid", params)
+    result = json.loads(response.body)
+
+    self.assertEqual(200, response.status_int)
+
+    self.assertIn("gravatar", result.keys())
+    self.assertEqual(9, result["visits_remaining"])
+    self.assertEqual(self.user.auto_signin, result["auto_signin"])
+    self.assertEqual("%s %s" % (self.user.first_name, self.user.last_name),
+                     result["name"])
+    self.assertEqual(self.user.username, result["username"])
+    self.assertEqual(self.user.email, result["email"])
+
+  """ Tests that it won't sign in a suspended user. """
+  def test_suspended_signin(self):
+    self.user.status = "suspended"
+    self.user.put()
+
+    params = {"id": "1337"}
+    response = self.test_app.post("/api/v1/rfid", params, expect_errors=True)
+
+    self.assertEqual(422, response.status_int)
+
+    error = json.loads(response.body)
+    self.assertIn("InvalidKey", error["type"])
+    self.assertIn("or is suspended", error["message"])
+
+  """ Tests that it won't sign in a nonexistent id. """
+  def test_bad_id(self):
+    params = {"id": "badid"}
+    response = self.test_app.post("/api/v1/rfid", params, expect_errors=True)
+
+    self.assertEqual(422, response.status_int)
+
+    error = json.loads(response.body)
+    self.assertIn("InvalidKey", error["type"])
+    self.assertIn("or is suspended", error["message"])
+
+  """ Tests that it properly suspends a user when they run out of visits. """
+  def test_user_suspending(self):
+    user = Membership.get_by_email("djpetti@gmail.com")
+    # The next one should suspend us.
+    user.signins = 9
+    user.rfid_tag = "1337"
+    user.put()
+
+    params = {"id": "1337"}
+    response = self.test_app.post("/api/v1/rfid", params)
+    result = json.loads(response.body)
+
+    self.assertEqual(200, response.status_int)
+    self.assertEqual(0, result["visits_remaining"])
+
+    user = Membership.get_by_email("djpetti@gmail.com")
+    self.assertEqual(10, user.signins)
+    self.assertEqual("no_visits", user.status)
+
+
+""" Tests that the Maglock handler works properly. """
+class MaglockHandlerTest(ApiTest):
+  def setUp(self):
+    super(MaglockHandlerTest, self).setUp()
+
+    # Reset user signins.
+    self.user.signins = 0
+    # Set rfid tag.
+    self.user.rfid_tag = "1337"
+    self.user.put()
+
+    # Add the keymaster key we need.
+    Keymaster.encrypt("maglock:key", "notasecret")
+
+  """ Tests that we can get a list under normal circumstances. """
+  def test_get_user_list(self):
+    response = self.test_app.get("/api/v1/maglock/notasecret")
+    self.assertEqual(200, response.status_int)
+
+    users = json.loads(response.body)
+    self.assertEqual([{"username": "daniel.petti", "rfid_tag": "1337"}], users)
+
+  """ Tests that giving it a bad key causes an error. """
+  def test_bad_key(self):
+    response = self.test_app.get("/api/v1/maglock/badkey", expect_errors=True)
+    self.assertEqual(401, response.status_int)
+
+    error = json.loads(response.body)
+    self.assertEqual("UnauthorizedException", error["type"])
+
+  """ Tests that people who shouldn't get included don't. """
+  def test_user_requirements(self):
+    # No RFID tag.
+    self.user.rfid_tag = None
+    self.user.put()
+
+    response = self.test_app.get("/api/v1/maglock/notasecret")
+    self.assertEqual(200, response.status_int)
+    self.assertEqual([], json.loads(response.body))
+
+    # Not active.
+    self.user.rfid_tag = "1337"
+    self.user.status = "suspended"
+    self.user.put()
+
+    response = self.test_app.get("/api/v1/maglock/notasecret")
+    self.assertEqual(200, response.status_int)
+    self.assertEqual([], json.loads(response.body))

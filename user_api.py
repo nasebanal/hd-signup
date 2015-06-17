@@ -2,6 +2,7 @@
 """
 
 
+import hashlib
 import json
 import logging
 
@@ -11,7 +12,30 @@ import webapp2
 
 from config import Config
 from membership import Membership
+import keymaster
 import plans
+import subscriber_api
+
+
+""" Increments the number of signins for a user. Also suspends the user if they
+are out of visits.
+user: The user to increment signins for.
+Returns: The number of visits remaining for a user. """
+def _increment_signins(user):
+  # Increment signins.
+  user.signins += 1
+
+  remaining = plans.Plan.signins_remaining(user)
+  logging.info("Visits remaining for %s: %s" % \
+              (user.username, str(remaining)))
+
+  if remaining == 0:
+    # No more visits left. Suspend the user.
+    user.status = "no_visits"
+    subscriber_api.suspend(user.username)
+
+  user.put()
+  return remaining
 
 
 """ Generic superclass for all API Handlers. """
@@ -53,7 +77,9 @@ class ApiHandlerBase(webapp2.RequestHandler):
   def _rest_error(self, error_type, message, status):
     message = {"type": error_type + "Exception", "message": message}
     message = json.dumps(message)
+    logging.error("Rest API error: %s" % (message))
 
+    self.response.clear()
     self.response.out.write(message)
     self.response.set_status(status)
 
@@ -158,22 +184,81 @@ class SigninHandler(ApiHandlerBase):
 
     # Get information on the user from the datastore.
     user = Membership.get_by_email(email)
-    if not user:
-      self._rest_error("InvalidParameters",
-          "Could not find user with email '%s'." % (email), 422)
+    if (not user or user.status not in ("active", "no_visits")):
+      self._rest_error("InvalidEmail",
+          "Could not find an active user with email '%s'." % (email), 422)
       return
 
-    # Increment signins.
-    user.signins += 1
-    user.put()
-
-    remaining = plans.Plan.signins_remaining(user)
+    remaining = _increment_signins(user)
 
     response = json.dumps({"visits_remaining": remaining})
     self.response.out.write(response)
 
+""" Handles RFID tag events. """
+class RfidHandler(ApiHandlerBase):
+  """ Signs in people using their RFID tag.
+  Properties for this request:
+  id: The number on the RFID tag.
+  Response: A json object with some information about the user signed in. It
+  also has a visits_remaining parameter that is the same as for
+  SigninHandler.post. """
+  @ApiHandlerBase.restricted
+  def post(self):
+    rfid = self._get_parameters("id")
+    if not rfid:
+      return
+
+    # Sign in a member.
+    member = db.GqlQuery("SELECT * FROM Membership WHERE rfid_tag = :1" \
+                          " AND status IN ('active', 'no_visits')", rfid).get()
+    if not member:
+      self._rest_error("InvalidKey",
+                        "This key does not exist, or is suspended.", 422)
+      return
+
+    # Record the signin.
+    remaining = _increment_signins(member)
+
+    email = "%s.%s@%s" % (member.first_name, member.last_name,
+                          Config().APPS_DOMAIN)
+    email = email.lower()
+    gravatar_url = "http://www.gravatar.com/avatar/" + \
+                    hashlib.md5(email).hexdigest()
+    name = "%s %s" % (member.first_name, member.last_name)
+    response = {"gravatar": gravatar_url, "auto_signin": member.auto_signin,
+                "name": name, "username": member.username,
+                "email": member.email, "visits_remaining": remaining}
+    self.response.out.write(json.dumps(response))
+
+
+""" Handles requests from maglock system. """
+class MaglockHandler(ApiHandlerBase):
+  """ Handler for getting a list of people who can unlock maglocks.
+  key: The key for the maglock that authenticates this request.
+  Response: A json object containing a list of users. Each element contains a
+  username and a corresponding RFID key. """
+  def get(self, key):
+    logging.debug("Getting list of users for maglock.")
+
+    # The maglock is requesting a list of users.
+    if key != keymaster.get("maglock:key"):
+      self._rest_error("Unauthorized", "Invalid maglock key.", 401)
+      return
+
+    # Our key is valid. Give it the list.
+    query = db.GqlQuery("SELECT * FROM Membership WHERE rfid_tag != NULL" \
+                        " AND status = 'active'")
+
+    response = []
+    for member in query.run():
+      response.append({"rfid_tag": member.rfid_tag,
+                        "username": member.username})
+    self.response.out.write(json.dumps(response))
+
 
 app = webapp2.WSGIApplication([
     ("/api/v1/user", UserHandler),
-    ("/api/v1/signin", SigninHandler)],
+    ("/api/v1/signin", SigninHandler),
+    ("/api/v1/rfid", RfidHandler),
+    ("/api/v1/maglock/(.+)", MaglockHandler)],
     debug=True)

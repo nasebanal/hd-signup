@@ -14,10 +14,42 @@ import webapp2
 from config import Config
 from membership import Membership
 from project_handler import ProjectHandler
+import subscriber_api
+
+
+""" Superclass for all cron jobs. """
+class CronHandlerBase(ProjectHandler):
+  """ A function meant to be used as a decorator. It ensures that a cron job
+  is making the request before running the function.
+  function: The function that we are decorating.
+  Returns: A wrapped version of the function that interrupts the flow if it
+           finds a problem. """
+  @classmethod
+  def cron_only(cls, function):
+    """ Wrapper function to return. """
+    def wrapper(self, *args, **kwargs):
+      cron = self.request.headers.get("X-Appengine-Cron", None)
+
+      # If we're not on production, don't deny any requests.
+      conf = Config()
+      if not conf.is_prod:
+        logging.info("Non-production environment, servicing all requests.")
+
+      elif not cron:
+        logging.warning("Not running '%s' for non-cron job." % \
+            (function.__name__))
+        self.response.out.write("Only cron jobs can do that.")
+        self.set_status(403)
+        return
+
+      function(self, *args, **kwargs)
+
+    return wrapper
 
 
 """ Periodically refreshes the list of cached domain users. """
-class CacheUsersCronHandler(ProjectHandler):
+class CacheUsersCronHandler(CronHandlerBase):
+  @CronHandlerBase.cron_only
   def get(self):
     self.fetch_usernames(use_cache=False)
 
@@ -32,47 +64,41 @@ class SyncRunInfo(db.Model):
 
 
 """ Handler for syncing data between dev and production apps. """
-class DataSyncHandler(ProjectHandler):
+class DataSyncHandler(CronHandlerBase):
   dev_url = "http://signup-dev.appspot.com/_datasync"
   time_format = "%Y %B %d %H %M %S"
   # The size of a batch for __batch_loop.
   batch_size = 10
 
+  @CronHandlerBase.cron_only
   def get(self):
     config = Config()
-    if not config.is_dev:
+    if config.is_prod:
       # If we're production, send out new models.
-      if ("X-Appengine-Cron" in self.request.headers.keys()) and \
-          (self.request.headers["X-Appengine-Cron"]):
-        # Only do this if a cron job told us to.
-        run_info = SyncRunInfo.all().get()
-        if not run_info:
-          run_info = SyncRunInfo()
-          run_info.put()
-
-        if run_info.run_times == 0:
-          # This is the first run. Sync everything.
-          logging.info("First run, syncing everything...")
-          self.__batch_loop(run_info.cursor)
-        else:
-          # Check for entries that changed since we last ran this.
-          last_run = run_info.last_run
-          logging.info("Last successful run: " + str(last_run))
-          self.__batch_loop(run_info.cursor, "updated >", last_run)
-
-        # Update the number of times we've run this.
-        run_info = SyncRunInfo().all().get()
-        run_info.run_times = run_info.run_times + 1
-        # Clear the cursor property if we synced successfully.
-        run_info.cursor = None
-        logging.info("Ran sync %d time(s)." % (run_info.run_times))
-        # Update the time of the last successful run.
-        run_info.last_run = datetime.datetime.now()
+      run_info = SyncRunInfo.all().get()
+      if not run_info:
+        run_info = SyncRunInfo()
         run_info.put()
 
+      if run_info.run_times == 0:
+        # This is the first run. Sync everything.
+        logging.info("First run, syncing everything...")
+        self.__batch_loop(run_info.cursor)
       else:
-        self.response.out.write("Only cron jobs can do that!")
-        logging.warning("Got GET request from non-cron job.")
+        # Check for entries that changed since we last ran this.
+        last_run = run_info.last_run
+        logging.info("Last successful run: " + str(last_run))
+        self.__batch_loop(run_info.cursor, "updated >", last_run)
+
+      # Update the number of times we've run this.
+      run_info = SyncRunInfo().all().get()
+      run_info.run_times = run_info.run_times + 1
+      # Clear the cursor property if we synced successfully.
+      run_info.cursor = None
+      logging.info("Ran sync %d time(s)." % (run_info.run_times))
+      # Update the time of the last successful run.
+      run_info.last_run = datetime.datetime.now()
+      run_info.put()
 
   """ Gets the requested member information from the datastore and sends it.
   cursor: Specifies a cursor to start fetching data at.
@@ -126,7 +152,7 @@ class DataSyncHandler(ProjectHandler):
     return member
 
   def post(self):
-    if Config.is_dev:
+    if Config().is_dev:
       # Only allow this if it's the dev server.
       entry = self.request.body
       logging.debug("Got new entry: " + entry)
@@ -149,7 +175,25 @@ class DataSyncHandler(ProjectHandler):
       logging.debug("Put entry in datastore.")
 
 
+""" Handles resetting signin count at the start of every month. """
+class ResetSigninHandler(CronHandlerBase):
+  @CronHandlerBase.cron_only
+  def get(self):
+    query = Membership.all()
+
+    for member in query.run():
+      member.signins = 0
+      if member.status == "no_visits":
+        logging.info("Restoring user that ran out of visits: %s" % \
+                     (member.username))
+        subscriber_api.restore(member.username)
+        member.status = "active"
+
+      member.put()
+
+
 app = webapp2.WSGIApplication([
     ("/cron/datasync", DataSyncHandler),
-    ("/cron/cache_users", CacheUsersCronHandler)],
+    ("/cron/cache_users", CacheUsersCronHandler),
+    ("/cron/reset_signins", ResetSigninHandler)],
     debug=True)
