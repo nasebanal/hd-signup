@@ -159,5 +159,5 @@ def update_subscriber(member):
     logging.info("Suspending User: " + member.username)
     suspend(member.username)
 
-  return ((member.status in ("active", no_visits)), member.plan)
+  return ((member.status in ("active", "no_visits")), member.plan)
 
