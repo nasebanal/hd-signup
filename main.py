@@ -759,7 +759,13 @@ class CleanupHandler(ProjectHandler):
 
 class CleanupTask(ProjectHandler):
     def post(self):
+        user_id = self.request.get("user")
         user = Membership.get_by_id(int(self.request.get("user")))
+        if not user:
+          logging.warning("No user with id %d." % (user_id))
+          # Don't change the status, because we don't want it to retry.
+          return
+
         try:
           mail.send_mail(sender=Config().EMAIL_FROM,
               to=user.email,
