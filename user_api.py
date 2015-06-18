@@ -183,7 +183,11 @@ class SigninHandler(ApiHandlerBase):
       return
 
     # Get information on the user from the datastore.
-    user = Membership.get_by_email(email)
+    if "@hackerdojo.com" in email:
+      user = Membership.get_by_username(email.replace("@hackerdojo.com", ""))
+    else:
+      user = Membership.get_by_email(email)
+
     if (not user or user.status not in ("active", "no_visits")):
       self._rest_error("InvalidEmail",
           "Could not find an active user with email '%s'." % (email), 422)

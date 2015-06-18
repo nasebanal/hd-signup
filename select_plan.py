@@ -37,6 +37,7 @@ class ChangePlanHandler(ProjectHandler):
   def get(self):
     user = users.get_current_user()
     if not user:
+      logging.debug("Need to login.")
       self.redirect(users.create_login_url(self.request.uri))
       return
 
