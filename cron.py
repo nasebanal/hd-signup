@@ -179,7 +179,7 @@ class DataSyncHandler(CronHandlerBase):
 class ResetSigninHandler(CronHandlerBase):
   @CronHandlerBase.cron_only
   def get(self):
-    query = Membership.all()
+    query = db.GqlQuery("SELECT * FROM Membership WHERE signins != 0")
 
     for member in query.run():
       member.signins = 0
@@ -195,5 +195,6 @@ class ResetSigninHandler(CronHandlerBase):
 app = webapp2.WSGIApplication([
     ("/cron/datasync", DataSyncHandler),
     ("/cron/cache_users", CacheUsersCronHandler),
-    ("/cron/reset_signins", ResetSigninHandler)],
+    ("/cron/reset_signins", ResetSigninHandler),
+    ("/tasks/do_signin_reset/(+.)", ResetSigninWorker)],
     debug=True)
