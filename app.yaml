@@ -31,6 +31,8 @@ handlers:
   script: user_api.app
 - url: /cron/.*
   script: cron.app
+- url: /tasks/.*
+  script: tasks.app
 - url: .*
   script: main.app
 
