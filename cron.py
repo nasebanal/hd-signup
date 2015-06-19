@@ -48,7 +48,7 @@ class CronHandlerBase(ProjectHandler):
 
 
 """ Periodically refreshes the list of cached domain users. """
-class CacheUsersCronHandler(CronHandlerBase):
+class CacheUsersHandler(CronHandlerBase):
   @CronHandlerBase.cron_only
   def get(self):
     self.fetch_usernames(use_cache=False)
@@ -200,6 +200,6 @@ class ResetSigninHandler(CronHandlerBase):
 
 app = webapp2.WSGIApplication([
     ("/cron/datasync", DataSyncHandler),
-    ("/cron/cache_users", CacheUsersCronHandler),
-    ("/cron/reset_signins", ResetSigninHandler)],
+    ("/cron/reset_signins", ResetSigninHandler),
+    ("/cron/cache_users", CacheUsersHandler)],
     debug=True)

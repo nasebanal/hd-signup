@@ -1,26 +1,19 @@
 from cgi import escape
-from pprint import pprint
 import base64
-import json
 import sys
 
-import wsgiref.handlers
-import datetime, time, hashlib, urllib, urllib2, re, os
+import datetime, hashlib, urllib, re
 from google.appengine.api import urlfetch, mail, users, taskqueue
-from google.appengine.ext import deferred
 from google.appengine.ext import db
-from google.appengine.ext.webapp import template
 import webapp2
 
 from config import Config
 from membership import Membership
 from project_handler import ProjectHandler
 from select_plan import SelectPlanHandler, ChangePlanHandler
-import cron
 import keymaster
 import logging
 import plans
-import spreedly
 import subscriber_api
 
 
@@ -32,58 +25,12 @@ class UsedCode(db.Model):
   completed = db.DateTimeProperty()
 
 
-class RFIDSwipe(db.Model):
-  username = db.StringProperty()
-  rfid_tag = db.StringProperty()
-  created = db.DateTimeProperty(auto_now_add=True)
-  success = db.BooleanProperty()
-
-
-class RFIDSwipeHandler(ProjectHandler):
-    def get(self):
-        if self.request.get("maglock:key") != keymaster.get("maglock:key"):
-            self.response.out.write("Access denied")
-        else:
-            rfid_tag = self.request.get("rfid_tag")
-            if rfid_tag:
-                m = Membership.all().filter("rfid_tag ==", rfid_tag).get()
-                if m:
-                  username = m.username
-                  if "active" in m.status:
-                     success = True
-                  else:
-                     success = False
-                     subject = "Reactivate your RFID key now - renew your Hacker Dojo Subscription!"
-                     body = """
-Hi %s,
-
-It looks like you just tried using your RFID key to open the doors to Hacker Dojo.
-
-One teeny tiny issue, it looks like your membership has lapsed!  This can happen by mistake sometimes, so no worries at all.  The good news is you can reactivate your membership with only a few clicks:
-
-%s
-
-With warmest regards,
-The Lobby Door
-""" % (m.first_name,m.subscribe_url())
-                     deferred.defer(mail.send_mail, sender="Maglock <robot@hackerdojo.com>", to=m.email,
-                     subject=subject, body=body, _queue="emailthrottle")
-                else:
-                  username = "unknown ("+rfid_tag+")"
-                  success = False
-                rs = RFIDSwipe(username=username, rfid_tag=rfid_tag, success=success)
-                rs.put()
-                if "mark.hutsell" in username or "some.other.evilguy" in username:
-                  deferred.defer(mail.send_mail, sender="Maglock <robot@hackerdojo.com>", to="Emergency Paging System <page@hackerdojo.com>",
-                     subject="RFID Entry: " + username, body="Lobby entry", _queue="emailthrottle")
-                  urlfetch.fetch("http://www.dustball.com/call/call.php?str=RFID+Entry+"+username)
-            self.response.out.write("OK")
-
 class BadgeChange(db.Model):
     created = db.DateTimeProperty(auto_now_add=True)
     rfid_tag = db.StringProperty()
     username = db.StringProperty()
     description = db.StringProperty()
+
 
 class MainHandler(ProjectHandler):
     def get(self):
@@ -529,16 +476,6 @@ class UpdateHandler(ProjectHandler):
         self.response.out.write("ok")
 
 
-class LinkedHandler(ProjectHandler):
-    def get(self):
-        self.response.out.write(json.dumps([m.username for m in Membership.all().filter("username !=", None)]))
-
-
-class APISuspendedHandler(ProjectHandler):
-    def get(self):
-        self.response.out.write(json.dumps([[m.fullname(), m.username] for m in Membership.all().filter("status =", "suspended")]))
-
-
 class MemberListHandler(ProjectHandler):
     def get(self):
       user = users.get_current_user()
@@ -548,32 +485,6 @@ class MemberListHandler(ProjectHandler):
                                  " status = 'active' ORDER BY last_name") \
                                  .fetch(10000);
       self.response.out.write(self.render("templates/memberlist.html", locals()))
-
-
-class DebugHandler(ProjectHandler):
-    def get(self):
-      user = users.get_current_user()
-      if not user:
-        self.redirect(users.create_login_url("/debug_users"))
-      if users.is_current_user_admin():
-        if not self.request.get("from"):
-          all_users = Membership.all()
-          x = all_users.count()
-          self.response.out.write("There are ")
-          self.response.out.write(x)
-          self.response.out.write( \
-              " user records. Use GET params \"from\" and \"to\" to analyze.")
-        else:
-          fr = self.request.get("from")
-          to = self.request.get("to")
-          for i in range(int(fr),int(to)):
-            a = Membership.all().fetch(1,i)[0]
-            self.response.out.write("<p>")
-            self.response.out.write(a.key().id())
-            self.response.out.write(" - ")
-            self.response.out.write(a.username)
-      else:
-        self.response.out.write("Need admin access")
 
 
 class LeaveReasonListHandler(ProjectHandler):
@@ -805,43 +716,6 @@ class ProfileHandler(ProjectHandler):
               hashlib.md5(email.lower()).hexdigest()
           self.response.out.write(self.render("templates/profile.html", locals()))
 
-class PrefHandler(ProjectHandler):
-   def get(self):
-      user = users.get_current_user()
-      if not user:
-          self.redirect(users.create_login_url("/pref"))
-          return
-      else:
-          account = Membership.all().filter("username =", user.nickname().split("@")[0]).get()
-          if not account:
-            message = "<p>Error - couldn't find your account.</p>"
-            message += "<pre>Nick: "+str(user.nickname().split("@")[0])
-            message += "<pre>Email: "+str(user.email())
-            message += "<pre>Account: "+str(account)
-            if account:
-              message += "<pre>Token: "+str(account.spreedly_token)
-            internal = False
-            self.response.out.write(self.render("templates/error.html", locals()))
-            return
-          auto_signin = account.auto_signin
-          self.response.out.write(self.render("templates/pref.html", locals()))
-
-   def post(self):
-      user = users.get_current_user()
-      if not user:
-          self.redirect(users.create_login_url("/pref"))
-          return
-      account = Membership.all().filter("username =", user.nickname().split("@")[0]).get()
-      if not account:
-            message = "Error #1983, which should never happen."
-            internal = True
-            self.response.out.write(self.render("templates/error.html", locals()))
-            return
-      auto_signin = self.request.get("auto").strip()
-      account.auto_signin = auto_signin
-      account.put()
-      self.response.out.write(self.render("templates/prefsaved.html", locals()))
-
 
 class KeyHandler(ProjectHandler):
     def get(self):
@@ -946,133 +820,22 @@ class KeyHandler(ProjectHandler):
           return
 
 
-class ModifyHandler(ProjectHandler):
-    def get(self):
-      user = users.get_current_user()
-      account = Membership.all().filter("username =", user.nickname().split("@")[0]).get()
-      if not account:
-          self.redirect(users.create_login_url("/modify"))
-          return
-      else:
-          if not account or not account.spreedly_token:
-            message = """<p>Sorry, your %(name)s account does not appear to be linked to a Spreedly account.
-Please contact <a href=\"mailto:%(treasurer)s\">%(treasurer)s</a> so they can manually update your account.
-""" % {"treasurer": TREASURER_EMAIL, "name": ORG_NAME}
-            internal = False
-            self.response.out.write(self.render("templates/error.html", locals()))
-            return
-          url = \
-              "https://spreedly.com/%s/subscriber_accounts/%s" % \
-              (Config().SPREEDLY_ACCOUNT, account.spreedly_token)
-          self.redirect(str(url))
-
 class GenLinkHandler(ProjectHandler):
     def get(self, key):
-        conf = Config()
-        sa = conf.SPREEDLY_ACCOUNT
-        u = Membership.get_by_id(int(key))
-        plan_ids = plans.Plan.get_all_plan_ids()
-        self.response.out.write(self.render("templates/genlink.html", locals()))
-
-
-class GetTwitterHandler(ProjectHandler):
-    def get(self):
-      user = users.get_current_user()
-      if not user:
-        self.redirect(users.create_login_url("/api/gettwitter"))
-      if users.is_current_user_admin():
-        need_twitter_users = Membership.all().filter("status =", "active").fetch(10000)
-        countdown = 0
-        for u in need_twitter_users:
-          if u.username and not u.twitter:
-            self.response.out.write(u.username)
-            taskqueue.add(url="/tasks/twitter_mail", params={"user": u.key().id()}, countdown=countdown)
-            countdown += 1
-      else:
-        self.response.out.write("Need admin access")
-
-
-class TwitterMail(ProjectHandler):
-    def post(self):
-        user = Membership.get_by_id(int(self.request.get("user")))
-        subject = "What's your twitter handle?"
-        base = self.request.host
-        body = self.render("templates/twittermail.txt", locals())
-        to = "%s <%s@hackerdojo.com>" % (user.full_name(), user.username)
-        bcc = "%s <%s>" % ("Robot", "robot@hackerdojo.com")
-        mail.send_mail(sender=Config().EMAIL_FROM_AYST, to=to,
-                       subject=subject, body=body, bcc=bcc, html=body)
-
-class SetTwitterHandler(ProjectHandler):
-    def get(self):
-      if self.request.get("user"):
-        m = Membership.get(self.request.get("user"))
-        m.twitter = self.request.get("twitter").lower().strip().strip("@")
-        m.put()
-        self.response.out.write("<p>Thanks!  All set now.  <p>We'll send out more information in a week or two.")
-
-class SetHSHandler(ProjectHandler):
-    def get(self):
-      if self.request.get("user"):
-        m = Membership.get(self.request.get("user"))
-        m.hardship_comment = self.request.get("comment").strip()
-        m.put()
-        self.response.out.write("<p>Set.")
-
-class SetExtraHandler(ProjectHandler):
-    def get(self):
-      user = users.get_current_user()
-      if not user:
-        self.redirect(users.create_login_url("/api/setextra"))
-      if users.is_current_user_admin():
-        user = Membership.all().filter("username =", self.request.get("username")).get()
-        if user:
-          v = self.request.get("value")
-          if v=="True":
-              v = True
-          if v=="False":
-              v = False
-          user.__setattr__("extra_"+self.request.get("key"), v)
-          user.put()
-          self.response.out.write("OK")
-        else:
-          self.response.out.write("User not found")
-      else:
-        self.response.out.write("Need admin access")
-
-class CSVHandler(ProjectHandler):
-    def get(self):
-      self.response.headers["Content-type"] = "text/csv; charset=utf-8"
-      self.response.headers["Content-disposition"] = "attachment;filename=HackerDojoMembers.csv"
-      if keymaster.get("csvkey") == self.request.get("csvkey"):
-        users = Membership.all().filter("status =", "active").filter("username !=", "").fetch(10000)
-        for u in users:
-          twitter = ""
-          if u.twitter:
-            twitter = u.twitter
-          first = ""
-          if u.first_name:
-            first = u.first_name
-          last = ""
-          if u.last_name:
-            last = u.last_name
-          if u.username:
-            self.response.out.write(first+","+last+","+u.username+"@hackerdojo.com,"+twitter+"\r\n")
+      conf = Config()
+      sa = conf.SPREEDLY_ACCOUNT
+      u = Membership.get_by_id(int(key))
+      plan_ids = plans.Plan.get_all_plan_ids()
+      self.response.out.write(self.render("templates/genlink.html", locals()))
 
 
 app = webapp2.WSGIApplication([
         ("/", MainHandler),
-        ("/api/rfidswipe", RFIDSwipeHandler),
         ("/userlist", AllHandler),
         ("/suspended", SuspendedHandler),
-        ("/api/linked", LinkedHandler),
-        ("/api/suspended", APISuspendedHandler),
         ("/cleanup", CleanupHandler),
         ("/profile", ProfileHandler),
-        ("/debug_users", DebugHandler),
         ("/key", KeyHandler),
-        ("/pref", PrefHandler),
-        ("/modify", ModifyHandler),
         ("/genlink/(.+)", GenLinkHandler),
         ("/account/(.+)", AccountHandler),
         ("/upgrade/needaccount", NeedAccountHandler),
@@ -1084,16 +847,9 @@ app = webapp2.WSGIApplication([
         ("/areyoustillthere", AreYouStillThereHandler),
         ("/unsubscribe/(.*)", UnsubscribeHandler),
         ("/update", UpdateHandler),
-        ("/api/membercsv", CSVHandler),
-        ("/api/gettwitter", GetTwitterHandler),
-        ("/api/setextra", SetExtraHandler),
-        ("/api/settwitter", SetTwitterHandler),
-        ("/api/seths", SetHSHandler),
         ("/tasks/create_user", CreateUserTask),
         ("/tasks/clean_row", CleanupTask),
-        ("/cron/cache_users", cron.CacheUsersCronHandler),
         ("/tasks/areyoustillthere_mail", AreYouStillThereMail),
-        ("/tasks/twitter_mail", TwitterMail),
         ("/reactivate", ReactivateHandler),
         ("/plan/(.+)", SelectPlanHandler),
         ("/change_plan", ChangePlanHandler),
