@@ -60,6 +60,9 @@ class Config:
     # when calculating whether their plan is full or not.
     self.PLAN_USER_IGNORE_THRESHOLD = 30
 
+    # Hours that the Dojo is open, in 24-hour time. (start, end)
+    self.DOJO_HOURS = (10, 17)
+
     if Config.is_testing:
       self.SPREEDLY_ACCOUNT = "hackerdojotest"
       # We can't use the datastore.
