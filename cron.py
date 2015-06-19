@@ -181,6 +181,7 @@ class ResetSigninHandler(CronHandlerBase):
   def get(self):
     query = db.GqlQuery("SELECT * FROM Membership WHERE signins != 0")
 
+    member_writes = []
     for member in query.run():
       member.signins = 0
       if member.status == "no_visits":
@@ -189,12 +190,16 @@ class ResetSigninHandler(CronHandlerBase):
         subscriber_api.restore(member.username)
         member.status = "active"
 
-      member.put()
+      member_future = db.put_async(member)
+      member_writes.append(member_future)
+
+    logging.debug("Waiting for writes to complete...")
+    for async_write in member_writes:
+      async_write.get_result()
 
 
 app = webapp2.WSGIApplication([
     ("/cron/datasync", DataSyncHandler),
     ("/cron/cache_users", CacheUsersCronHandler),
-    ("/cron/reset_signins", ResetSigninHandler),
-    ("/tasks/do_signin_reset/(+.)", ResetSigninWorker)],
+    ("/cron/reset_signins", ResetSigninHandler)],
     debug=True)
