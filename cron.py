@@ -65,7 +65,7 @@ class SyncRunInfo(db.Model):
 
 """ Handler for syncing data between dev and production apps. """
 class DataSyncHandler(CronHandlerBase):
-  dev_url = "http://signup-dev.appspot.com/_datasync"
+  dev_url = "http://signup-dev.appspot.com/datasync"
   time_format = "%Y %B %d %H %M %S"
   # The size of a batch for __batch_loop.
   batch_size = 10
