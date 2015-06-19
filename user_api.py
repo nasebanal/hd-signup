@@ -6,11 +6,12 @@ import datetime
 import hashlib
 import json
 import logging
-import time
 
 from google.appengine.ext import db
 
 import webapp2
+
+import pytz
 
 from config import Config
 from membership import Membership
@@ -27,11 +28,14 @@ def _increment_signins(user):
   # Time-dependent checks don't play well with unit tests...
   if not Config().is_testing:
     # The weekends and after-hours don't count.
-    day = datetime.datetime.today().weekday()
+    timezone = pytz.timezone("America/Los_Angeles")
+    now = datetime.datetime.now(timezone)
+    day = now.weekday()
     if day in (5, 6):
       logging.info("Not incrementing singin counter because it is a weekend.")
       return user.signins
-    hour = time.localtime()[3]
+    hour = now.hour
+    logging.debug("Hour: %d" % (hour))
     if (hour < Config().DOJO_HOURS[0] or hour > Config().DOJO_HOURS[1]):
       logging.info("Not incrementing signin counter because it is after-hours.")
       return user.signins
