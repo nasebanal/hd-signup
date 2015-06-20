@@ -33,12 +33,12 @@ def _increment_signins(user):
     day = now.weekday()
     if day in (5, 6):
       logging.info("Not incrementing singin counter because it is a weekend.")
-      return user.signins
+      return plans.Plan.signins_remaining(user)
     hour = now.hour
     logging.debug("Hour: %d" % (hour))
     if (hour < Config().DOJO_HOURS[0] or hour > Config().DOJO_HOURS[1]):
       logging.info("Not incrementing signin counter because it is after-hours.")
-      return user.signins
+      return plans.Plan.signins_remaining(user)
 
   # Increment signins.
   user.signins += 1
