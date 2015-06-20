@@ -127,6 +127,7 @@ class MainHandler(ProjectHandler):
         query = urllib.urlencode({"plan": plan})
         self.redirect("/account/%s?%s" % (membership.hash, query))
 
+
 class AccountHandler(ProjectHandler):
     def get(self, hash):
       membership = Membership.get_by_hash(hash)
@@ -383,9 +384,6 @@ class NeedAccountHandler(ProjectHandler):
 
 
 class UpdateHandler(ProjectHandler):
-    def get(self):
-        pass
-
     def post(self):
         subscriber_ids = self.request.get("subscriber_ids").split(",")
         for id in subscriber_ids:
@@ -396,10 +394,8 @@ class UpdateHandler(ProjectHandler):
 
 
 class MemberListHandler(ProjectHandler):
+    @ProjectHandler.admin_only
     def get(self):
-      user = users.get_current_user()
-      if not user:
-        self.redirect(users.create_login_url("/memberlist"))
       signup_users = db.GqlQuery("SELECT * FROM Membership WHERE" \
                                  " status = 'active' ORDER BY last_name") \
                                  .fetch(10000);
@@ -407,87 +403,62 @@ class MemberListHandler(ProjectHandler):
 
 
 class LeaveReasonListHandler(ProjectHandler):
+    @ProjectHandler.admin_only
     def get(self):
-      user = users.get_current_user()
-      if not user:
-        self.redirect(users.create_login_url("/leavereasonlist"))
-      if users.is_current_user_admin():
-        all_users = Membership.all().order("-updated").fetch(10000)
-        self.response.out.write(self.render("templates/leavereasonlist.html", locals()))
-      else:
-        self.response.out.write("Need admin access")
+      all_users = Membership.all().order("-updated").fetch(10000)
+      self.response.out.write(self.render("templates/leavereasonlist.html", locals()))
 
 
 class JoinReasonListHandler(ProjectHandler):
+    @ProjectHandler.admin_only
     def get(self):
-      user = users.get_current_user()
-      if not user:
-        self.redirect(users.create_login_url("/joinreasonlist"))
-      if users.is_current_user_admin():
-        all_users = Membership.all().order("created").fetch(10000)
-        self.response.out.write(self.render("templates/joinreasonlist.html", locals()))
-      else:
-        self.response.out.write("Need admin access")
+      all_users = Membership.all().order("created").fetch(10000)
+      self.response.out.write(self.render("templates/joinreasonlist.html", locals()))
 
 
 class SuspendedHandler(ProjectHandler):
+    @ProjectHandler.admin_only
     def get(self):
-      user = users.get_current_user()
-      if not user:
-        self.redirect(users.create_login_url("/suspended"))
-      if users.is_current_user_admin():
-        suspended_users = Membership.all().filter("status =", "suspended").filter("last_name !=", "Deleted").fetch(10000)
-        tokened_users = []
-        for user in suspended_users:
-            if user.spreedly_token:
-                tokened_users.append(user)
-        suspended_users = sorted(tokened_users, key=lambda user: user.last_name.lower())
-        total = len(suspended_users)
-        reasonable = 0
-        for user in suspended_users:
-            if user.unsubscribe_reason:
-                reasonable += 1
-        self.response.out.write(self.render("templates/suspended.html", locals()))
-      else:
-        self.response.out.write("Need admin access")
+      suspended_users = Membership.all().filter("status =", "suspended").filter("last_name !=", "Deleted").fetch(10000)
+      tokened_users = []
+      for user in suspended_users:
+          if user.spreedly_token:
+              tokened_users.append(user)
+      suspended_users = sorted(tokened_users, key=lambda user: user.last_name.lower())
+      total = len(suspended_users)
+      reasonable = 0
+      for user in suspended_users:
+          if user.unsubscribe_reason:
+              reasonable += 1
+      self.response.out.write(self.render("templates/suspended.html", locals()))
 
 
 class AllHandler(ProjectHandler):
+    @ProjectHandler.admin_only
     def get(self):
-      user = users.get_current_user()
-      if not user:
-        self.redirect(users.create_login_url("/userlist"))
-      if users.is_current_user_admin():
-        signup_users = Membership.all().fetch(10000)
-        signup_users = sorted(signup_users, key=lambda user: user.last_name.lower())
-        user_keys = [str(user.key()) for user in signup_users]
-        user_ids = [user.key().id() for user in signup_users]
-        self.response.out.write(self.render("templates/users.html", locals()))
-      else:
-        self.response.out.write("Need admin access")
+      signup_users = Membership.all().fetch(10000)
+      signup_users = sorted(signup_users, key=lambda user: user.last_name.lower())
+      user_keys = [str(user.key()) for user in signup_users]
+      user_ids = [user.key().id() for user in signup_users]
+      self.response.out.write(self.render("templates/users.html", locals()))
 
 
 class HardshipHandler(ProjectHandler):
+    @ProjectHandler.admin_only
     def get(self):
-      user = users.get_current_user()
-      if not user:
-        self.redirect(users.create_login_url("/hardshiplist"))
-      if users.is_current_user_admin():
-        active_users = Membership.all().filter("status =", "active").filter("plan =", "hardship").fetch(10000)
-        active_users = sorted(active_users, key=lambda user: user.created)
-        subject = "About your Hacker Dojo membership"
-        body1 = "\n\nWe hope you have enjoyed your discounted membership at \
-                Hacker Dojo.  As you\nknow, we created the hardship program \
-                to give temporary financial support to help\nmembers get \
-                started at the Dojo. Our records show you began the program\n \
-                on"
-        body2 = ", and we hope you feel that you have benefited.\n\nBeginning \
-                with your next month's term, we ask that you please sign up \
-                at\nour regular rate:\n"
-        body3 = "\n\nThank you for supporting the Dojo!"
-        self.response.out.write(self.render("templates/hardship.html", locals()))
-      else:
-        self.response.out.write("Need admin access")
+      active_users = Membership.all().filter("status =", "active").filter("plan =", "hardship").fetch(10000)
+      active_users = sorted(active_users, key=lambda user: user.created)
+      subject = "About your Hacker Dojo membership"
+      body1 = "\n\nWe hope you have enjoyed your discounted membership at \
+              Hacker Dojo.  As you\nknow, we created the hardship program \
+              to give temporary financial support to help\nmembers get \
+              started at the Dojo. Our records show you began the program\n \
+              on"
+      body2 = ", and we hope you feel that you have benefited.\n\nBeginning \
+              with your next month's term, we ask that you please sign up \
+              at\nour regular rate:\n"
+      body3 = "\n\nThank you for supporting the Dojo!"
+      self.response.out.write(self.render("templates/hardship.html", locals()))
 
 
 class AreYouStillThereHandler(ProjectHandler):
@@ -674,6 +645,7 @@ class KeyHandler(ProjectHandler):
 
 
 class GenLinkHandler(ProjectHandler):
+    @ProjectHandler.admin_only
     def get(self, key):
       conf = Config()
       sa = conf.SPREEDLY_ACCOUNT

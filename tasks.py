@@ -39,7 +39,7 @@ class QueueHandlerBase(ProjectHandler):
         self.set_status(403)
         return
 
-      function(self, *args, **kwargs)
+      return function(self, *args, **kwargs)
 
     return wrapper
 

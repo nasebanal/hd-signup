@@ -2,10 +2,11 @@ import json
 import logging
 import os
 
-from google.appengine.api import memcache, urlfetch
-from google.appengine.ext import webapp
+from google.appengine.api import memcache, urlfetch, users
 
 import jinja2
+
+import webapp2
 
 from config import Config
 
@@ -15,7 +16,7 @@ JINJA_ENVIRONMENT = jinja2.Environment(
 
 
 """ A generic superclass for all handlers. """
-class ProjectHandler(webapp.RequestHandler):
+class ProjectHandler(webapp2.RequestHandler):
   # Usernames to return for testing purposes.
   testing_usernames = []
 
@@ -38,6 +39,37 @@ class ProjectHandler(webapp.RequestHandler):
       raise ValueError("Can't clear fake usernames on a production app.")
 
     ProjectHandler.testing_usernames = []
+
+  """ Checks if the current user is an admin and displays an error message if
+  they aren't. Also prompts them to log in if they are not. This is meant to be
+  used as a decorator.
+  function: The function we are decorating.
+  Returns: A wrapped version of the function that performs the check and
+  interrupts the flow if anything goes wrong. """
+  @classmethod
+  def admin_only(cls, function):
+    """ The wrapper function that does the actual check. """
+    def wrapper(self, *args, **kwargs):
+      user = users.get_current_user()
+      if not user:
+        # They need to log in.
+        self.redirect(users.create_login_url(self.request.uri))
+        return
+
+      logging.debug("Logged in user: %s" % (user.email()))
+
+      if not users.is_current_user_admin():
+        # They are not an admin.
+        error_page = self.render("templates/error.html", internal=False,
+            message="Admin access is required. <a href=%s>Try Again</a>" % \
+                (users.create_logout_url(self.request.uri)))
+        self.response.out.write(error_page)
+        self.response.set_status(401)
+        return
+
+      return function(self, *args, **kwargs)
+
+    return wrapper
 
   """ Render out templates with the proper information.
   path: Path to the template file.
@@ -94,4 +126,3 @@ class ProjectHandler(webapp.RequestHandler):
           internal=True)
       self.response.out.write(error_page)
       return None
-

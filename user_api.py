@@ -84,7 +84,7 @@ class ApiHandlerBase(webapp2.RequestHandler):
         self._rest_error("Unauthorized", "Only select apps can do that.", 403)
         return
 
-      function(self, *args, **kwargs)
+      return function(self, *args, **kwargs)
 
     return wrapper
 
