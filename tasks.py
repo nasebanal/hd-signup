@@ -186,7 +186,7 @@ class CleanupTask(QueueHandlerBase):
     user_id = self.request.get("user")
     user = Membership.get_by_id(int(user_id))
     if not user:
-      logging.warning("No user with id %d." % (user_id))
+      logging.warning("No user with id %s." % (user_id))
       # Don't change the status, because we don't want it to retry.
       return
 
@@ -208,7 +208,7 @@ class CleanupTask(QueueHandlerBase):
         "\n\nPS: Please ignore this e-mail if you already signed up --"
         " you might have started signing up twice or something :)"
         " PPS: This is an automated e-mail and we're now deleting your"
-        " e-mail address from the signup application." % (user.full_name)
+        " e-mail address from the signup application." % (user.full_name())
     )
 
     user.delete()

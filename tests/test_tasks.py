@@ -28,6 +28,15 @@ class BaseTest(unittest.TestCase):
     self.testbed.init_taskqueue_stub()
     self.testbed.init_mail_stub()
 
+    # Add a user to the datastore.
+    self.user = Membership(first_name="Testy", last_name="Testerson",
+                      email="ttesterson@gmail.com", hash="notahash",
+                      spreedly_token="notatoken", username="testy.testerson",
+                      password="notasecret")
+    self.user.put()
+
+    self.mail_stub = self.testbed.get_stub(testbed.MAIL_SERVICE_NAME)
+
   def tearDown(self):
     self.testbed.deactivate()
 
@@ -37,15 +46,7 @@ class CreateUserTaskTest(BaseTest):
   def setUp(self):
     super(CreateUserTaskTest, self).setUp()
 
-    # Add a user to the datastore.
-    user = Membership(first_name="Testy", last_name="Testerson",
-                      email="ttesterson@gmail.com", hash="notahash",
-                      spreedly_token="notatoken", username="testy.testerson",
-                      password="notasecret")
-    user.put()
-
-    self.mail_stub = self.testbed.get_stub(testbed.MAIL_SERVICE_NAME)
-    self.user_hash = user.hash
+    self.user_hash = self.user.hash
     self.params = {"hash": self.user_hash, "username": "testy.testerson",
                    "password": "notasecret"}
 
@@ -115,3 +116,43 @@ class CreateUserTaskTest(BaseTest):
     # This should be okay, because we don't want PinPayments to think it needs
     # to retry the call.
     self.assertEqual(200, response.status_int)
+
+
+""" Tests that CleanupTask functions properly. """
+class CleanupTaskTest(BaseTest):
+  def setUp(self):
+    super(CleanupTaskTest, self).setUp()
+
+    self.user_id = self.user.key().id()
+    self.params = {"user": str(self.user_id)}
+
+  """ Tests that it works under normal conditions. """
+  def test_cleanup(self):
+    response = self.test_app.post("/tasks/clean_row", self.params)
+    self.assertEqual(200, response.status_int)
+
+    # Make sure the user is gone.
+    user = Membership.get_by_id(self.user_id)
+    self.assertEqual(None, user)
+
+    # Make sure our email got sent and looks correct.
+    messages = self.mail_stub.get_sent_messages(to=self.user.email)
+    self.assertEqual(1, len(messages))
+    body = str(messages[0].body)
+    self.assertIn(self.user.full_name(), body)
+
+  """ Tests that it deals properly with a nonexistent user. """
+  def test_bad_user_id(self):
+    params = {"user": "1337"}
+    response = self.test_app.post("/tasks/clean_row", params)
+    # The status should still be okay, because we don't want it to retry in this
+    # case.
+    self.assertEqual(200, response.status_int)
+
+    # The user should still be there.
+    user = Membership.get_by_id(self.user_id)
+    self.assertNotEqual(None, user)
+
+    # No email should have gotten sent.
+    messages = self.mail_stub.get_sent_messages(to=self.user.email)
+    self.assertEqual(0, len(messages))
