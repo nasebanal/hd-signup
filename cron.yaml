@@ -1,6 +1,6 @@
 cron:
 - description: cleanup member records
-  url: /cleanup
+  url: /cron/cleanup
   schedule: every 24 hours
 - description: cache domain users (1 of 2)
   url: /cron/cache_users

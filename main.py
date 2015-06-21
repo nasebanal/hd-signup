@@ -462,22 +462,21 @@ class HardshipHandler(ProjectHandler):
 
 
 class AreYouStillThereHandler(ProjectHandler):
-    def get(self):
-        if not Config().is_dev:
-            self.post()
+  def get(self):
+    if Config().is_dev:
+      return
 
-    def post(self):
-        countdown = 0
-        for membership in Membership.all().filter("status =", "suspended"):
-          if (not membership.unsubscribe_reason and membership.spreedly_token \
-              and "Deleted" not in membership.last_name and \
-              membership.extra_dnd != True):
-            # One e-mail every 90 seconds = 960 e-mails a day.
-            countdown += 90
-            self.response.out.write("Are you still there %s ?<br/>" % \
-                                    (membership.email))
-            taskqueue.add(url="/tasks/areyoustillthere_mail",
-                params={"user": membership.key().id()}, countdown=countdown)
+    countdown = 0
+    for membership in Membership.all().filter("status =", "suspended"):
+      if (not membership.unsubscribe_reason and membership.spreedly_token \
+          and "Deleted" not in membership.last_name and \
+          membership.extra_dnd != True):
+        # One e-mail every 90 seconds = 960 e-mails a day.
+        countdown += 90
+        self.response.out.write("Are you still there %s ?<br/>" % \
+                                (membership.email))
+        taskqueue.add(url="/tasks/areyoustillthere_mail",
+            params={"user": membership.key().id()}, countdown=countdown)
 
 
 class ReactivateHandler(ProjectHandler):
@@ -512,19 +511,6 @@ class ReactivateHandler(ProjectHandler):
               self.response.out.write(self.render("templates/reactivate.html", locals()))
         else:
             self.redirect(str(self.request.path + "?message=There is no record of that email."))
-
-
-class CleanupHandler(ProjectHandler):
-    def get(self):
-        self.post()
-
-    def post(self):
-        countdown = 0
-        for membership in Membership.all().filter("status =", None):
-            if (datetime.datetime.now().date() - membership.created.date()).days > 1:
-                countdown += 90
-                self.response.out.write("bye %s " % (membership.email))
-                taskqueue.add(url="/tasks/clean_row", params={"user": membership.key().id()}, countdown=countdown)
 
 
 class ProfileHandler(ProjectHandler):
@@ -658,7 +644,6 @@ app = webapp2.WSGIApplication([
         ("/", MainHandler),
         ("/userlist", AllHandler),
         ("/suspended", SuspendedHandler),
-        ("/cleanup", CleanupHandler),
         ("/profile", ProfileHandler),
         ("/key", KeyHandler),
         ("/genlink/(.+)", GenLinkHandler),

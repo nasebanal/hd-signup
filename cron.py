@@ -30,8 +30,13 @@ class CronHandlerBase(ProjectHandler):
     def wrapper(self, *args, **kwargs):
       cron = self.request.headers.get("X-Appengine-Cron", None)
 
-      # If we're not on production, don't deny any requests.
+      # If we're on the dev app, we don't want to run cron jobs at all.
       conf = Config()
+      if (cron and conf.is_dev):
+        logging.info("Not running cron job on dev app.")
+        return
+
+      # If we're not on production, don't deny any requests.
       if not conf.is_prod:
         logging.info("Non-production environment, servicing all requests.")
 
@@ -40,6 +45,27 @@ class CronHandlerBase(ProjectHandler):
             (function.__name__))
         self.response.out.write("Only cron jobs can do that.")
         self.set_status(403)
+        return
+
+      return function(self, *args, **kwargs)
+
+    return wrapper
+
+  """ A function meant to be used as a decorator. It stops this from running
+  on the dev app if it is being run from a cron job.
+  function: The function we are decorating.
+  Returns: A wrapped version of the function that interrupts the flow if it
+  finds a problem. """
+  @classmethod
+  def no_dev(cls, function):
+    """ Wrapper function to return. """
+    def wrapper(self, *args, **kwargs):
+      cron = self.request.headers.get("X-Appengine-Cron", None)
+
+      # If we're on the dev app, we don't want to run cron jobs at all.
+      conf = Config()
+      if (cron and conf.is_dev):
+        logging.info("Not running cron job on dev app.")
         return
 
       return function(self, *args, **kwargs)
@@ -71,34 +97,33 @@ class DataSyncHandler(CronHandlerBase):
   batch_size = 10
 
   @CronHandlerBase.cron_only
+  @CronHandlerBase.no_dev
   def get(self):
-    config = Config()
-    if config.is_prod:
-      # If we're production, send out new models.
-      run_info = SyncRunInfo.all().get()
-      if not run_info:
-        run_info = SyncRunInfo()
-        run_info.put()
-
-      if run_info.run_times == 0:
-        # This is the first run. Sync everything.
-        logging.info("First run, syncing everything...")
-        self.__batch_loop(run_info.cursor)
-      else:
-        # Check for entries that changed since we last ran this.
-        last_run = run_info.last_run
-        logging.info("Last successful run: " + str(last_run))
-        self.__batch_loop(run_info.cursor, "updated >", last_run)
-
-      # Update the number of times we've run this.
-      run_info = SyncRunInfo().all().get()
-      run_info.run_times = run_info.run_times + 1
-      # Clear the cursor property if we synced successfully.
-      run_info.cursor = None
-      logging.info("Ran sync %d time(s)." % (run_info.run_times))
-      # Update the time of the last successful run.
-      run_info.last_run = datetime.datetime.now()
+    # If we're production, send out new models.
+    run_info = SyncRunInfo.all().get()
+    if not run_info:
+      run_info = SyncRunInfo()
       run_info.put()
+
+    if run_info.run_times == 0:
+      # This is the first run. Sync everything.
+      logging.info("First run, syncing everything...")
+      self.__batch_loop(run_info.cursor)
+    else:
+      # Check for entries that changed since we last ran this.
+      last_run = run_info.last_run
+      logging.info("Last successful run: " + str(last_run))
+      self.__batch_loop(run_info.cursor, "updated >", last_run)
+
+    # Update the number of times we've run this.
+    run_info = SyncRunInfo().all().get()
+    run_info.run_times = run_info.run_times + 1
+    # Clear the cursor property if we synced successfully.
+    run_info.cursor = None
+    logging.info("Ran sync %d time(s)." % (run_info.run_times))
+    # Update the time of the last successful run.
+    run_info.last_run = datetime.datetime.now()
+    run_info.put()
 
   """ Gets the requested member information from the datastore and sends it.
   cursor: Specifies a cursor to start fetching data at.
@@ -178,6 +203,7 @@ class DataSyncHandler(CronHandlerBase):
 """ Handles resetting signin count at the start of every month. """
 class ResetSigninHandler(CronHandlerBase):
   @CronHandlerBase.cron_only
+  @CronHandlerBase.no_dev
   def get(self):
     query = db.GqlQuery("SELECT * FROM Membership WHERE signins != 0")
 
@@ -198,8 +224,22 @@ class ResetSigninHandler(CronHandlerBase):
       async_write.get_result()
 
 
+""" Notifies and removes users who never finished signing up. """
+class CleanupHandler(ProjectHandler):
+  @CronHandlerBase.cron_only
+  @CronHandlerBase.no_dev
+  def get(self):
+    countdown = 0
+    for membership in Membership.all().filter("status =", None):
+      if (datetime.datetime.now().date() - membership.created.date()).days > 1:
+        countdown += 90
+        self.response.out.write("bye %s " % (membership.email))
+        taskqueue.add(url="/tasks/clean_row", params={"user": membership.key().id()}, countdown=countdown)
+
+
 app = webapp2.WSGIApplication([
     ("/cron/datasync", DataSyncHandler),
     ("/cron/reset_signins", ResetSigninHandler),
-    ("/cron/cache_users", CacheUsersHandler)],
+    ("/cron/cache_users", CacheUsersHandler),
+    ("/cron/cleanup", CleanupHandler)],
     debug=True)
