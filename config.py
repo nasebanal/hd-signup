@@ -17,7 +17,8 @@ class Config:
   def __init__(self):
     try:
       # Check if we are running on the local dev server.
-      Config.is_dev = os.environ["SERVER_SOFTWARE"].startswith("Dev")
+      software = os.environ["SERVER_SOFTWARE"]
+      Config.is_dev = software.startswith("Dev") and "testbed" not in software
     except KeyError:
       pass
 
@@ -32,6 +33,7 @@ class Config:
     if not Config.is_dev:
       # Check if we are running on the dev application.
       Config.is_dev = "-dev" in self.APP_NAME
+
     Config.is_prod = not (Config.is_dev or Config.is_testing)
 
     self.ORG_NAME = "Hacker Dojo"
