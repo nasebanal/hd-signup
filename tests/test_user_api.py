@@ -48,7 +48,19 @@ class ApiTest(unittest.TestCase):
 class UserHandlerTest(ApiTest):
   """ Tests that a valid request to get a user works. """
   def test_valid_user_request(self):
-    query = urllib.urlencode({"username": "daniel.petti",
+    query = urllib.urlencode({"email": "djpetti@gmail.com",
+        "properties[]": ["first_name", "last_name"]}, True)
+    response = self.test_app.get("/api/v1/user?" + query)
+    result = json.loads(response.body)
+
+    self.assertEqual(200, response.status_int)
+    self.assertEqual(result["first_name"], "Daniel")
+    self.assertEqual(result["last_name"], "Petti")
+    self.assertEqual(2, len(result.keys()))
+
+  """ Tests that the Hackerdojo email works as well. """
+  def test_valid_user_request(self):
+    query = urllib.urlencode({"email": "daniel.petti@hackerdojo.com",
         "properties[]": ["first_name", "last_name"]}, True)
     response = self.test_app.get("/api/v1/user?" + query)
     result = json.loads(response.body)
@@ -67,20 +79,20 @@ class UserHandlerTest(ApiTest):
     self.assertEqual(400, response.status_int)
     self.assertEqual("InvalidParametersException", result["type"])
 
-  """ Tests that it fails when we give it a nonexistent username. """
-  def test_bad_username(self):
-    query = urllib.urlencode({"username": "bad.name",
+  """ Tests that it fails when we give it a nonexistent email. """
+  def test_bad_email(self):
+    query = urllib.urlencode({"email": "bad.name@gmail.com",
         "properties[]": ["first_name", "last_name"]}, True)
     response = self.test_app.get("/api/v1/user?" + query, expect_errors=True)
     result = json.loads(response.body)
 
     self.assertEqual(422, response.status_int)
     self.assertEqual("InvalidParametersException", result["type"])
-    self.assertIn("username", result["message"])
+    self.assertIn("email", result["message"])
 
   """ Tests that it fails when we give it bad parameters. """
   def test_bad_parameters(self):
-    query = urllib.urlencode({"username": "daniel.petti",
+    query = urllib.urlencode({"email": "djpetti@gmail.com",
         "properties[]": ["bad_property"]}, True)
     response = self.test_app.get("/api/v1/user?" + query, expect_errors=True)
     result = json.loads(response.body)
@@ -91,13 +103,24 @@ class UserHandlerTest(ApiTest):
 
   """ Tests that it functions properly if you give it a single property. """
   def test_singleton_property(self):
-    query = urllib.urlencode({"username": "daniel.petti",
+    query = urllib.urlencode({"email": "djpetti@gmail.com",
         "properties": "first_name"})
     response = self.test_app.get("/api/v1/user?" + query)
     result = json.loads(response.body)
 
     self.assertEqual(200, response.status_int)
     self.assertEqual("Daniel", result["first_name"])
+
+  """ Tests that it works if we give it no properties. (This is useful if we
+  just want to use it to test whether a user is a member.) """
+  def test_no_properties(self):
+    query = urllib.urlencode({"email": "djpetti@gmail.com",
+                              "properties[]": ""})
+    response = self.test_app.get("/api/v1/user?" + query)
+    result = json.loads(response.body)
+
+    self.assertEqual(200, response.status_int)
+    self.assertEqual({}, result)
 
 
 """ Tests that the signin handler works properly. """

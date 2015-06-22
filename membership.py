@@ -94,8 +94,16 @@ class Membership(db.Model):
   def unsubscribe_url(self):
     return "http://signup.hackerdojo.com/unsubscribe/%i" % (self.key().id())
 
+  """ Gets the user with the specified email.
+  email: Either the normal email, or the hackerdojo.com email of the user.
+  Returns: The membership object corresponding to the user, or None if no user
+  was found. """
   @classmethod
   def get_by_email(cls, email):
+    if "@hackerdojo.com" in email:
+      username = email.split("@")[0]
+      return cls.get_by_username(username)
+
     return cls.all().filter('email =', email).get()
 
   @classmethod

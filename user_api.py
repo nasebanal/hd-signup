@@ -135,7 +135,7 @@ class ApiHandlerBase(webapp2.RequestHandler):
 """ Handler for getting data for a particular user. """
 class UserHandler(ApiHandlerBase):
   """ Properties for this request:
-  username: The username for which we are getting data.
+  email: The email for which we are getting data.
   properties: a x-www-form-urlencoded formatted list of property names we want
   for this user. I like it this way because we don't need to send really
   sensitive data unless someone requests it explicitly.
@@ -143,27 +143,21 @@ class UserHandler(ApiHandlerBase):
   user. """
   @ApiHandlerBase.restricted
   def get(self):
-    username, properties = self._get_parameters("username", "properties")
+    email, properties = self._get_parameters("email", "properties")
     if type(properties) is unicode:
       # A singleton property.
       properties = [properties]
 
-    if not username:
+    if not email:
       return
-    logging.info("Fetching properties for user '%s'." % (username))
+    logging.info("Fetching properties for user '%s'." % (email))
 
     # Get the user data.
-    users_query = db.GqlQuery( \
-        "SELECT * FROM Membership WHERE username = :1", username)
-    if users_query.count(limit=2) > 1:
-      logging.critical("Found duplicate username. (That shouldn't happen.)")
-      self._rest_error("Internal", "Multiple entries with this username?!", 500)
-
-    found_user = users_query.get()
+    found_user = Membership.get_by_email(email)
     if not found_user:
-      logging.error("Found no users with username '%s'." % (username))
+      logging.error("Found no user with email '%s'." % (email))
       self._rest_error("InvalidParameters",
-          "Found no user with that username", 422)
+          "Found no user with that email.", 422)
       return
 
     all_properties = {}
@@ -173,6 +167,9 @@ class UserHandler(ApiHandlerBase):
 
     use_properties = {}
     for prop in properties:
+      if prop == "":
+        # We don't actually want any properties.
+        break
       if prop not in all_properties.keys():
         logging.error("User has no property '%s'." % (prop))
         self._rest_error("InvalidParameters", "User has no property '%s'." % \
@@ -201,10 +198,7 @@ class SigninHandler(ApiHandlerBase):
       return
 
     # Get information on the user from the datastore.
-    if "@hackerdojo.com" in email:
-      user = Membership.get_by_username(email.replace("@hackerdojo.com", ""))
-    else:
-      user = Membership.get_by_email(email)
+    user = Membership.get_by_email(email)
 
     if (not user or user.status not in ("active", "no_visits")):
       self._rest_error("InvalidEmail",
