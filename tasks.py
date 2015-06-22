@@ -125,6 +125,9 @@ class CreateUserTask(QueueHandlerBase):
         # I want to see what query string it would have used.
         self.response.out.write(payload)
 
+      # Invalidate the current cached usernames, since we added a new one.
+      self.invalidate_cached_usernames()
+
       membership.domain_user = True
       # We'll never use the password again, and there's no sense in
       # leaving this sensitive information sitting in the datastore, so we

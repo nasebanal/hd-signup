@@ -101,7 +101,7 @@ class ProjectHandler(webapp2.RequestHandler):
   def fetch_usernames(self, use_cache=True):
     conf = Config()
 
-    if not conf.is_prod:
+    if conf.is_testing:
       logging.info("Using fake usernames: %s" % (self.testing_usernames))
       return self.testing_usernames
 
@@ -126,3 +126,9 @@ class ProjectHandler(webapp2.RequestHandler):
           internal=True)
       self.response.out.write(error_page)
       return None
+
+  """ Marks the cached list of usernames as stale. """
+  def invalidate_cached_usernames(self):
+    # It doesn't throw an exception if the item does not exist.
+    logging.debug("Cached usernames are now stale.")
+    memcache.delete("usernames")
