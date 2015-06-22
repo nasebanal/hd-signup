@@ -9,7 +9,7 @@ cron:
   url: /cron/cache_users
   schedule: every 30 minutes from 00:01 to 23:59
 - description: email suspended users
-  url: /areyoustillthere
+  url: /cron/areyoustillthere
   schedule: every monday 15:00
 - description: send unsensitive member info to dev app.
   url: /cron/datasync

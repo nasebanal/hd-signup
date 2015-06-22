@@ -461,24 +461,6 @@ class HardshipHandler(ProjectHandler):
       self.response.out.write(self.render("templates/hardship.html", locals()))
 
 
-class AreYouStillThereHandler(ProjectHandler):
-  def get(self):
-    if Config().is_dev:
-      return
-
-    countdown = 0
-    for membership in Membership.all().filter("status =", "suspended"):
-      if (not membership.unsubscribe_reason and membership.spreedly_token \
-          and "Deleted" not in membership.last_name and \
-          membership.extra_dnd != True):
-        # One e-mail every 90 seconds = 960 e-mails a day.
-        countdown += 90
-        self.response.out.write("Are you still there %s ?<br/>" % \
-                                (membership.email))
-        taskqueue.add(url="/tasks/areyoustillthere_mail",
-            params={"user": membership.key().id()}, countdown=countdown)
-
-
 class ReactivateHandler(ProjectHandler):
     def get(self):
         message = escape(self.request.get("message"))
@@ -654,7 +636,6 @@ app = webapp2.WSGIApplication([
         ("/leavereasonlist", LeaveReasonListHandler),
         ("/hardshiplist", HardshipHandler),
         ("/memberlist", MemberListHandler),
-        ("/areyoustillthere", AreYouStillThereHandler),
         ("/unsubscribe/(.*)", UnsubscribeHandler),
         ("/update", UpdateHandler),
         ("/reactivate", ReactivateHandler),

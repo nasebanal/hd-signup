@@ -274,7 +274,7 @@ class MaglockHandler(ApiHandlerBase):
     response = []
     for member in query.run():
       response.append({"rfid_tag": member.rfid_tag,
-                        "username": member.username})
+                       "username": member.username})
     self.response.out.write(json.dumps(response))
 
 

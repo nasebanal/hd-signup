@@ -225,7 +225,7 @@ class ResetSigninHandler(CronHandlerBase):
 
 
 """ Notifies and removes users who never finished signing up. """
-class CleanupHandler(ProjectHandler):
+class CleanupHandler(CronHandlerBase):
   @CronHandlerBase.cron_only
   @CronHandlerBase.no_dev
   def get(self):
@@ -237,9 +237,28 @@ class CleanupHandler(ProjectHandler):
         taskqueue.add(url="/tasks/clean_row", params={"user": membership.key().id()}, countdown=countdown)
 
 
+""" Sends an email to suspended users who never unsubscribed. """
+class AreYouStillThereHandler(CronHandlerBase):
+  @CronHandlerBase.cron_only
+  @CronHandlerBase.no_dev
+  def get(self):
+    countdown = 0
+    for membership in Membership.all().filter("status =", "suspended"):
+      if (not membership.unsubscribe_reason and membership.spreedly_token \
+          and "Deleted" not in membership.last_name and \
+          membership.extra_dnd != True):
+        # One e-mail every 90 seconds = 960 e-mails a day.
+        countdown += 90
+        self.response.out.write("Are you still there %s ?<br/>" % \
+                                (membership.email))
+        taskqueue.add(url="/tasks/areyoustillthere_mail",
+            params={"user": membership.key().id()}, countdown=countdown)
+
+
 app = webapp2.WSGIApplication([
     ("/cron/datasync", DataSyncHandler),
     ("/cron/reset_signins", ResetSigninHandler),
     ("/cron/cache_users", CacheUsersHandler),
-    ("/cron/cleanup", CleanupHandler)],
+    ("/cron/cleanup", CleanupHandler),
+    ("/cron/areyoustillthere", AreYouStillThereHandler)],
     debug=True)
