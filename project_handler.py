@@ -12,7 +12,7 @@ from config import Config
 
 
 JINJA_ENVIRONMENT = jinja2.Environment(
-    loader=jinja2.FileSystemLoader(os.path.dirname(__file__)))
+    loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True)
 
 
 """ A generic superclass for all handlers. """
