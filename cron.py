@@ -5,8 +5,7 @@ import datetime
 import json
 import logging
 
-from google.appengine.api import urlfetch
-from google.appengine.api import datastore
+from google.appengine.api import taskqueue, urlfetch
 from google.appengine.ext import db
 
 import webapp2
