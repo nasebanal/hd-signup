@@ -193,26 +193,34 @@ class CleanupTask(QueueHandlerBase):
       # Don't change the status, because we don't want it to retry.
       return
 
-    mail.send_mail(sender=Config().EMAIL_FROM,
-        to=user.email,
-        subject="Hi again -- from Hacker Dojo!",
-        body="Hi %s,"
-        "\nOur fancy membership system noted that you started filling"
-        " out the Membership Signup form, but didn't complete it."
-        "\nWell -- We'd love to have you as a member!"
-        "\nHacker Dojo has grown by leaps and bounds in recent years."
-        " Give us a try?"
-        "\nIf you would like to become a member of Hacker Dojo, just"
-        " complete the signup process at http://signup.hackerdojo.com"
-        "\nIf you don't want to sign up -- please give us anonymous"
-        " feedback so we know how we can do better!  URL:"
-        " http://bit.ly/jJAGYM"
-        "\nCheers!\nHacker Dojo"
-        "\n\nPS: Please ignore this e-mail if you already signed up --"
-        " you might have started signing up twice or something :)"
-        " PPS: This is an automated e-mail and we're now deleting your"
-        " e-mail address from the signup application." % (user.full_name())
-    )
+    logging.info("Sending email to %s." % (user.email))
+
+    try:
+      mail.send_mail(sender=Config().EMAIL_FROM,
+          to=user.email,
+          subject="Hi again -- from Hacker Dojo!",
+          body="Hi %s,"
+          "\nOur fancy membership system noted that you started filling"
+          " out the Membership Signup form, but didn't complete it."
+          "\nWell -- We'd love to have you as a member!"
+          "\nHacker Dojo has grown by leaps and bounds in recent years."
+          " Give us a try?"
+          "\nIf you would like to become a member of Hacker Dojo, just"
+          " complete the signup process at http://signup.hackerdojo.com"
+          "\nIf you don't want to sign up -- please give us anonymous"
+          " feedback so we know how we can do better!  URL:"
+          " http://bit.ly/jJAGYM"
+          "\nCheers!\nHacker Dojo"
+          "\n\nPS: Please ignore this e-mail if you already signed up --"
+          " you might have started signing up twice or something :)"
+          " PPS: This is an automated e-mail and we're now deleting your"
+          " e-mail address from the signup application." % (user.full_name())
+      )
+    except mail.BadRequestError:
+      # Apparently, sometimes people enter bad email addresses. In this case, we
+      # can just clear them silently.
+      print "\nGot bad email."
+      logging.warning("Deleting user with invalid email address.")
 
     user.delete()
 
