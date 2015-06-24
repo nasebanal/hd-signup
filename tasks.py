@@ -36,7 +36,7 @@ class QueueHandlerBase(ProjectHandler):
         logging.warning("Not running '%s' for non-taskqueue job." % \
             (function.__name__))
         self.response.out.write("Only taskqueues can do that.")
-        self.set_status(403)
+        self.response.set_status(403)
         return
 
       return function(self, *args, **kwargs)
@@ -219,7 +219,6 @@ class CleanupTask(QueueHandlerBase):
     except mail.BadRequestError:
       # Apparently, sometimes people enter bad email addresses. In this case, we
       # can just clear them silently.
-      print "\nGot bad email."
       logging.warning("Deleting user with invalid email address.")
 
     user.delete()

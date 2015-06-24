@@ -43,7 +43,7 @@ class CronHandlerBase(ProjectHandler):
         logging.warning("Not running '%s' for non-cron job." % \
             (function.__name__))
         self.response.out.write("Only cron jobs can do that.")
-        self.set_status(403)
+        self.response.set_status(403)
         return
 
       return function(self, *args, **kwargs)
