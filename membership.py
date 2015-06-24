@@ -55,19 +55,19 @@ class Membership(db.Model):
 
   def spreedly_url(self):
     config = Config()
-    return str("https://spreedly.com/%s/subscriber_accounts/%s" % \
+    return str("https://subs.pinpayments.com/%s/subscriber_accounts/%s" % \
         (config.SPREEDLY_ACCOUNT, self.spreedly_token))
 
   def spreedly_admin_url(self):
     config = Config()
-    return str("https://spreedly.com/%s/subscribers/%s" % \
+    return str("https://subs.pinpayments.com/%s/subscribers/%s" % \
         (config.SPREEDLY_ACCOUNT, self.key().id()))
 
   def subscribe_url(self, plan=None):
     config = Config()
     if not plan:
       plan = self.plan
-    url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % \
+    url = "https://subs.pinpayments.com/%s/subscribers/%i/%s/subscribe/%s" % \
         (config.SPREEDLY_ACCOUNT, self.key().id(),
          self.spreedly_token, plans.Plan.get_by_name(plan).plan_id)
     return str(url)
@@ -79,14 +79,14 @@ class Membership(db.Model):
     config = Config()
     if not plan:
       plan = self.plan
-    url = "https://spreedly.com/%s/subscribers/%i/subscribe/%s/%s?%s" % \
+    url = "https://subs.pinpayments.com/%s/subscribers/%i/subscribe/%s/%s?%s" % \
         (config.SPREEDLY_ACCOUNT, self.key().id(),
          plans.Plan.get_by_name(plan).plan_id, self.username, query_str)
     return str(url)
 
   def force_full_subscribe_url(self):
     config = Config()
-    url = "https://spreedly.com/%s/subscribers/%i/%s/subscribe/%s" % \
+    url = "https://subs.pinpayments.com/%s/subscribers/%i/%s/subscribe/%s" % \
         (config.SPREEDLY_ACCOUNT, self.key().id(),
         self.spreedly_token, plans.newfull.plan_id)
     return str(url)

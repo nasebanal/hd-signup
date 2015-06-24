@@ -303,7 +303,7 @@ class AccountHandlerTest(AccountHandlerBase):
     user = Membership.get_by_hash(self.user_hash)
 
     # We should be redirected to a personal spreedly page.
-    self.assertIn("spreedly.com", response.location)
+    self.assertIn("subs.pinpayments.com", response.location)
     self.assertIn(self.test_plan.plan_id, response.location)
     self.assertIn(str(user.key().id()), response.location)
     self.assertIn("testy.testerson", response.location)
@@ -384,7 +384,7 @@ class AccountHandlerTest(AccountHandlerBase):
 
     # We should be redirected to a personal spreedly page.
     self.assertEqual(302, response.status_int)
-    self.assertIn("spreedly.com", response.location)
+    self.assertIn("subs.pinpayments.com", response.location)
     self.assertIn(self.test_plan.plan_id, response.location)
     self.assertIn(str(user.key().id()), response.location)
     self.assertIn("testy.testerson", response.location)

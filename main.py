@@ -538,7 +538,7 @@ class KeyHandler(ProjectHandler):
                 self.response.out.write(self.render("templates/error.html", locals()))
                 return
             if account.status != "active":
-                url = "https://spreedly.com/"+conf.SPREEDLY_ACCOUNT+"/subscriber_accounts/" + account.spreedly_token
+                url = "https://subs.pinpayments.com/"+conf.SPREEDLY_ACCOUNT+"/subscriber_accounts/" + account.spreedly_token
                 message = """<p>Your Spreedly account status does not appear to me marked as active. This might be a mistake, in which case we apologize. </p>
                 <p>To investigate your account, you may go here: <a href=\"%(url)s\">%(url)s</a> </p>
                 <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a></p>
