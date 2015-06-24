@@ -207,21 +207,27 @@ class MainHandlerTest(BaseTest):
     self.assertIn("value=\"newfull\"", response.body)
     params["email"] = self._TEST_PARAMS["email"]
 
-  """ Tests that it won't let us continue if we have already set up our account.
-  """
-  def test_failure_if_account(self):
+  """ Tests that it takes us directly to PinPayments if we've already set up our
+  account. """
+  def test_skip_if_account(self):
+    plan = Plan("test", 0, 100, "This is a test plan.")
+
     existing_user = Membership(first_name=self._TEST_PARAMS["first_name"],
                                last_name=self._TEST_PARAMS["last_name"],
                                email=self._TEST_PARAMS["email"],
                                spreedly_token=None,
                                username="testy.testerson",
-                               password="notasecret")
+                               password="notasecret",
+                               plan=plan.name)
     existing_user.put()
 
-    response = self.test_app.post("/", self._TEST_PARAMS, expect_errors=True)
-    self.assertEqual(422, response.status_int)
+    response = self.test_app.post("/", self._TEST_PARAMS)
+    self.assertEqual(302, response.status_int)
 
-    self.assertIn("payment", response.body)
+    self.assertIn("subs.pinpayments.com", response.location)
+    self.assertIn(plan.plan_id, response.location)
+    self.assertIn(existing_user.username, response.location)
+    self.assertNotIn(existing_user.password, response.location)
 
 
 """ AccountHandler is complicated enough that we split the testing accross two

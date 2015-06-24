@@ -1,5 +1,6 @@
 import datetime
 import hashlib
+import urllib
 
 from google.appengine.ext import db
 from config import Config
@@ -73,12 +74,18 @@ class Membership(db.Model):
     return str(url)
 
   """ URL we use to subscribe a person for the first time.
-  query_str: The query string to use.
+  host: The first part of the return URL, e.g. signup.hackerdojo.com.
   plan: Optionally specifies a different plan to use. """
-  def new_subscribe_url(self, query_str, plan=None):
+  def new_subscribe_url(self, host, plan=None):
     config = Config()
     if not plan:
       plan = self.plan
+
+    query_str = urllib.urlencode({"first_name": self.first_name,
+                                  "last_name": self.last_name,
+                                  "email": self.email,
+                                  "return_url": "http://%s/success/%s" % \
+                                      (host, self.hash)})
     url = "https://subs.pinpayments.com/%s/subscribers/%i/subscribe/%s/%s?%s" % \
         (config.SPREEDLY_ACCOUNT, self.key().id(),
          plans.Plan.get_by_name(plan).plan_id, self.username, query_str)

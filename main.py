@@ -88,11 +88,13 @@ class MainHandler(ProjectHandler):
                                   plan=plan))
           self.response.set_status(422)
           return
-        elif ((membership.username and membership.password) and not \
-              membership.spreedly_token):
-          self.response.out.write(self.render("templates/main.html",
-              message="We're processing your payment. Be patient.", plan=plan))
-          self.response.set_status(422)
+        elif ((membership.username and membership.password and \
+               membership.plan) and not membership.spreedly_token):
+          # They've already filled out everything, but they haven't started a
+          # subscription. Take them to the PinPayments page.
+          logging.info("Taking user %s directly to PinPayments page." %
+                       (membership.username))
+          self.redirect(membership.new_subscribe_url(self.request.host))
           return
         else:
           # Existing membership never got activated. Overwrite it.
@@ -148,12 +150,8 @@ class AccountHandler(ProjectHandler):
         # subscription. (This could be reached by going back and trying to
         # change our plan after we were already taken to the PinPayments
         # page.) In this case, just pass them through to PinPayments.
-        query_str = urllib.urlencode({"first_name": membership.first_name,
-                                      "last_name": membership.last_name,
-                                      "email": membership.email,
-                                      "return_url": "http://%s/success/%s" % \
-                                          (self.request.host, membership.hash)})
-        self.redirect(membership.new_subscribe_url(query_str))
+        self.redirect(membership.new_subscribe_url(self.request.host,
+                                                   plan=plan))
 
       # steal this part to detect if they registered with hacker dojo email above
       first_part = re.compile(r"[^\w]").sub("", membership.first_name.split(" ")[0]) # First word of first name
@@ -303,16 +301,9 @@ class AccountHandler(ProjectHandler):
             uc = UsedCode(code=membership.referrer,email=membership.email,extra="OK")
             uc.put()
 
-        query_str = urllib.urlencode({"first_name": membership.first_name,
-                                      "last_name": membership.last_name,
-                                      "email": membership.email,
-                                      "return_url": "http://%s/success/%s" % \
-                                          (self.request.host, membership.hash)})
-        # The plan should already be written, so no point in doing another put.
-        # It might have been recent enough that we wouldn't see it, though.
-        membership.plan = plan
         # Redirect them to the PinPayments page, where they actually pay.
-        self.redirect(membership.new_subscribe_url(query_str))
+        self.redirect(membership.new_subscribe_url(self.request.host,
+                                                   plan=plan))
 
 
 class UnsubscribeHandler(ProjectHandler):
