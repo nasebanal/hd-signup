@@ -63,7 +63,7 @@ class Config:
     self.PLAN_USER_IGNORE_THRESHOLD = 30
 
     # Hours that the Dojo is open, in 24-hour time. (start, end)
-    self.DOJO_HOURS = (10, 17)
+    self.DOJO_HOURS = (10, 21)
 
     if Config.is_testing:
       self.SPREEDLY_ACCOUNT = "hackerdojotest"
