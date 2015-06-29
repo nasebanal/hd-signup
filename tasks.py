@@ -76,7 +76,9 @@ class CreateUserTask(QueueHandlerBase):
                     "password": self.request.get("password"),
                     "retries": retries})
       else:
-        fail(Exception("Too many retries for %s" % self.request.get("hash")))
+        logging.error("Too many retries for %s" % self.request.get("hash"))
+        # We don't want it to retry again.
+        self.response.set_status(200)
 
     user_hash = self.request.get("hash")
     membership = Membership.get_by_hash(user_hash)
