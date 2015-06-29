@@ -141,6 +141,7 @@ def update_subscriber(member):
                             "username": member.username,
                             "password": member.password},
                     countdown=3)
+
   if member.status in ("active", "no_visits") and member.unsubscribe_reason:
     member.unsubscribe_reason = None
 
@@ -152,12 +153,11 @@ def update_subscriber(member):
   # TODO: After a few months (now() = 06.13.2011), only suspend/restore if
   # status CHANGED. As of right now, we can't trust previous status, so lets
   # take action on each call to /update
-  if member.status in ("active", "no_visits") and member.domain_user:
-    logging.info("Restoring User: " + member.username)
+  if member.status == "active" and member.domain_user:
+    logging.info("Restoring User: %s" % (member.username))
     restore(member.username)
   if member.status == "suspended" and member.domain_user:
-    logging.info("Suspending User: " + member.username)
+    logging.info("Suspending User: %s" % (member.username))
     suspend(member.username)
 
   return ((member.status in ("active", "no_visits")), member.plan)
-
