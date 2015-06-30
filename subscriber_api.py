@@ -33,6 +33,11 @@ def suspend(username):
         method="POST", deadline=10,
         payload=urllib.urlencode({"secret": keymaster.get("api")}),
         follow_redirects=False)
+
+    if resp.status_code != 200:
+      # The domain app will handle retrying for us, so we don't block the queue.
+      logging.error("User suspension failed with status %d." % \
+                    (resp.status_code))
   except IOError as e:
     return fail(e)
 
@@ -56,6 +61,11 @@ def restore(username):
         method="POST", deadline=10,
         payload=urllib.urlencode({"secret": keymaster.get("api")}),
         follow_redirects=False)
+
+    if resp.status_code != 200:
+      # The domain app will handle retrying for us, so we don't block the queue.
+      logging.error("User restoration failed with status %d." % \
+                    (resp.status_code))
   except Exception, e:
     return fail(e)
 
