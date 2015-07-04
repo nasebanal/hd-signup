@@ -4,6 +4,7 @@
 # We need our external modules.
 import appengine_config
 
+import cPickle as pickle
 import json
 import unittest
 import urllib
@@ -121,6 +122,17 @@ class UserHandlerTest(ApiTest):
 
     self.assertEqual(200, response.status_int)
     self.assertEqual({}, result)
+
+  """ Tests that it handles datetime properties properly. """
+  def test_datetime(self):
+    query = urllib.urlencode({"email": "djpetti@gmail.com",
+                              "properties": "created"})
+    response = self.test_app.get("/api/v1/user?" + query)
+    result = json.loads(response.body)
+
+    self.assertEqual(200, response.status_int)
+    got_created = pickle.loads(str(result["created"]))
+    self.assertEqual(self.user.created, got_created)
 
 
 """ Tests that the signin handler works properly. """

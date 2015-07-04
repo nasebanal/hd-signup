@@ -15,6 +15,7 @@ import pytz
 
 from config import Config
 from membership import Membership
+import cPickle as pickle
 import keymaster
 import plans
 import subscriber_api
@@ -140,7 +141,7 @@ class UserHandler(ApiHandlerBase):
   for this user. I like it this way because we don't need to send really
   sensitive data unless someone requests it explicitly.
   Returns: A json-encoded dictionary of each property and its value for the
-  user. """
+  user. Note that all datetime types will be transmitted in a pickled format. """
   @ApiHandlerBase.restricted
   def get(self):
     email, properties = self._get_parameters("email", "properties")
@@ -177,6 +178,11 @@ class UserHandler(ApiHandlerBase):
         return
 
       use_properties[prop] = all_properties[prop]
+
+      # Pickle datetime objects so we can send them more easily.
+      if type(use_properties[prop]) == datetime.datetime:
+        logging.debug("Pickling datetime object.")
+        use_properties[prop] = pickle.dumps(use_properties[prop])
 
     response = json.dumps(use_properties)
     logging.debug("Writing response: %s." % (response))
