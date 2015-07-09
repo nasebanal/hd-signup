@@ -11,7 +11,6 @@ import keymaster
 import plans
 import spreedly
 
-
 """ Suspend the requested user.
 username: The username of the user to suspend. """
 def suspend(username):
@@ -20,26 +19,26 @@ def suspend(username):
     # Don't do this if we're testing.
     return
 
-  def fail(exception):
-    mail.send_mail(sender=conf.EMAIL_FROM,
-        to=conf.INTERNAL_DEV_EMAIL,
-        subject="[%s] User suspension failure: %s" % (conf.APP_NAME, username),
-        body=str(exception))
-    logging.error("User suspension failure: %s" % (exception))
+  resp = urlfetch.fetch("http://%s/suspend/%s" % \
+      (conf.DOMAIN_HOST, username),
+      method="POST", deadline=10,
+      payload=urllib.urlencode({"secret": keymaster.get("api")}),
+      follow_redirects=False)
 
-  try:
-    resp = urlfetch.fetch("http://%s/suspend/%s" % \
-        (conf.DOMAIN_HOST, username),
-        method="POST", deadline=10,
-        payload=urllib.urlencode({"secret": keymaster.get("api")}),
-        follow_redirects=False)
+  if resp.status_code != 200:
+    # The domain app will handle retrying for us, so we don't block the queue.
+    logging.error("User suspension failed with status %d." % \
+                  (resp.status_code))
 
-    if resp.status_code != 200:
-      # The domain app will handle retrying for us, so we don't block the queue.
-      logging.error("User suspension failed with status %d." % \
-                    (resp.status_code))
-  except IOError as e:
-    return fail(e)
+  # Alert the events app that the user's status has changed.
+  query = {"username": username, "status": "suspended"}
+  response = urlfetch.fetch("http://%s/api/v1/status_change" % \
+                            (conf.EVENTS_HOST), method="POST",
+                            payload=urllib.urlencode(query),
+                            follow_redirects=False)
+
+  if response.status_code != 200:
+    logging.warning("Notifying events app failed.")
 
 """ Restore the requested user.
 username: The username of the user to restore. """
@@ -49,25 +48,26 @@ def restore(username):
     # Don't do this if we're testing.
     return
 
-  def fail(exception):
-    mail.send_mail(sender=conf.EMAIL_FROM,
-        to=conf.INTERNAL_DEV_EMAIL,
-        subject="[%s] User restore failure: " % (conf.APP_NAME, username),
-        body=str(exception))
-    logging.error("User restore failure: %s" % (exception))
-  try:
-    resp = urlfetch.fetch("http://%s/restore/%s" % \
-        (conf.DOMAIN_HOST, username),
-        method="POST", deadline=10,
-        payload=urllib.urlencode({"secret": keymaster.get("api")}),
-        follow_redirects=False)
+  resp = urlfetch.fetch("http://%s/restore/%s" % \
+      (conf.DOMAIN_HOST, username),
+      method="POST", deadline=10,
+      payload=urllib.urlencode({"secret": keymaster.get("api")}),
+      follow_redirects=False)
 
-    if resp.status_code != 200:
-      # The domain app will handle retrying for us, so we don't block the queue.
-      logging.error("User restoration failed with status %d." % \
-                    (resp.status_code))
-  except Exception, e:
-    return fail(e)
+  if resp.status_code != 200:
+    # The domain app will handle retrying for us, so we don't block the queue.
+    logging.error("User restoration failed with status %d." % \
+                  (resp.status_code))
+
+  # Alert the events app that the user's status has changed.
+  query = {"username": username, "status": "active"}
+  response = urlfetch.fetch("http://%s/api/v1/status_change" % \
+                            (conf.EVENTS_HOST), method="POST",
+                            payload=urllib.urlencode(query),
+                            follow_redirects=False)
+
+  if response.status_code != 200:
+    logging.warning("Notifying events app failed.")
 
 """ Handle PinPayments XML data for a particular subscriber, updating the
 corresponding membership instance to be on the proper plan and have the

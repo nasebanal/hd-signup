@@ -4,6 +4,10 @@ We miss you!  According to our records, you signed up as a member of Hacker Dojo
 
 This e-mail will continue once a week until you choose one of two paths: (aggressive -- sorry!)
 
+Please note that all your current events have been put on hold until you
+reactivate your membership, and will expire 72 days after your membership
+lapsed.
+
 (1) Enter your credit card to get your membership active again: (only takes 1-2 minutes)
 {{ subscribe_url }}
 
