@@ -1,5 +1,9 @@
 """ Tests for the subscriber api handler. """
 
+
+# Has to go at the top so that we have all our externals.
+import appengine_config
+
 import datetime
 import unittest
 
