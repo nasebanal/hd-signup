@@ -1,24 +1,76 @@
 import datetime
 import hashlib
+import logging
 import urllib
+import time
 
+from google.appengine.api import memcache
 from google.appengine.ext import db
+
+from webapp2_extras import auth, security
+
 from config import Config
 import plans
 
-# A class for managing HackerDojo members.
+
+""" Stores a validation token for users. This class is loosely based on the
+equivalently-named one found here:
+http://webapp-improved.appspot.com/_modules/webapp2_extras/appengine/
+    auth/models.html """
+class UserToken:
+  """ Creates a new token for the given user.
+  user: User unique ID.
+  subject: The subject of the key, e.g. 'auth'.
+  token: An optional existing token may be provided. If not, a random token will
+  be generated.
+  expires: How long before the token expires, in seconds. It defaults to one
+  day. """
+  def __init__(self, user, subject, token=None, expires=60 * 60 * 24):
+    self.user = str(user)
+    self.subject = subject
+    if token:
+      self.token = token
+    else:
+      self.token = security.generate_random_string(entropy=128)
+    self.key = "%s.%s.%s" % (self.user, self.subject, self.token)
+
+  """ Saves the current token to memcache. """
+  def save(self):
+    # Update the timestamp, because it was modified.
+    self.timestamp = time.time()
+    memcache.set(self.key, self)
+
+  """ Deletes the current token from memcache. """
+  def delete(self):
+    memcache.delete(self.key)
+
+  """ Verifies a user token.
+  user: User unique ID.
+  subject: The subject of the key, e.g. 'auth'.
+  token: The token needing verification.
+  Returns: A UserToken instance containing the token, or None if the token does
+  not exist. """
+  @classmethod
+  def verify(cls, user, subject, token):
+    key = "%s.%s.%s" % (user, subject, token)
+    return memcache.get(key)
+
+
+""" A class for managing HackerDojo members. """
 class Membership(db.Model):
   hash = db.StringProperty()
   first_name = db.StringProperty(required=True)
   last_name = db.StringProperty(required=True)
   email = db.StringProperty(required=True)
+  # The hash of the user's password.
+  # TODO(danielp): Make this required after we finish migrating away from domain
+  # accounts.
+  password_hash = db.StringProperty()
   twitter = db.StringProperty(required=False)
   plan  = db.StringProperty(required=False)
   status  = db.StringProperty() # None, active, suspended
   referuserid = db.StringProperty()
   referrer  = db.StringProperty()
-  username = db.StringProperty()
-  password = db.StringProperty(default=None)
   rfid_tag = db.StringProperty()
   extra_599main = db.StringProperty()
   extra_dnd = db.BooleanProperty(default=False)
@@ -32,11 +84,19 @@ class Membership(db.Model):
   created = db.DateTimeProperty(auto_now_add=True)
   updated = db.DateTimeProperty()
 
-  # Whether we've created a google apps user yet.
-  domain_user = db.BooleanProperty(default=False)
-
   # How many times the user has signed in this month.
   signins = db.IntegerProperty(default=0)
+
+  # The following are legacy parameters.
+  # TODO(danielp): Remove these after we complete the migration away from
+  # domain accounts.
+
+  # Whether we've created a google apps user yet.
+  domain_user = db.BooleanProperty(default=False)
+  # The user's domain username.
+  username = db.StringProperty()
+  # Temporarily stores the user's domain password.
+  password = db.StringProperty(default=None)
 
   """ Override of the default put method which allows us to skip changing the
   updated property for testing purposes.
@@ -101,12 +161,72 @@ class Membership(db.Model):
   def unsubscribe_url(self):
     return "http://signup.hackerdojo.com/unsubscribe/%i" % (self.key().id())
 
+  """ Returns this user's unique ID, which can be an integer or string. """
+  def get_id(self):
+    return self.key().id()
+
+  """ Creates a new authorization token for a given user ID.
+  user_id: User unique ID.
+  Returns: A string with the authorization token. """
+  @classmethod
+  def create_auth_token(cls, user_id):
+    token = UserToken(user_id, "auth")
+    token.save()
+
+    return token.token
+
+  """ Deletes a given authorization token.
+  user_id: User unique ID.
+  token: A string with the authorization token. """
+  @classmethod
+  def delete_auth_token(cls, user_id, token):
+    token = UserToken.verify(user_id, "auth", token)
+    if not token:
+      logging.warning("Delete: Ignoring bad token for %d." % (user_id))
+      return
+
+    token.delete()
+
+  """ Returns a Membership object based on a user ID and token.
+  user_id: The unique ID of the requesting user.
+  token: The token string to be verified.
+  Returns: A tuple (Membership, timestamp), with a Membership object and
+  the token timestamp, or (None, None) if both were not found. """
+  @classmethod
+  def get_by_auth_token(cls, user_id, token):
+    # First, check that the token is valid.
+    token = UserToken.verify(user_id, "auth", token)
+    if not token:
+      logging.warning("Bad token, not getting user %d." % (user_id))
+      return (None, None)
+
+    user = cls.get_by_id(user_id)
+    timestamp = token.timestamp
+    return (user, timestamp)
+
+  """ Gets the user with the specified login credentials.
+  email: The email of the user.
+  password: The password of the user.
+  Returns: Membership object if found. """
+  @classmethod
+  def get_by_auth_password(cls, email, password):
+    user = cls.get_by_email(email)
+    if not user:
+      raise auth.InvalidAuthIdError("No user with email '%s'." % (email))
+
+    if not security.check_password_hash(password, user.password_hash):
+      raise auth.InvalidPasswordError("Bad password for user '%s'." % (email))
+
+    return user
+
   """ Gets the user with the specified email.
   email: Either the normal email, or the hackerdojo.com email of the user.
   Returns: The membership object corresponding to the user, or None if no user
   was found. """
   @classmethod
   def get_by_email(cls, email):
+    # TODO(danielp): Remove code for dealing with hackerdojo.com emails after
+    # we've finished migrating away from domain accounts.
     if "@hackerdojo.com" in email:
       username = email.split("@")[0]
       return cls.get_by_username(username)
@@ -117,6 +237,8 @@ class Membership(db.Model):
   def get_by_hash(cls, hash):
     return cls.all().filter('hash =', hash).get()
 
+  # This is a legacy method:
+  # TODO(danielp): Remove this after we migrate away from domain accounts.
   @classmethod
   def get_by_username(cls, username):
     return cls.all().filter('username =', username).get()
