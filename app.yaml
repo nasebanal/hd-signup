@@ -25,7 +25,7 @@ handlers:
   script: google.appengine.ext.deferred.handler.app
   login: admin
 - url: /_km/.*
-  script: keymaster.app
+  script: keymaster_handler.app
   login: admin
 - url: /api/v1/.*
   script: user_api.app

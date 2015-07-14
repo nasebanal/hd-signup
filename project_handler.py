@@ -6,9 +6,11 @@ from google.appengine.api import memcache, urlfetch, users
 
 import jinja2
 
+from webapp2_extras import config, security
 import webapp2
 
 from config import Config
+import keymaster
 
 
 JINJA_ENVIRONMENT = jinja2.Environment(
@@ -132,3 +134,34 @@ class ProjectHandler(webapp2.RequestHandler):
     # It doesn't throw an exception if the item does not exist.
     logging.debug("Cached usernames are now stale.")
     memcache.delete("usernames")
+
+
+""" Generic superclass for all webapp2 applications. """
+class BaseApp(webapp2.WSGIApplication):
+  def __init__(self, *args, **kwargs):
+    super(BaseApp, self).__init__(*args, **kwargs)
+
+    # If we're unit testing, use the same one every time for consistent results.
+    if Config().is_testing:
+      secret = "notasecret"
+
+    else:
+      # Check that we have a secret key for generating tokens.
+      try:
+        secret = keymaster.get("token_secret")
+      except keymaster.KeymasterError:
+        logging.warning("Found no token secret, generating one.")
+        secret = security.generate_random_string(entropy=128)
+        keymaster.Keymaster.encrypt("token_secret", secret)
+
+    # Configure webapp2.
+    my_config = {
+      "webapp2_extras.auth": {
+        "user_model": "membership.Membership",
+        "user_attributes": ["first_name", "last_name", "email"]
+      },
+      "webapp2_extras.sessions": {
+        "secret_key": secret
+      }
+    }
+    self.config = config.Config(my_config)

@@ -6,7 +6,7 @@ import webapp2
 
 from membership import Membership
 from plans import Plan
-from project_handler import ProjectHandler
+from project_handler import BaseApp, ProjectHandler
 
 class BillingHandler(ProjectHandler):
   def get(self):
@@ -36,6 +36,6 @@ class BillingHandler(ProjectHandler):
         return
 
 
-app = webapp2.WSGIApplication([
+app = BaseApp([
     ("/my_billing", BillingHandler),
     ], debug = True)

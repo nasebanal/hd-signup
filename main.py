@@ -5,11 +5,10 @@ import sys
 import datetime, hashlib, urllib, re
 from google.appengine.api import urlfetch, mail, users, taskqueue
 from google.appengine.ext import db
-import webapp2
 
 from config import Config
 from membership import Membership
-from project_handler import ProjectHandler
+from project_handler import ProjectHandler, BaseApp
 from select_plan import SelectPlanHandler, ChangePlanHandler
 import keymaster
 import logging
@@ -613,7 +612,7 @@ class GenLinkHandler(ProjectHandler):
       self.response.out.write(self.render("templates/genlink.html", locals()))
 
 
-app = webapp2.WSGIApplication([
+app = BaseApp([
         ("/", MainHandler),
         ("/userlist", AllHandler),
         ("/suspended", SuspendedHandler),

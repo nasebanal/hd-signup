@@ -1,7 +1,7 @@
-from google.appengine.api import urlfetch, memcache, users
-from google.appengine.ext import webapp, db
-from google.appengine.ext.webapp import util
+from google.appengine.ext import db
+
 import os
+
 try:
     from Crypto.Cipher import ARC4
 except ImportError:
@@ -35,25 +35,3 @@ class Keymaster(db.Model):
 
 def get(key):
     return Keymaster.decrypt(key)
-
-class KeymasterHandler(webapp.RequestHandler):
-    @util.login_required
-    def get(self):
-        if users.is_current_user_admin():
-            self.response.out.write("""<html><body><form method="post">
-                <input type="text" name="key" /><input type="text" name="secret" /><input type="submit" /></form></body></html>""")
-        else:
-            self.redirect('/')
-
-    def post(self):
-        if users.is_current_user_admin():
-            Keymaster.encrypt(self.request.get('key'), self.request.get('secret'))
-            self.response.out.write("Saved: %s" % Keymaster.decrypt(self.request.get('key')))
-        else:
-            self.redirect('/')
-
-app = webapp.WSGIApplication([
-        ('/_km/key', KeymasterHandler),
-        ],debug=True)
-
-

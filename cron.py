@@ -8,11 +8,9 @@ import logging
 from google.appengine.api import taskqueue, urlfetch
 from google.appengine.ext import db
 
-import webapp2
-
 from config import Config
 from membership import Membership
-from project_handler import ProjectHandler
+from project_handler import ProjectHandler, BaseApp
 import subscriber_api
 
 
@@ -254,7 +252,7 @@ class AreYouStillThereHandler(CronHandlerBase):
             params={"user": membership.key().id()}, countdown=countdown)
 
 
-app = webapp2.WSGIApplication([
+app = BaseApp([
     ("/cron/datasync", DataSyncHandler),
     ("/cron/reset_signins", ResetSigninHandler),
     ("/cron/cache_users", CacheUsersHandler),

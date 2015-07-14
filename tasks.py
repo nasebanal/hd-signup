@@ -6,12 +6,10 @@ import urllib
 
 from google.appengine.api import mail, taskqueue, urlfetch
 
-import webapp2
-
 from config import Config
 from main import SuccessHandler
 from membership import Membership
-from project_handler import ProjectHandler
+from project_handler import ProjectHandler, BaseApp
 
 
 """ Superclass for all taskqueue handlers. """
@@ -226,7 +224,7 @@ class CleanupTask(QueueHandlerBase):
     user.delete()
 
 
-app = webapp2.WSGIApplication([
+app = BaseApp([
     ("/tasks/create_user", CreateUserTask),
     ("/tasks/clean_row", CleanupTask),
     ("/tasks/areyoustillthere_mail", AreYouStillThereMail),

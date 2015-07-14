@@ -165,6 +165,11 @@ class Membership(db.Model):
   def get_id(self):
     return self.key().id()
 
+  """ Sets the user's password.
+  password: The password which will be hashed and stored. """
+  def set_password(self, password):
+    self.password_hash = security.generate_password_hash(password, length=12)
+
   """ Creates a new authorization token for a given user ID.
   user_id: User unique ID.
   Returns: A string with the authorization token. """
