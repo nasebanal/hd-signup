@@ -170,6 +170,7 @@ class DataSyncHandler(CronHandlerBase):
   def __strip_sensitive(self, member):
     member.spreedly_token = None
     member.password = None
+    member.password_hash = None
     member.hash = None
     return member
 
