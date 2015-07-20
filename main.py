@@ -28,7 +28,7 @@ class BadgeChange(db.Model):
     created = db.DateTimeProperty(auto_now_add=True)
     rfid_tag = db.StringProperty()
     username = db.StringProperty()
-    description = db.StringProperty()
+    description = db.StringProperty(multiline=True)
 
 
 class MainHandler(ProjectHandler):
