@@ -6,7 +6,7 @@ from google.appengine.api import memcache, urlfetch, users
 
 import jinja2
 
-from webapp2_extras import config, security
+from webapp2_extras import auth, security, sessions
 import webapp2
 
 from config import Config
@@ -135,6 +135,53 @@ class ProjectHandler(webapp2.RequestHandler):
     logging.debug("Cached usernames are now stale.")
     memcache.delete("usernames")
 
+  """ Shortcut to access the auth instance as a property. """
+  @webapp2.cached_property
+  def auth(self):
+    return auth.get_auth()
+
+  """ Shortcut to access a subset of the user attributes that are stored in the
+  session. The list of attributes to store in the session is specified in the
+  webapp2 configuration.
+  Returns: A dictionary with some user information. """
+  @webapp2.cached_property
+  def user_info(self):
+    return self.auth.get_user_by_session()
+
+  """ Access the current logged in user. Unlike user_info, it fetches
+  information from the datastore.
+  Returns: An instance of the underlying Membership model. """
+  @webapp2.cached_property
+  def user(self):
+    user = self.user_info
+    if not user:
+      return None
+
+    return self.user_model.get_by_id(user["user_id"])
+
+  """ Returns the implementation of the user model. This is set in the webapp2
+  configuration. """
+  @webapp2.cached_property
+  def user_model(self):
+    return self.auth.store.user_model
+
+  """ Shortcut to access the current session. """
+  @webapp2.cached_property
+  def session(self):
+    return self.session_store.get_session()
+
+  """ Custom dispatcher so that webapp2 sessions work properly. """
+  def dispatch(self):
+    # Get a session store for this request.
+    self.session_store = sessions.get_store(request=self.request)
+
+    try:
+      # Dispatch the request.
+      webapp2.RequestHandler.dispatch(self)
+    finally:
+      # Save all sessions.
+      self.session_store.save_sessions(self.response)
+
 
 """ Generic superclass for all webapp2 applications. """
 class BaseApp(webapp2.WSGIApplication):
@@ -164,4 +211,4 @@ class BaseApp(webapp2.WSGIApplication):
         "secret_key": secret
       }
     }
-    self.config = config.Config(my_config)
+    self.config = webapp2.Config(my_config)
