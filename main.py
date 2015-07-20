@@ -210,6 +210,10 @@ class AccountHandler(ProjectHandler):
             self.response.set_status(422)
             return
 
+        # Start saving the parameters for new-style accounts now, so that these
+        # people won't have to re-enter anything when we make the transition.
+        membership.set_password(password)
+
         # Set a username and password in the datastore.
         membership.username = username
         membership.password = password

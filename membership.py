@@ -168,6 +168,8 @@ class Membership(db.Model):
   """ Sets the user's password.
   password: The password which will be hashed and stored. """
   def set_password(self, password):
+    logging.debug("Setting password for user %s." % (self.email))
+
     self.password_hash = security.generate_password_hash(password, length=12)
 
   """ Creates a new authorization token for a given user ID.
