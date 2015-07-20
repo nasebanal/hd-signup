@@ -247,3 +247,21 @@ class Membership(db.Model):
   @classmethod
   def get_by_username(cls, username):
     return cls.all().filter('username =', username).get()
+
+  """ Creates a new user.
+  email: The user's email. This will be used as a unique ID.
+  password: The user's raw password. Will be hashed before saving, obviously.
+  other_properties: Keyword arguments specifying properties that will be
+  forwarded to the Membership constructor. All the other required properties
+  should be in here.
+  Returns: The created Membership entity. """
+  @classmethod
+  def create_user(cls, email, password, **other_properties):
+    logging.info("Creating user with email '%s', other properties: %s." % \
+                 (email, other_properties))
+
+    password_hash = security.generate_password_hash(password, length=12)
+    member = cls(email=email, password_hash=password_hash, **other_properties)
+    member.put()
+
+    return member
