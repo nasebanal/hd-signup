@@ -13,6 +13,9 @@ from project_handler import ProjectHandler
 
 """ Handles creating a login page and logging a user in. """
 class LoginHandler(ProjectHandler):
+  """ Parameters:
+  url: A URL to send the user to after they have successfully logged in.
+  Defaults to the home page. """
   def get(self):
     return_url = self.request.get("url", "/")
 
@@ -53,3 +56,15 @@ class LoginHandler(ProjectHandler):
 
     self.response.set_status(401)
     self.response.out.write(response)
+
+
+""" Handles logging a user out. """
+class LogoutHandler(ProjectHandler):
+  """ Parameters:
+  url: A URL to send the user to after they have been logged out. Defaults to
+  the home page. """
+  def get(self):
+    return_url = self.request.get("url", "/")
+
+    self.auth.unset_session()
+    self.redirect(return_url)

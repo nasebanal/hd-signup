@@ -9,7 +9,7 @@ from google.appengine.ext import db
 
 from config import Config
 from list_pages import *
-from login import LoginHandler
+from login import *
 from membership import Membership
 from project_handler import ProjectHandler, BaseApp
 from select_plan import *
@@ -627,4 +627,5 @@ app = BaseApp([
         ("/change_plan", ChangePlanHandler),
         ("/reactivate_plan/(.+)", ReactivatePlanHandler),
         ("/login", LoginHandler),
+        ("/logout", LogoutHandler),
         ], debug=True)

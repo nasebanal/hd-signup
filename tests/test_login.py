@@ -80,3 +80,20 @@ class LoginHandlerTest(BaseTest):
     self.assertEqual(401, response.status_int)
 
     self.assertIn("is incorrect", response.body)
+
+
+""" Tests that LogoutHandler works. """
+class LogoutHandlerTest(BaseTest):
+  """ Tests that we can logout without it blowing up. """
+  def test_get(self):
+    response = self.test_app.get("/logout")
+    self.assertEqual(302, response.status_int)
+    # Without a return URL, we should have redirected to the main page.
+    self.assertEqual("http://localhost/", response.location)
+
+  """ Tests that we can give it a return URL and it will send us there. """
+  def test_return_url(self):
+    query_str = urllib.urlencode({"url": "http://www.google.com"})
+    response = self.test_app.get("/logout?" + query_str)
+    self.assertEqual(302, response.status_int)
+    self.assertEqual("http://www.google.com", response.location)
