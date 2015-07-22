@@ -1,0 +1,40 @@
+{% include 'templates/base.html' %}
+
+<script type="text/javascript" src="static/js/login.js"></script>
+
+<div class="centered-horizontal">
+  <div class="rounded" style="max-width: 400px; margin-top: 50px">
+    <form style="max-width: 650px; margin-left: 10px; margin-right: 10px;"
+        method="post">
+      <h4 style="text-align: center;">
+          Please login to your HackerDojo account:</h4>
+      <span style="color: #B23030; margin-left: 10px;">{{ message }}</span>
+
+      <div class="form-group" style="width: 300px; margin-top: 25px;">
+        <label for="email">Email:</label>
+        <input type="text" class="form-control" id="email" name="email"
+            value="{{ email }}">
+      </div>
+      <div class="form-group" style="width: 300px;">
+        <label for="password">Password:</label>
+        <input type="password" class="form-control" id="password"
+            name="password">
+      </div>
+
+      <div style="text-align: center; margin-top: 25px; width: 250px;">
+        <input type="submit" class="btn btn-primary btn-lg btn-block
+                                    btn-disabled"
+            value="Login" id="login" disabled />
+      </div>
+
+    </form>
+  </div>
+
+  <div style="text-align: center; padding-top: 50px;">
+    <a href="/">Sign Up</a>
+  </div>
+
+</div>
+
+<!-- Hidden input for storing the return URL. -->
+<input type="hidden" value="{{ return_url }}" name="url">
