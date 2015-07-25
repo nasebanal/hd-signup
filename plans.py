@@ -227,8 +227,8 @@ full = Plan("full", 125, "The old standard plan.",
             human_name="Old Standard",
             legacy=newfull)
 student = Plan("student", 50, "Old version of the student plan.",
-                human_name="Old Student", aliases=["hardship"],
-                legacy=newstudent)
+               human_name="Old Student", aliases=["hardship"],
+               legacy=newstudent)
 supporter = Plan("supporter", 10, "A monthly donation to the dojo.",
                  human_name="Monthly Donation", signin_limit=0,
                  create_events=False)

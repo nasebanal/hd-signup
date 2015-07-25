@@ -628,4 +628,6 @@ app = BaseApp([
         ("/reactivate_plan/(.+)", ReactivatePlanHandler),
         ("/login", LoginHandler),
         ("/logout", LogoutHandler),
+        ("/forgot_password", ForgottenPasswordHandler),
+        ("/reset_password", PasswordResetHandler),
         ], debug=True)

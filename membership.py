@@ -1,8 +1,8 @@
+import cPickle as pickle
 import datetime
 import hashlib
 import logging
 import urllib
-import time
 
 from google.appengine.api import memcache
 from google.appengine.ext import db
@@ -37,7 +37,7 @@ class UserToken:
   """ Saves the current token to memcache. """
   def save(self):
     # Update the timestamp, because it was modified.
-    self.timestamp = time.time()
+    self.timestamp = datetime.datetime.now()
     memcache.set(self.key, self)
 
   """ Deletes the current token from memcache. """
@@ -80,6 +80,8 @@ class Membership(db.Model):
 
   spreedly_token = db.StringProperty()
   parking_pass = db.StringProperty()
+  # A token for resetting the user's password.
+  password_reset_token = db.StringProperty(multiline=True)
 
   created = db.DateTimeProperty(auto_now_add=True)
   updated = db.DateTimeProperty()
@@ -168,11 +170,47 @@ class Membership(db.Model):
     return self.key().id()
 
   """ Sets the user's password.
+  It does not write to the datastore afterward.
   password: The password which will be hashed and stored. """
   def set_password(self, password):
     logging.debug("Setting password for user %s." % (self.email))
 
     self.password_hash = security.generate_password_hash(password, length=12)
+
+  """ Creates a password reset token for the user.
+  Returns: The token that was created. """
+  def create_password_reset_token(self):
+    token = UserToken(self.get_id(), "password_reset")
+    logging.debug("Created password reset token for %s." % (self.email))
+
+    token.timestamp = datetime.datetime.now()
+    # Store the token in the datastore.
+    self.password_reset_token = pickle.dumps(token)
+    self.put()
+
+    return token.token
+
+  """ Verifies a password reset token for this user.
+  token: The token to verify.
+  Returns: True if the token is valid, False otherwise. """
+  def verify_password_reset_token(self, token):
+    if not self.password_reset_token:
+      return False
+
+    good_token = pickle.loads(str(self.password_reset_token))
+
+    if good_token.token != token:
+      logging.error("Got bad token: %s for user %s." % (token, self.email))
+      return False
+    if (datetime.datetime.now() - good_token.timestamp > \
+        datetime.timedelta(days=1)):
+      # They have one day to use the token.
+      logging.error("Expired token %s was used for user %s." % \
+                    (token, self.email))
+      return False
+
+    return True
+
 
   """ Creates a new authorization token for a given user ID.
   user_id: User unique ID.

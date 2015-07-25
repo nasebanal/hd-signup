@@ -8,7 +8,7 @@ from google.appengine.ext import testbed
 
 from webapp2_extras import auth, security
 
-import time
+import datetime
 import unittest
 
 import membership
@@ -83,7 +83,7 @@ class MembershipTest(BaseTest):
     user, timestamp = membership.Membership.get_by_auth_token(
         self.user_id, token)
     self.assertEqual(self.user.properties(), user.properties())
-    self.assertLess(timestamp, time.time())
+    self.assertLess(timestamp, datetime.datetime.now())
 
     # Delete the token.
     membership.Membership.delete_auth_token(self.user_id, token)

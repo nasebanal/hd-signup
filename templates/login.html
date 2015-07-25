@@ -3,12 +3,16 @@
 <script type="text/javascript" src="static/js/login.js"></script>
 
 <div class="centered-horizontal">
-  <div class="rounded" style="max-width: 400px; margin-top: 50px">
+  <div class="rounded shadowed" style="max-width: 400px; margin-top: 50px;">
     <form style="max-width: 650px; margin-left: 10px; margin-right: 10px;"
-        method="post">
+        method="post" id="login-form">
       <h4 style="text-align: center;">
           Please login to your HackerDojo account:</h4>
-      <span style="color: #B23030; margin-left: 10px;">{{ message }}</span>
+      <span style="color: #B23030; margin-left: 10px;">{{ message }}
+          {% if forgot_password %}
+          <a href="#" id="reset-password">Forgot Password</a>
+          {% endif %}
+      </span>
 
       <div class="form-group" style="width: 300px; margin-top: 25px;">
         <label for="email">Email:</label>
@@ -28,6 +32,17 @@
       </div>
 
     </form>
+
+    <!-- Contains info for the forgotten password message. -->
+    <div id="forgot-password" style="text-align: center; margin-left: 30px;
+        margin-right: 30px; width: 300px; display: none;">
+      <h1 style="color: white;">Thank You!</h1>
+      <p style="color: white;">
+          An email has been sent to you, containing further instructions.</p>
+      <button type="button" class="btn btn-primary"
+          style="margin-top: 10px;" id="return-button">OK</button>
+    </div>
+
   </div>
 
   <div style="text-align: center; padding-top: 50px;">

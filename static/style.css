@@ -33,5 +33,16 @@ input {
   border-radius: 25px;
   background: #A9D2EA;
   padding: 20px;
+}
+
+.shadowed {
   box-shadow: 5px 5px 10px #888888;
+}
+
+.error-box {
+  margin-top: 50px;
+  background: #B23030;
+  text-align: center;
+  width: 300px;
+  color: white;
 }

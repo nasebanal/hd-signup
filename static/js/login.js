@@ -17,6 +17,15 @@ login.loginBox = function() {
     $('input').on('keyup', function() {
       outer_this.validateInput_();
     });
+
+    $('#reset-password').click(function(event) {
+      event.preventDefault();
+
+      outer_this.handleForgottenPassword_();
+    });
+    $('#return-button').click(function() {
+      outer_this.showLogin_();
+    });
   };
 
   /** Checks if the user's input is valid and enables/disables the submit button
@@ -68,6 +77,35 @@ login.loginBox = function() {
   this.registerHandlers_();
   // Do this initially to catch any autofill stuff.
   this.validateInput_();
+
+  /** Performs the proper action when the "forgot password" link is clicked.
+   * @private
+   */
+  this.handleForgottenPassword_ = function() {
+    // Disable the login button.
+    $('#login').prop('disabled', true);
+    // Fade out the text.
+    $('#reset-password').fadeOut();
+
+    // Do the backend call.
+    var email = $('#email').val()
+    $.post('/forgot_password', {'email': email}, function() {
+      $('#login-form').fadeOut(function() {
+        $('#reset-password').show();
+
+        $('#forgot-password').fadeIn();
+      });
+    });
+  };
+
+  /** Returns to the login screen from the forgotten password screen.
+   * @private
+   */
+  this.showLogin_ = function() {
+    $('#forgot-password').fadeOut(function() {
+      $('#login-form').fadeIn();
+    });
+  };
 };
 
 $(document).ready(function() {
