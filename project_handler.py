@@ -205,7 +205,7 @@ class BaseApp(webapp2.WSGIApplication):
     my_config = {
       "webapp2_extras.auth": {
         "user_model": "membership.Membership",
-        "user_attributes": ["first_name", "last_name", "email"]
+        "user_attributes": ["first_name", "last_name", "email", "hash"]
       },
       "webapp2_extras.sessions": {
         "secret_key": secret

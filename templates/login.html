@@ -8,7 +8,7 @@
         method="post" id="login-form">
       <h4 style="text-align: center;">
           Please login to your HackerDojo account:</h4>
-      <span style="color: #B23030; margin-left: 10px;">{{ message }}
+      <span style="color: #B23030; margin-left: 10px;">{{ message|safe }}
           {% if forgot_password %}
           <a href="#" id="reset-password">Forgot Password</a>
           {% endif %}

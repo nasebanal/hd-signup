@@ -39,11 +39,12 @@ class LoginHandlerTest(BaseTest):
     super(LoginHandlerTest, self).setUp()
 
     # Make a user to test logging in.
-    member = Membership.create_user("testy.testerson@gmail.com", "notasecret",
-                                    first_name="Testy", last_name="Testerson")
+    self.member = Membership.create_user("testy.testerson@gmail.com", "notasecret",
+                                    first_name="Testy", last_name="Testerson",
+                                    hash="notahash", status="active")
 
     # Testing parameters for logging in.
-    self.params = {"email": member.email, "password": "notasecret"}
+    self.params = {"email": self.member.email, "password": "notasecret"}
 
   """ Tests that we can log in successfully. """
   def test_login(self):
@@ -82,6 +83,23 @@ class LoginHandlerTest(BaseTest):
     self.assertEqual(401, response.status_int)
 
     self.assertIn("is incorrect", response.body)
+
+  """ Tests that it doesn't let the user log in if they are suspended or have no
+  status. """
+  def test_bad_status(self):
+    self.member.status = None
+    self.member.put()
+
+    response = self.test_app.post("/login", self.params, expect_errors=True)
+    self.assertEqual(401, response.status_int)
+    self.assertIn("not finished", response.body)
+
+    self.member.status = "suspended"
+    self.member.put()
+
+    response = self.test_app.post("/login", self.params, expect_errors=True)
+    self.assertEqual(401, response.status_int)
+    self.assertIn("reactivate", response.body)
 
 
 """ Tests that LogoutHandler works. """

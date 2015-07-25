@@ -36,31 +36,56 @@ class LoginHandler(ProjectHandler):
 
     # Check the password.
     try:
-      self.auth.get_user_by_password(email, password, remember=True)
-      self.redirect(return_url)
-      return
+      user_info = \
+          self.auth.get_user_by_password(email, password, remember=True)
+      user = Membership.get_by_hash(user_info["hash"])
+
     except auth.InvalidAuthIdError as e:
       logging.warning("Unknown user: %s." % (email))
       self.__show_error(True, False)
+      return
     except auth.InvalidPasswordError as e:
       logging.warning("Invalid password for user %s." % (email))
       self.__show_error(False, True)
+      return
+
+    # Check that the user can log in.
+    if not user.status:
+      self.__show_error(False, False, "You have not finished signing up.")
+      return
+    elif user.status == "suspended":
+      url_parts = urlparse(self.request.url)
+      link = "%s://%s/reactivate" % (url_parts.scheme, url_parts.netloc)
+      self.__show_error(False, False,
+          message="You are suspended. <a href=\"%s\">Click here</a>" \
+                  " to reactivate." % (link))
+      return
+
+    self.redirect(return_url)
 
   """ Shows the page with an error message if the login failed.
   bad_email: True if the email was incorrect.
-  bad_password: True if the password was incorrect. """
-  def __show_error(self, bad_email, bad_password):
+  bad_password: True if the password was incorrect.
+  message: Optional means to explicitly specify the message to show. """
+  def __show_error(self, bad_email, bad_password, message=None):
     email = self.request.get("email")
     return_url = self.request.get("return_url")
 
-    if (not bad_email and bad_password):
+    show_email = ""
+    forgot_password = False
+    if (bad_email):
+      if not message:
+        message = "Email not found."
+    elif bad_password:
       # If the email was okay, keep it there.
-      response = self.render("templates/login.html", return_url=return_url,
-                             email=email, message="Password is incorrect.",
-                             forgot_password=True)
-    elif (bad_email):
-      response = self.render("templates/login.html", return_url=return_url,
-                             message="Email not found.")
+      if not message:
+        message = "Password is incorrect."
+      show_email = email
+      forgot_password = True
+
+    response = self.render("templates/login.html", return_url=return_url,
+                           message=message, email=show_email,
+                           forgot_password=forgot_password)
 
     self.response.set_status(401)
     self.response.out.write(response)
