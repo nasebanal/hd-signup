@@ -69,6 +69,8 @@ class Membership(db.Model):
   twitter = db.StringProperty(required=False)
   plan  = db.StringProperty(required=False)
   status  = db.StringProperty() # None, active, suspended
+  # Whether the user is an admin.
+  is_admin = db.BooleanProperty(default=False)
   referuserid = db.StringProperty()
   referrer  = db.StringProperty()
   rfid_tag = db.StringProperty()

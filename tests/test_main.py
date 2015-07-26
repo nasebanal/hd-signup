@@ -645,11 +645,14 @@ class MemberListHandlerTest(BaseTest):
 
     # This handler requires admin access all the time, so give ourselves that
     # right off the bat.
-    self.testbed.setup_env(user_email="ttesterson@gmail.com", user_is_admin="1",
-                           overwrite=True)
+    user = Membership.create_user("ttesterson@gmail.com", "notasecret",
+                                  first_name="Admin", last_name="Testerson",
+                                  spreedly_token="notatoken", is_admin=True,
+                                  status="active")
+    ProjectHandler.simulate_logged_in_user(user)
 
-    # Make exactly two pages worth of users.
-    for i in range(0, 50):
+    # Make exactly two pages worth of users. (We created one already.)
+    for i in range(0, 49):
        email = "ttesterson%d@gmail.com" % (i)
        first_name = "Testy%d" % (i)
        user = Membership.create_user(email, "notasecret",

@@ -1,10 +1,11 @@
 import json
 import logging
 import os
-
-from google.appengine.api import memcache, urlfetch, users
+import urllib
 
 import jinja2
+
+from google.appengine.api import memcache
 
 from webapp2_extras import auth, security, sessions
 import webapp2
@@ -21,6 +22,8 @@ JINJA_ENVIRONMENT = jinja2.Environment(
 class ProjectHandler(webapp2.RequestHandler):
   # Usernames to return for testing purposes.
   testing_usernames = []
+  # A user to use for simulating logins during unit testing.
+  simulated_user = None
 
   """ Allows the user to set which usernames it returns in testing mode. If
   someone tries to run this on a production app, it throws an exception.
@@ -52,19 +55,17 @@ class ProjectHandler(webapp2.RequestHandler):
   def admin_only(cls, function):
     """ The wrapper function that does the actual check. """
     def wrapper(self, *args, **kwargs):
-      user = users.get_current_user()
+      user = self.current_user()
       if not user:
         # They need to log in.
-        self.redirect(users.create_login_url(self.request.uri))
+        self.redirect(self.create_login_url(self.request.uri))
         return
 
-      logging.debug("Logged in user: %s" % (user.email()))
-
-      if not users.is_current_user_admin():
+      if not user["is_admin"]:
         # They are not an admin.
         error_page = self.render("templates/error.html", internal=False,
             message="Admin access is required. <a href=%s>Try Again</a>" % \
-                (users.create_logout_url(self.request.uri)))
+                (self.create_logout_url(self.request.uri)))
         self.response.out.write(error_page)
         self.response.set_status(401)
         return
@@ -72,6 +73,78 @@ class ProjectHandler(webapp2.RequestHandler):
       return function(self, *args, **kwargs)
 
     return wrapper
+
+  """ Decorator that ensures that a user is logged in. If they aren't logged
+  in, it redirects to the login page and forces them to.
+  function: The function we are decorating.
+  Returns: A wrapped version of the function. """
+  @classmethod
+  def login_required(cls, function):
+    """ The wrapper function that does that actual check. """
+    def wrapper(self, *args, **kwargs):
+      user = self.current_user()
+      if not user:
+        # They need to log in.
+        self.redirect(self.create_login_url(self.request.uri))
+        return
+
+      return function(self, *args, **kwargs)
+
+    return wrapper
+
+  """ Simulate a logged in user for unit testing.
+  user: The user object to use. None indicates that we want there to be no
+  logged in user. """
+  @classmethod
+  def simulate_logged_in_user(cls, user):
+    if not Config().is_testing:
+      raise ValueError("Can't simulate login when not unit testing.")
+
+    cls.simulated_user = user
+
+  """ Checks if a current user is logged in.
+  Returns: The a dict with information about the current logged in user,
+  or None. """
+  def current_user(self):
+    simulated_user = ProjectHandler.simulated_user
+
+    if not Config().is_testing:
+      auth = self.auth
+      user = auth.get_user_by_session()
+    else:
+      # Use the simulated user.
+      logging.debug("Using simulated user: %s" % (simulated_user))
+
+      if not simulated_user:
+        user = None
+      else:
+        user = {}
+        for attribute in \
+            self.app.config["webapp2_extras.auth"]["user_attributes"]:
+          user[attribute] = getattr(simulated_user, attribute)
+
+    if user:
+      logging.debug("Current logged in user: %s" % (user["email"]))
+    else:
+      logging.debug("No logged in user.")
+
+    return user
+
+  """ Equivalent to the create_login_url function from the GAE users package,
+  but for our custom account system.
+  return_url: The url to return to after we have logged in. """
+  def create_login_url(self, return_url):
+    query_str = urllib.urlencode({"url": return_url})
+    url = "/login?" + query_str
+    return url
+
+  """ Equivalent to the create_logout_url function from the GAE users package,
+  but for our custom account system.
+  return_url: The url to return to after we have logged out. """
+  def create_logout_url(self, return_url):
+    query_str = urllib.urlencode({"url": return_url})
+    url = "/logout?" + query_str
+    return url
 
   """ Render out templates with the proper information.
   path: Path to the template file.
@@ -205,7 +278,8 @@ class BaseApp(webapp2.WSGIApplication):
     my_config = {
       "webapp2_extras.auth": {
         "user_model": "membership.Membership",
-        "user_attributes": ["first_name", "last_name", "email", "hash"]
+        "user_attributes": ["first_name", "last_name", "email", "hash",
+                            "is_admin"]
       },
       "webapp2_extras.sessions": {
         "secret_key": secret

@@ -8,17 +8,32 @@ from google.appengine.ext import testbed
 
 import webapp2
 
+from membership import Membership
 import project_handler
 
 
 """ Test case for the ProjectHandler class """
 class ProjectHandlerTests(unittest.TestCase):
+  """ A very basic handler proxy. We use this mainly so decorators we want to
+  test have a response object to write to. """
+  class ProxyHandler(project_handler.ProjectHandler):
+    """ Class for simulating a request object. """
+    class ProxyRequest:
+      def __init__(self):
+        self.uri = "/test"
+        self.url = "http://www.test_url.com/test"
+
+    def __init__(self):
+      self.response = webapp2.Response()
+      self.request = self.ProxyRequest()
+      self.app = project_handler.BaseApp()
+
   """ Set up for every test. """
   def setUp(self):
     # Create and activate testbed instance.
     self.testbed = testbed.Testbed()
     self.testbed.activate()
-    self.testbed.init_user_stub()
+    self.testbed.init_datastore_v3_stub()
 
     self.handler = project_handler.ProjectHandler()
 
@@ -54,34 +69,54 @@ class ProjectHandlerTests(unittest.TestCase):
   def test_admin_only(self):
     """ A function that we can decorate with it for testing purposes. (The
     decorator expects it to be a class method, so it needs to have a self
-    argument. """
+    argument.) """
     @project_handler.ProjectHandler.admin_only
     def test_restricted_function(self):
       return True
 
-    """ A very basic handler proxy. We use this mainly so the decorator has a
-    response object to write to. """
-    class ProxyHandler(project_handler.ProjectHandler):
-      """ Class for simulating a request object. """
-      class ProxyRequest:
-        def __init__(self):
-          self.uri = "test"
-
-      def __init__(self):
-        self.response = webapp2.Response()
-        self.request = self.ProxyRequest()
-
     # Simulate a logged-in admin.
-    self.testbed.setup_env(user_email="testy.testerson@gmail.com",
-                           user_is_admin="1", overwrite=True)
+    user = Membership.create_user("testy.testerson@gmail.com", "notasecret",
+                                  first_name="Testy", last_name="Testerson",
+                                  hash="notahash", is_admin=True,
+                                  status="active")
+    project_handler.ProjectHandler.simulate_logged_in_user(user)
     # It should work.
-    self.assertTrue(test_restricted_function(ProxyHandler()))
+    self.assertTrue(test_restricted_function(self.ProxyHandler()))
 
     # Simulate a logged-in user that is not an admin.
-    self.testbed.setup_env(user_email="testy.testerson@gmail.com",
-                           user_is_admin="0", overwrite=True)
-    self.assertEqual(None, test_restricted_function(ProxyHandler()))
+    user.is_admin = False
+    user.put()
+    project_handler.ProjectHandler.simulate_logged_in_user(user)
+    self.assertEqual(None, test_restricted_function(self.ProxyHandler()))
 
     # Simulate a user that is not logged in.
-    self.testbed.setup_env(user_email="", user_is_admin="1", overwrite=True)
-    self.assertEqual(None, test_restricted_function(ProxyHandler()))
+    project_handler.ProjectHandler.simulate_logged_in_user(None)
+    self.assertEqual(None, test_restricted_function(self.ProxyHandler()))
+
+  """ Tests that the login_required function works as expected. """
+  def test_login_required(self):
+    """ A function that we can decorate it with for testing purposes. (The
+    decorator expects it to be a class method, so it needs to have a self
+    argument.) """
+    @project_handler.ProjectHandler.login_required
+    def test_restricted_function(self):
+      return True
+
+    # Simulate a logged-in user.
+    user = Membership.create_user("testy.testerson@gmail.com", "notasecret",
+                                  first_name="Testy", last_name="Testerson",
+                                  hash="notahash", is_admin=True,
+                                  status="active")
+    project_handler.ProjectHandler.simulate_logged_in_user(user)
+    # It should work.
+    self.assertTrue(test_restricted_function(self.ProxyHandler()))
+
+    # Simulate a logged-in user that is not an admin.
+    user.is_admin = False
+    user.put()
+    project_handler.ProjectHandler.simulate_logged_in_user(user)
+    self.assertTrue(test_restricted_function(self.ProxyHandler()))
+
+    # Simulate a user that is not logged in.
+    project_handler.ProjectHandler.simulate_logged_in_user(None)
+    self.assertEqual(None, test_restricted_function(self.ProxyHandler()))

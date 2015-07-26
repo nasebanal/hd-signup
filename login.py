@@ -3,8 +3,8 @@ Usage: Direct a user to the /login page with a redirect URL, it will redirect
 after the user has successfully authenticated. To check whether the user has
 authenticated, use the /validate_token API endpoint. """
 
-from urlparse import urlparse
 
+from urlparse import urlparse
 import cPickle as pickle
 import logging
 import urllib
@@ -54,14 +54,13 @@ class LoginHandler(ProjectHandler):
       self.__show_error(False, False, "You have not finished signing up.")
       return
     elif user.status == "suspended":
-      url_parts = urlparse(self.request.url)
-      link = "%s://%s/reactivate" % (url_parts.scheme, url_parts.netloc)
+      link = "/reactivate"
       self.__show_error(False, False,
           message="You are suspended. <a href=\"%s\">Click here</a>" \
                   " to reactivate." % (link))
       return
 
-    self.redirect(return_url)
+    self.redirect(str(return_url))
 
   """ Shows the page with an error message if the login failed.
   bad_email: True if the email was incorrect.
@@ -100,7 +99,7 @@ class LogoutHandler(ProjectHandler):
     return_url = self.request.get("url", "/")
 
     self.auth.unset_session()
-    self.redirect(return_url)
+    self.redirect(str(return_url))
 
 
 """ Handles sending a password reset email. """
