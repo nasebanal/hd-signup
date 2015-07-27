@@ -7,6 +7,8 @@ var login = {};
 login.loginBox = function() {
   // Whether the login button is enabled.
   this.loginEnabled_ = false;
+  // Whether a keyup event has been triggered on the form.
+  this.keyUpTriggered_ = false;
 
   /** Registers all the event handlers for this class.
    * @private
@@ -14,8 +16,8 @@ login.loginBox = function() {
   this.registerHandlers_ = function() {
     // Do actions whenever the user enters text.
     var outer_this = this;
-    $('input').on('keyup', function() {
-      outer_this.validateInput_();
+    $('#login-form').on('keyup change', function(event) {
+      outer_this.validateInput_(event);
     });
 
     $('#reset-password').click(function(event) {
@@ -32,14 +34,30 @@ login.loginBox = function() {
    * accordingly.
    * @private
    */
-  this.validateInput_ = function() {
+  this.validateInput_ = function(event) {
     var email = $('#email').val();
     var password = $('#password').val();
+
+    // Chrome (at least) has an idosyncrasy related to autofilling passwords:
+    // http://code.google.com/p/chromium/issues/detail?id=352527#c17
+    // Basically, the workaround for this is to check whether a change event
+    // occurs and the email is filled in without any keyup events happening. If
+    // this happens, it must be the browser autofill, so even though the
+    // password hasn't registered, we should enable the login button.
+    if (event.type == 'keyup') {
+      this.keyUpTriggered_ = true;
+    }
 
     if (!email) {
       // Empty email, this is a no-go.
       this.disableLogin_();
     } else if (password.length < 8) {
+      if (event.type == 'change' && !this.keyUpTriggered_) {
+        // Autofill.
+        this.enableLogin_();
+        return;
+      }
+
       // Password is too short.
       this.disableLogin_();
     } else {
@@ -74,10 +92,6 @@ login.loginBox = function() {
     this.loginEnabled_ = true;
   };
 
-  this.registerHandlers_();
-  // Do this initially to catch any autofill stuff.
-  this.validateInput_();
-
   /** Performs the proper action when the "forgot password" link is clicked.
    * @private
    */
@@ -106,6 +120,8 @@ login.loginBox = function() {
       $('#login-form').fadeIn();
     });
   };
+
+  this.registerHandlers_();
 };
 
 $(document).ready(function() {
