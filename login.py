@@ -41,6 +41,17 @@ class LoginHandler(ProjectHandler):
     return_url = self.request.get("url", "/")
     app_id = self.request.get("app_id")
 
+    # Rate limit requests.
+    key = "rate_limit.%s" % (email)
+    if memcache.get(key):
+      # Too many requests, deny it.
+      logging.warning("Rate limiting login for %s." % (email))
+      self.abort(429)
+      return
+    # Write to the memcache with an expiration time of one second. That way, if
+    # we see it still there again, we know we should limit the client.
+    memcache.set(key, True, time=1)
+
     # Check the password.
     try:
       # If we are getting a request from outside the domain, we shouldn't bother

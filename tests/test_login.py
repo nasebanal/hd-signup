@@ -5,6 +5,7 @@ import appengine_config
 
 import cPickle as pickle
 import json
+import time
 import unittest
 import urllib
 
@@ -52,9 +53,9 @@ class LoginHandlerTest(BaseTest):
     # Without a return URL, we should have redirected to the main page.
     self.assertEqual("http://localhost/", response.location)
 
-    # Check that the auth token is in memcache.
+    # Check that the auth token is in memcache. (Plus the rate limit thingy.)
     items = memcache.get_stats()["items"]
-    self.assertEqual(1, items)
+    self.assertEqual(2, items)
 
   """ Tests that we can give it a return URL and it will send us there. """
   def test_return_url(self):
@@ -66,7 +67,7 @@ class LoginHandlerTest(BaseTest):
 
     # There should be one token in memcache.
     items = memcache.get_stats()["items"]
-    self.assertEqual(1, items)
+    self.assertEqual(2, items)
 
   """ Tests that it responds properly when we give it a bad email. """
   def test_bad_email(self):
@@ -99,6 +100,9 @@ class LoginHandlerTest(BaseTest):
     self.member.status = "suspended"
     self.member.put()
 
+    # Wait a second so we don't get rate limited.
+    time.sleep(1)
+
     response = self.test_app.post("/login", self.params, expect_errors=True)
     self.assertEqual(401, response.status_int)
     self.assertIn("reactivate", response.body)
@@ -115,7 +119,18 @@ class LoginHandlerTest(BaseTest):
 
     # There should be two tokens in memcache.
     items = memcache.get_stats()["items"]
-    self.assertEqual(2, items)
+    self.assertEqual(3, items)
+
+  """ Tests that it rate limits an overzealous client. """
+  def test_rate_limit(self):
+    params = self.params.copy()
+    params["password"] = "badpassword"
+
+    response = self.test_app.post("/login", params, expect_errors=True)
+    self.assertEqual(401, response.status_int)
+    # Now it shouldn't be able to do another one really fast.
+    response = self.test_app.post("/login", params, expect_errors=True)
+    self.assertEqual(429, response.status_int)
 
 
 """ Tests that LogoutHandler works. """
