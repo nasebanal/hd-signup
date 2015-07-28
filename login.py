@@ -52,22 +52,22 @@ class LoginHandler(ProjectHandler):
 
     except auth.InvalidAuthIdError as e:
       logging.warning("Unknown user: %s." % (email))
-      self.__show_error(True, False)
+      self.__show_error()
       return
     except auth.InvalidPasswordError as e:
       logging.warning("Invalid password for user %s." % (email))
-      self.__show_error(False, True)
+      self.__show_error()
       return
 
     # Check that the user can log in.
     if not user.status:
-      self.__show_error(False, False, "You have not finished signing up.")
+      self.__show_error("You have not finished signing up.", keep_email=False)
       return
     elif user.status == "suspended":
       link = "/reactivate"
-      self.__show_error(False, False,
+      self.__show_error(
           message="You are suspended. <a href=\"%s\">Click here</a>" \
-                  " to reactivate." % (link))
+                  " to reactivate." % (link), keep_email=False)
       return
 
     # Check whether we should include a token.
@@ -84,24 +84,19 @@ class LoginHandler(ProjectHandler):
     self.redirect(str(return_url))
 
   """ Shows the page with an error message if the login failed.
-  bad_email: True if the email was incorrect.
-  bad_password: True if the password was incorrect.
-  message: Optional means to explicitly specify the message to show. """
-  def __show_error(self, bad_email, bad_password, message=None):
+  message: Optional means to explicitly specify the message to show.
+  keep_email: Whether to keep the email showing. """
+  def __show_error(self, message=None, keep_email=True):
     email = self.request.get("email")
     return_url = self.request.get("return_url")
 
     show_email = ""
-    forgot_password = False
-    if (bad_email):
-      if not message:
-        message = "Email not found."
-    elif bad_password:
-      # If the email was okay, keep it there.
-      if not message:
-        message = "Password is incorrect."
+    forgot_password=False
+    if not message:
+      message = "Invalid login."
+      forgot_password=True
+    if keep_email:
       show_email = email
-      forgot_password = True
 
     response = self.render("templates/login.html", return_url=return_url,
                            message=message, email=show_email,

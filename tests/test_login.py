@@ -75,7 +75,7 @@ class LoginHandlerTest(BaseTest):
     response = self.test_app.post("/login", params, expect_errors=True)
     self.assertEqual(401, response.status_int)
 
-    self.assertIn("not found", response.body)
+    self.assertIn("Invalid login", response.body)
 
   """ Tests that it responds properly when we give it a bad password. """
   def test_bad_password(self):
@@ -84,7 +84,7 @@ class LoginHandlerTest(BaseTest):
     response = self.test_app.post("/login", params, expect_errors=True)
     self.assertEqual(401, response.status_int)
 
-    self.assertIn("is incorrect", response.body)
+    self.assertIn("Invalid login", response.body)
 
   """ Tests that it doesn't let the user log in if they are suspended or have no
   status. """
