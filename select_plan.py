@@ -1,8 +1,6 @@
 import logging
 import urllib
 
-from google.appengine.api import users
-
 from config import Config
 from membership import Membership
 from project_handler import ProjectHandler
@@ -68,19 +66,15 @@ class _PlanChangerBase(ProjectHandler):
 
 """ Allows the user to change their plan. """
 class ChangePlanHandler(_PlanChangerBase):
+  @ProjectHandler.login_required
   def get(self):
-    user = users.get_current_user()
-    if not user:
-      logging.debug("Need to login.")
-      self.redirect(users.create_login_url(self.request.uri))
-      return
-
-    member = Membership.get_by_email(user.email())
+    user = self.current_user()
+    member = Membership.get_by_email(user["email"])
 
     if not member:
       # This member doesn't exist.
-      logging.error("No member with email '%s'." % (user.email()))
-      logout_url = users.create_logout_url(self.request.uri)
+      logging.error("No member with email '%s'." % (user["email"]))
+      logout_url = self.create_logout_url(self.request.uri)
       error = self.render("templates/error.html",
                           message="No member with your email was found.<br>" \
                           "<a href=%s>Try Again</a>" % (logout_url))

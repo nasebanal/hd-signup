@@ -150,11 +150,7 @@ class ForgottenPasswordHandler(ProjectHandler):
       return
 
     member = Membership.get_by_email(email)
-    if not member.password_reset_token:
-      token = member.create_password_reset_token()
-    else:
-      logging.info("Using already created password reset token.")
-      token = pickle.loads(str(member.password_reset_token)).token
+    token = member.create_password_reset_token()
 
     # Create the reset URL.
     url_parts = urlparse(self.request.url)

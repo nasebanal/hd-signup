@@ -6,11 +6,11 @@ import appengine_config
 
 import unittest
 
-from google.appengine.api import users
 from google.appengine.ext import testbed
 
 import webtest
 
+from project_handler import ProjectHandler
 from membership import Membership
 import billing
 import plans
@@ -26,7 +26,6 @@ class BaseTest(unittest.TestCase):
     self.testbed = testbed.Testbed()
     self.testbed.activate()
     self.testbed.init_datastore_v3_stub()
-    self.testbed.init_user_stub()
 
     # Make some testing plans.
     self.test_plan = plans.Plan("test", 0, 150, "This is a test plan.")
@@ -42,8 +41,7 @@ class BaseTest(unittest.TestCase):
     self.user.put()
 
     # Simulate the user login.
-    self.testbed.setup_env(user_email=self.user.email, user_is_admin="0",
-                           overwrite=True)
+    ProjectHandler.simulate_logged_in_user(self.user)
 
   def tearDown(self):
     self.testbed.deactivate()
@@ -61,12 +59,12 @@ class BillingHandlerTest(BaseTest):
   """ Tests that it forces the user to be logged in. """
   def test_login(self):
     # Simulate no logged in user.
-    self.testbed.setup_env(user_email="", overwrite=True)
+    ProjectHandler.simulate_logged_in_user(None)
 
     response = self.test_app.get("/my_billing")
     self.assertEqual(302, response.status_int)
 
-    self.assertIn("/accounts/Login", response.location)
+    self.assertIn("/login", response.location)
 
   """ Tests that it shows the legacy plan warning. """
   def test_legacy_warning(self):

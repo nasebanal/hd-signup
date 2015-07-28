@@ -4,7 +4,7 @@ import json
 import sys
 
 import datetime, hashlib, urllib, re
-from google.appengine.api import urlfetch, mail, users, taskqueue
+from google.appengine.api import urlfetch, mail, taskqueue
 from google.appengine.ext import db
 
 from config import Config
@@ -40,14 +40,14 @@ class MainHandler(ProjectHandler):
 
       if plan != "choose":
         # A plan was specified. Make sure it's valid.
-        valid = plans.Plan.can_subscribe(plan)
+        valid = plans.Plan.can_subscribe(plan, self.current_user())
         if valid == None:
           # Nonexistent plan. Just ignore it.
           plan = "choose"
         elif valid == False:
           # Bad plan. Show error, and give users a chance to authenticate as an
           # admin.
-          login_url = users.create_login_url(self.request.uri)
+          login_url = self.create_login_url(self.request.uri)
           self.response.out.write(self.render("templates/error.html",
                                   internal=False,
                                   message="Plan '%s' is not available for you. \
@@ -473,128 +473,102 @@ class ReactivateHandler(ProjectHandler):
 
 
 class ProfileHandler(ProjectHandler):
-    def get(self):
-      user = users.get_current_user()
-      if not user:
-          self.redirect(users.create_login_url("/profile"))
-          return
-      else:
-          account = Membership.get_by_email(user.email())
-          email = "%s@%s" % (account.username, Config().APPS_DOMAIN)
-          gravatar_url = "http://www.gravatar.com/avatar/" + \
-              hashlib.md5(email.lower()).hexdigest()
-          self.response.out.write(self.render("templates/profile.html", locals()))
-
+  @ProjectHandler.login_required
+  def get(self):
+    current_user = self.current_user()
+    email = current_user["email"]
+    account = Membership.get_by_email(email)
+    gravatar_url = "http://www.gravatar.com/avatar/" + \
+        hashlib.md5(email.lower()).hexdigest()
+    self.response.out.write(self.render("templates/profile.html", locals()))
 
 class KeyHandler(ProjectHandler):
-    def get(self):
-        user = users.get_current_user()
-        conf = Config()
-        message = escape(self.request.get("message"))
-        if not user:
-            self.redirect(users.create_login_url("/key"))
-            return
-        else:
-            account = Membership.get_by_email(user.email())
-            if not account or not account.spreedly_token:
-                message = """<p>It appears that you have an account on @%(domain)s, but you do not have a corresponding account in the signup application.</p>
-                <p>How to remedy:</p>
-                <ol><li>If you <b>are not</b> in the Spreedly system yet, <a href=\"/\">sign up</a> now.</li>
-                <li>If you <b>are</b> in Spreedly already, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a>.</li></ol>
-                <pre>Nick: %(nick)s</pre>
-                <pre>Email: %(email)s</pre>
-                <pre>Account: %(account)s</pre>
-                """ % {"domain": conf.APPS_DOMAIN,
-                       "signup_email": conf.SIGNUP_HELP_EMAIL,
-                       "nick": user.nickname().split("@")[0],
-                       "email": user.email(), "account": account}
-                if account:
-                    message += "<pre>Token: %s</pre>" % account.spreedly_token
+  @ProjectHandler.login_required
+  def get(self):
+    user = self.current_user()
+    conf = Config()
+    message = escape(self.request.get("message"))
+    account = Membership.get_by_email(user["email"])
 
-                internal = False
-                self.response.out.write(self.render("templates/error.html", locals()))
-                return
-            if account.status != "active":
-                url = "https://subs.pinpayments.com/"+conf.SPREEDLY_ACCOUNT+"/subscriber_accounts/" + account.spreedly_token
-                message = """<p>Your Spreedly account status does not appear to me marked as active. This might be a mistake, in which case we apologize. </p>
-                <p>To investigate your account, you may go here: <a href=\"%(url)s\">%(url)s</a> </p>
-                <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a></p>
-                """ % {"url": url, "signup_email": conf.SIGNUP_HELP_EMAIL}
-                internal = False
-                self.response.out.write(self.render("templates/error.html", locals()))
-                return
-            delta = datetime.datetime.utcnow() - account.created
-            if delta.days < conf.DAYS_FOR_KEY:
-                message = """<p>You have been a member for %(deltadays)s days.
-                After %(days)s days you qualify for a key.  Check back in %(delta)s days!</p>
-                <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Membership+create+date+not+correct\">%(signup_email)s</a>.</p>
-                """ % {"deltadays": delta.days, "days": conf.DAYS_FOR_KEY,
-                       "delta": conf.DAYS_FOR_KEY - delta.days,
-                       "signup_email": SIGNUP_HELP_EMAIL}
-                internal = False
-                self.response.out.write(self.render("templates/error.html", locals()))
-                return
-            bc = BadgeChange.all().filter("username =", account.username).fetch(100)
-            pp = account.parking_pass
-            self.response.out.write(self.render("templates/key.html", locals()))
+    if account.status != "active":
+        url = "https://subs.pinpayments.com/"+conf.SPREEDLY_ACCOUNT+"/subscriber_accounts/" + account.spreedly_token
+        message = """<p>Your Spreedly account status does not appear to me marked as active. This might be a mistake, in which case we apologize. </p>
+        <p>To investigate your account, you may go here: <a href=\"%(url)s\">%(url)s</a> </p>
+        <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Spreedly+account+not+linked+to+account\">%(signup_email)s</a></p>
+        """ % {"url": url, "signup_email": conf.SIGNUP_HELP_EMAIL}
+        internal = False
+        self.response.out.write(self.render("templates/error.html", locals()))
+        return
+    delta = datetime.datetime.utcnow() - account.created
+    if delta.days < conf.DAYS_FOR_KEY:
+        message = """<p>You have been a member for %(deltadays)s days.
+        After %(days)s days you qualify for a key.  Check back in %(delta)s days!</p>
+        <p>If you believe this message is in error, please contact <a href=\"mailto:%(signup_email)s?Subject=Membership+create+date+not+correct\">%(signup_email)s</a>.</p>
+        """ % {"deltadays": delta.days, "days": conf.DAYS_FOR_KEY,
+                "delta": conf.DAYS_FOR_KEY - delta.days,
+                "signup_email": SIGNUP_HELP_EMAIL}
+        internal = False
+        self.response.out.write(self.render("templates/error.html", locals()))
+        return
+    bc = BadgeChange.all().filter("username =", account.username).fetch(100)
+    pp = account.parking_pass
+    self.response.out.write(self.render("templates/key.html", locals()))
 
-    def post(self):
-      user = users.get_current_user()
-      if not user:
-          self.redirect(users.create_login_url("/key"))
+  @ProjectHandler.login_required
+  def post(self):
+    user = self.current_user()
+    account = Membership.get_by_email(user["email"])
+    if not account or not account.spreedly_token or account.status != "active":
+          message = "Error #1982, which should never happen."
+          internal = True
+          self.response.out.write(self.render("templates/error.html", locals()))
           return
-      account = Membership.all().filter("username =", user.nickname().split("@")[0]).get()
-      if not account or not account.spreedly_token or account.status != "active":
-            message = "Error #1982, which should never happen."
-            internal = True
-            self.response.out.write(self.render("templates/error.html", locals()))
-            return
-      is_park = self.request.get("ispark")
-      if is_park == "True": #checks if user input is a parking pass number or an rfid number
-        pass_to_add = self.request.get("parking_pass")
-        try: #tests if there are only numbers in the parking pass
-          float(pass_to_add)
-        except ValueError:
-          message = "<p>A Parking Pass may only contain numbers.</p><a href=\"/key\">Try Again</a>"
+    is_park = self.request.get("ispark")
+    if is_park == "True": #checks if user input is a parking pass number or an rfid number
+      pass_to_add = self.request.get("parking_pass")
+      try: #tests if there are only numbers in the parking pass
+        float(pass_to_add)
+      except ValueError:
+        message = "<p>A Parking Pass may only contain numbers.</p><a href=\"/key\">Try Again</a>"
+        internal = False
+        self.response.out.write(self.render("templates/error.html", locals()))
+        return
+      account.parking_pass = pass_to_add
+
+      logging.debug("Setting parking pass for %s to %s." % \
+                    (account.full_name(), account.parking_pass))
+
+      db.put(account)
+      self.response.out.write(self.render("templates/pass_ok.html", locals())) #outputs the parking number
+    else:
+      rfid_tag = self.request.get("rfid_tag").strip()
+      description = self.request.get("description").strip()
+      if rfid_tag.isdigit():
+        if Membership.all().filter("rfid_tag =", rfid_tag).get():
+          message = "<p>That RFID tag is in use by someone else.</p>"
           internal = False
           self.response.out.write(self.render("templates/error.html", locals()))
           return
-        account.parking_pass = pass_to_add
+        if not description:
+          message = "<p>Please enter a reason why you are associating a replacement RFID key.  Please hit BACK and try again.</p>"
+          internal = False
+          self.response.out.write(self.render("templates/error.html", locals()))
+          return
+        account.rfid_tag = rfid_tag
 
-        logging.debug("Setting parking pass for %s to %s." % \
-                      (account.full_name(), account.parking_pass))
+        logging.debug("Setting RFID for %s to %s." % (account.full_name(),
+                                                      account.rfid_tag))
 
-        db.put(account)
-        self.response.out.write(self.render("templates/pass_ok.html", locals())) #outputs the parking number
+        account.put()
+        bc = BadgeChange(rfid_tag = rfid_tag, username=account.username, description=description)
+        bc.put()
+        self.response.out.write(self.render("templates/key_ok.html", locals()))
+        return
       else:
-        rfid_tag = self.request.get("rfid_tag").strip()
-        description = self.request.get("description").strip()
-        if rfid_tag.isdigit():
-          if Membership.all().filter("rfid_tag =", rfid_tag).get():
-            message = "<p>That RFID tag is in use by someone else.</p>"
-            internal = False
-            self.response.out.write(self.render("templates/error.html", locals()))
-            return
-          if not description:
-            message = "<p>Please enter a reason why you are associating a replacement RFID key.  Please hit BACK and try again.</p>"
-            internal = False
-            self.response.out.write(self.render("templates/error.html", locals()))
-            return
-          account.rfid_tag = rfid_tag
-
-          logging.debug("Setting RFID for %s to %s." % (account.full_name(),
-                                                        account.rfid_tag))
-
-          account.put()
-          bc = BadgeChange(rfid_tag = rfid_tag, username=account.username, description=description)
-          bc.put()
-          self.response.out.write(self.render("templates/key_ok.html", locals()))
-          return
-        else:
-          message = "<p>That RFID ID seemed invalid. Hit back and try again.</p>"
-          internal = False
-          self.response.out.write(self.render("templates/error.html", locals()))
-          return
+        message = "<p>That RFID ID seemed invalid. Hit back and try again.</p>"
+        internal = False
+        self.response.out.write(self.render("templates/error.html", locals()))
+        return
 
 
 class GenLinkHandler(ProjectHandler):

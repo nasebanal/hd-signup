@@ -99,16 +99,16 @@ class PlanTests(unittest.TestCase):
   """ Tests that it correctly detects when we can and can't put people on
   various plans. """
   def test_can_subscribe(self):
-    self.assertTrue(Plan.can_subscribe("plan1"))
-    self.assertTrue(Plan.can_subscribe("plan2"))
-    self.assertFalse(Plan.can_subscribe("plan3"))
-    self.assertFalse(Plan.can_subscribe("plan4"))
-    self.assertFalse(Plan.can_subscribe("plan5"))
+    self.assertTrue(Plan.can_subscribe("plan1", None))
+    self.assertTrue(Plan.can_subscribe("plan2", None))
+    self.assertFalse(Plan.can_subscribe("plan3", None))
+    self.assertFalse(Plan.can_subscribe("plan4", None))
+    self.assertFalse(Plan.can_subscribe("plan5", None))
 
     # Test that it lets us sign up for plan 5 if we are an admin.
-    self.testbed.setup_env(user_is_admin="1")
+    member = {"is_admin": True}
 
-    self.assertTrue(Plan.can_subscribe("plan5"))
+    self.assertTrue(Plan.can_subscribe("plan5", member))
 
   """ Tests that it correctly counts members from normal plans and their legacy
   versions together. """

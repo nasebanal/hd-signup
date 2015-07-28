@@ -9,13 +9,11 @@ from plans import Plan
 from project_handler import BaseApp, ProjectHandler
 
 class BillingHandler(ProjectHandler):
+  @ProjectHandler.login_required
   def get(self):
-    user = users.get_current_user()
-    if not user:
-      self.redirect(users.create_login_url(self.request.uri))
-      return
+    user = self.current_user()
+    member = Membership.get_by_email(user["email"])
 
-    member = Membership.get_by_email(user.email())
     if not member:
       # User is not (yet) a member.
       self.redirect("/")

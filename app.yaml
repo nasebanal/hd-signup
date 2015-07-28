@@ -20,13 +20,11 @@ handlers:
   script: google.appengine.ext.remote_api.handler.app
 - url: /my_billing
   script: billing.app
-  login: required
 - url: /_ah/queue/deferred
   script: google.appengine.ext.deferred.handler.app
   login: admin
 - url: /_km/.*
   script: keymaster_handler.app
-  login: admin
 - url: /api/v1/.*
   script: user_api.app
 - url: /cron/.*

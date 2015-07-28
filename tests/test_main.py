@@ -186,8 +186,10 @@ class MainHandlerTest(BaseTest):
     self.assertIn("is not available", response.body)
 
     # If we're logged in as an admin, though, it should let us.
-    self.testbed.setup_env(user_email=self._TEST_PARAMS["email"],
-                           user_is_admin="1", overwrite=True)
+    user = Membership.create_user(self._TEST_PARAMS["email"], "notasecret",
+                                  first_name="Testy", last_name="Testerson",
+                                  is_admin=True)
+    ProjectHandler.simulate_logged_in_user(user)
     query = urllib.urlencode({"plan": unavailable_plan.name})
     response = self.test_app.get("/?" + query)
     self.assertEqual(200, response.status_int)
@@ -553,8 +555,7 @@ class ChangePlanHandlerTest(PlanSelectionTestBase):
     self.user.put()
 
     # Login our test user.
-    self.testbed.init_user_stub()
-    self.testbed.setup_env(user_email="ttesterson@gmail.com", overwrite=True)
+    ProjectHandler.simulate_logged_in_user(self.user)
 
   """ Tests that the plan selection page looks normal. """
   def __check_page(self):
@@ -593,16 +594,11 @@ class ChangePlanHandlerTest(PlanSelectionTestBase):
     self.assertEqual(422, response.status_int)
     self.assertIn("any plan", response.body)
 
-  """ Tests that it deals with using the hackerdojo email properly. """
-  def test_hackerdojo_email(self):
-    self.testbed.setup_env(user_email="testy.testerson@hackerdojo.com",
-                           overwrite=True)
-
-    self.__check_page()
-
   """ Tests that it responds properly when an invalid person logs in. """
   def test_invalid_email(self):
-    self.testbed.setup_env(user_email="bad_email@gmail.com", overwrite=True)
+    bad_user = Membership(first_name="Bad", last_name="User",
+                          email="bad_email@gmail.com")
+    ProjectHandler.simulate_logged_in_user(bad_user)
 
     response = self.test_app.get("/change_plan", expect_errors=True)
     self.assertEqual(422, response.status_int)

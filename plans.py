@@ -4,10 +4,10 @@
 import datetime
 import logging
 
-from google.appengine.api import users
 from google.appengine.ext import db
 
 from config import Config
+from project_handler import ProjectHandler
 import keymaster
 import membership
 
@@ -179,10 +179,12 @@ class Plan:
   """ Checks whether a user requesting this plan at the beginning of the signup
   process should be allowed to use it.
   name: The name of the plan being requested.
+  user: The user requesting the plan, as returned by
+  ProjectHandler.current_user. Can be None if no user is logged in.
   Returns: True if they can use the plan, False if they can't, None if no such
   plan exists. """
   @classmethod
-  def can_subscribe(cls, name):
+  def can_subscribe(cls, name, user):
     try:
       plan = cls.get_by_name(name)
     except ValueError:
@@ -193,7 +195,7 @@ class Plan:
       logging.warning("Can't use plan '%s' because it's full." % (name))
       return False
     if plan.admin_only:
-      if not users.is_current_user_admin():
+      if (not user or not user["is_admin"]):
         logging.warning("Only an admin can put someone on plan '%s'." % (name))
         return False
 
