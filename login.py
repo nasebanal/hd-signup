@@ -6,38 +6,48 @@ authenticated, use the /validate_token API endpoint. """
 
 from urlparse import urlparse
 import cPickle as pickle
+import json
 import logging
 import urllib
 
-from google.appengine.api import mail
+from google.appengine.api import mail, memcache
 
 from webapp2_extras import auth
 
 from config import Config
 from project_handler import ProjectHandler
-from membership import Membership
+from membership import Membership, UserToken
+from user_api import ApiHandlerBase
 
 
 """ Handles creating a login page and logging a user in. """
 class LoginHandler(ProjectHandler):
   """ Parameters:
+  app_id: The Appengine ID of the application making the request. If this is not
+  included with a url parameter, it will be assumed that the current app is
+  making the request and no token will be included in the redirect request.
+  Otherwise, a token will be included that will allow the app specified to
+  confirm that the logged in user is still logged in using /validate_token.
   url: A URL to send the user to after they have successfully logged in.
-  Defaults to the home page. """
+  Defaults to the home page.
+  """
   def get(self):
-    return_url = self.request.get("url", "/")
-
-    response = self.render("templates/login.html", return_url=return_url)
+    response = self.render("templates/login.html")
     self.response.out.write(response)
 
   def post(self):
     email = self.request.get("email")
     password = self.request.get("password")
     return_url = self.request.get("url", "/")
+    app_id = self.request.get("app_id")
 
     # Check the password.
     try:
+      # If we are getting a request from outside the domain, we shouldn't bother
+      # saving a cookie on this one.
+      remember = not app_id
       user_info = \
-          self.auth.get_user_by_password(email, password, remember=True)
+          self.auth.get_user_by_password(email, password, remember=remember)
       user = Membership.get_by_hash(user_info["hash"])
 
     except auth.InvalidAuthIdError as e:
@@ -59,6 +69,17 @@ class LoginHandler(ProjectHandler):
           message="You are suspended. <a href=\"%s\">Click here</a>" \
                   " to reactivate." % (link))
       return
+
+    # Check whether we should include a token.
+    if app_id:
+      logging.debug("Got request from %s, adding token." % (app_id))
+
+      # Generate a new token that we can use to verify that this user is logged
+      # in.
+      token = UserToken(user.get_id(), app_id)
+      token.save()
+      query_str = urllib.urlencode({"token": token.token})
+      return_url = "%s?%s" % (return_url, query_str)
 
     self.redirect(str(return_url))
 
@@ -91,14 +112,30 @@ class LoginHandler(ProjectHandler):
 
 
 """ Handles logging a user out. """
-class LogoutHandler(ProjectHandler):
-  """ Parameters:
+class LogoutHandler(ApiHandlerBase, ProjectHandler):
+  """ Request Parameters:
   url: A URL to send the user to after they have been logged out. Defaults to
-  the home page. """
+  the home page.
+  If we are logging a user out from an external domain, then we also need the
+  following parameters: (This condition is detected by whether the app_id
+  parameter is present.)
+  app_id: The App ID of the app we are logging the user out from.
+  user: The unique ID of the user to log out.
+  token: The token corresponding for this user. """
   def get(self):
     return_url = self.request.get("url", "/")
+    app_id = self.request.get("app_id")
 
-    self.auth.unset_session()
+    if not app_id:
+      self.auth.unset_session()
+    else:
+      # If we are from another domain, we actually want to delete a different
+      # token.
+      user, token = self._get_parameters("user", "token")
+      key = "%s.%s.%s" % (user, app_id, token)
+      logging.debug("Deleting token: %s" % (key))
+      memcache.delete(key)
+
     self.redirect(str(return_url))
 
 
@@ -191,3 +228,37 @@ class PasswordResetHandler(ProjectHandler):
 
     response = self.render("templates/password_reset.html", done=True)
     self.response.out.write(response)
+
+
+""" Checks that an authentication token is valid. This is meant to be used by
+other domains who want to authenticate users. The tokens that they should use
+are the ones that they receive from /login. """
+class ValidateTokenHandler(ApiHandlerBase):
+  """ Validates a token.
+  Request parameters:
+  user: The unique user ID for the user that this token belongs to.
+  token: The actual token to validate.
+  Response:
+  valid: Whether or not the token is valid. """
+  @ApiHandlerBase.restricted
+  def post(self):
+    user_id, token = self._get_parameters("user", "token")
+    if not token:
+      return
+
+    app_id = self.request.headers.get("X-Appengine-Inbound-Appid", None)
+
+    # Check that the token exists.
+    remembered_token = UserToken.verify(user_id, app_id, token)
+
+    if remembered_token:
+      # The token was verified sucessfully.
+      logging.info("Verified token for user %s from app %s." % \
+                   (user_id, app_id))
+      response = {"valid": True}
+    else:
+      # The token is invalid.
+      logging.warning("Invalid token: %s.%s.%s." % (user_id, app_id, token))
+      response = {"valid": False}
+
+    self.response.out.write(json.dumps(response))

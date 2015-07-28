@@ -630,4 +630,5 @@ app = BaseApp([
         ("/logout", LogoutHandler),
         ("/forgot_password", ForgottenPasswordHandler),
         ("/reset_password", PasswordResetHandler),
+        ("/validate_token", ValidateTokenHandler),
         ], debug=True)

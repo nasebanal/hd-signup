@@ -4,9 +4,11 @@
 import appengine_config
 
 import cPickle as pickle
+import json
 import unittest
 import urllib
 
+from google.appengine.api import memcache
 from google.appengine.ext import testbed
 
 import webtest
@@ -29,16 +31,7 @@ class BaseTest(unittest.TestCase):
     self.testbed.init_memcache_stub()
     self.testbed.init_mail_stub()
 
-  def tearDown(self):
-    self.testbed.deactivate()
-
-
-""" Tests that LoginHandler works. """
-class LoginHandlerTest(BaseTest):
-  def setUp(self):
-    super(LoginHandlerTest, self).setUp()
-
-    # Make a user to test logging in.
+    # Make a user to test with.
     self.member = Membership.create_user("testy.testerson@gmail.com", "notasecret",
                                     first_name="Testy", last_name="Testerson",
                                     hash="notahash", status="active")
@@ -46,6 +39,12 @@ class LoginHandlerTest(BaseTest):
     # Testing parameters for logging in.
     self.params = {"email": self.member.email, "password": "notasecret"}
 
+  def tearDown(self):
+    self.testbed.deactivate()
+
+
+""" Tests that LoginHandler works. """
+class LoginHandlerTest(BaseTest):
   """ Tests that we can log in successfully. """
   def test_login(self):
     response = self.test_app.post("/login", self.params)
@@ -53,18 +52,21 @@ class LoginHandlerTest(BaseTest):
     # Without a return URL, we should have redirected to the main page.
     self.assertEqual("http://localhost/", response.location)
 
+    # Check that the auth token is in memcache.
+    items = memcache.get_stats()["items"]
+    self.assertEqual(1, items)
+
   """ Tests that we can give it a return URL and it will send us there. """
   def test_return_url(self):
-    query_str = urllib.urlencode({"url": "http://www.google.com"})
-    response = self.test_app.get("/login?" + query_str)
-    self.assertEqual(200, response.status_int)
-    self.assertIn("http://www.google.com", response.body)
-
     params = self.params.copy()
     params["url"] = "http://www.google.com"
     response = self.test_app.post("/login", params)
     self.assertEqual(302, response.status_int)
     self.assertEqual("http://www.google.com", response.location)
+
+    # There should be one token in memcache.
+    items = memcache.get_stats()["items"]
+    self.assertEqual(1, items)
 
   """ Tests that it responds properly when we give it a bad email. """
   def test_bad_email(self):
@@ -101,6 +103,20 @@ class LoginHandlerTest(BaseTest):
     self.assertEqual(401, response.status_int)
     self.assertIn("reactivate", response.body)
 
+  """ Tests that it gives us a token when we ask for one. """
+  def test_token(self):
+    params = self.params.copy()
+    params["url"] = "http://events.hackerdojo.com"
+    params["app_id"] = "hd-events-hrd"
+
+    response = self.test_app.post("/login", params)
+    self.assertEqual(302, response.status_int)
+    self.assertIn("token=", response.location)
+
+    # There should be two tokens in memcache.
+    items = memcache.get_stats()["items"]
+    self.assertEqual(2, items)
+
 
 """ Tests that LogoutHandler works. """
 class LogoutHandlerTest(BaseTest):
@@ -124,10 +140,6 @@ class ForgottenPasswordHandlerTest(BaseTest):
     super(ForgottenPasswordHandlerTest, self).setUp()
 
     self.mail_stub = self.testbed.get_stub(testbed.MAIL_SERVICE_NAME)
-    # Make a user to test with.
-    self.member = Membership.create_user("testy.testerson@gmail.com",
-        "notasecret", first_name="Testy", last_name="Testerson",
-        hash="notahash")
 
     # Default parameters for test request.
     self.params = {"email": self.member.email}
@@ -171,10 +183,6 @@ class PasswordResetHandlerTest(BaseTest):
   def setUp(self):
     super(PasswordResetHandlerTest, self).setUp()
 
-    # Make a user to test with.
-    self.member = Membership.create_user("testy.testerson@gmail.com",
-        "notasecret", first_name="Testy", last_name="Testerson",
-        hash="notahash")
     self.token = self.member.create_password_reset_token()
 
     params = {"user": self.member.hash, "token": self.token}
@@ -230,3 +238,65 @@ class PasswordResetHandlerTest(BaseTest):
     response = self.test_app.post("/reset_password?" + query_str, self.params,
                                   expect_errors=True)
     self.assertEqual(401, response.status_int)
+
+
+""" Tests that ValidateTokenHandler works properly. """
+class ValidateTokenHandlerTest(BaseTest):
+  def setUp(self):
+    super(ValidateTokenHandlerTest, self).setUp()
+
+    params = self.params.copy()
+    params["url"] = "http://events.hackerdojo.com"
+    params["app_id"] = "hd-events-hrd"
+
+    # Log in the user and create a token.
+    response = self.test_app.post("/login", params)
+    self.assertEqual(302, response.status_int)
+    self.token = response.location.split("=").pop()
+
+  """ Tests that it can detect a valid token. """
+  def test_valid_token(self):
+    # Forge the headers so that it thinks it's coming from the events app.
+    headers = {"X-Appengine-Inbound-Appid": "hd-events-hrd"}
+
+    params = {"user": self.member.get_id(), "token": self.token}
+    response = self.test_app.post("/validate_token", params, headers=headers)
+    self.assertEqual(200, response.status_int)
+    self.assertEqual({"valid": True}, json.loads(response.body))
+
+  """ Tests that various other versions of this check come back with an invalid
+  message. """
+  def test_invalid_token(self):
+    # Wrong app.
+    headers = {"X-Appengine-Inbound-Appid": "hd-signin-hrd"}
+    params = {"user": self.member.get_id(), "token": self.token}
+    response = self.test_app.post("/validate_token", params, headers=headers)
+    self.assertEqual(200, response.status_int)
+    self.assertEqual({"valid": False}, json.loads(response.body))
+
+    # Wrong user.
+    headers = {"X-Appengine-Inbound-Appid": "hd-events-hrd"}
+    params = {"user": self.member.get_id() + 1, "token": self.token}
+    response = self.test_app.post("/validate_token", params, headers=headers)
+    self.assertEqual(200, response.status_int)
+    self.assertEqual({"valid": False}, json.loads(response.body))
+
+    # Wrong token.
+    headers = {"X-Appengine-Inbound-Appid": "hd-events-hrd"}
+    params = {"user": self.member.get_id(), "token": "notatoken"}
+    response = self.test_app.post("/validate_token", params, headers=headers)
+    self.assertEqual(200, response.status_int)
+    self.assertEqual({"valid": False}, json.loads(response.body))
+
+  """ Tests that logging out invalidates the token. """
+  def test_logout(self):
+    params = {"url": "http://events.hackerdojo.com", "app_id": "hd-events-hrd",
+              "user": self.member.get_id(), "token": self.token}
+    response = self.test_app.get("/logout", params)
+    self.assertEqual(302, response.status_int)
+
+    headers = {"X-Appengine-Inbound-Appid": "hd-events-hrd"}
+    params = {"user": self.member.get_id(), "token": self.token}
+    response = self.test_app.post("/validate_token", params, headers=headers)
+    self.assertEqual(200, response.status_int)
+    self.assertEqual({"valid": False}, json.loads(response.body))

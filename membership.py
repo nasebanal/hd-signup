@@ -213,7 +213,6 @@ class Membership(db.Model):
 
     return True
 
-
   """ Creates a new authorization token for a given user ID.
   user_id: User unique ID.
   Returns: A string with the authorization token. """

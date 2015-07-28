@@ -103,7 +103,7 @@ class ProjectHandler(webapp2.RequestHandler):
     cls.simulated_user = user
 
   """ Checks if a current user is logged in.
-  Returns: The a dict with information about the current logged in user,
+  Returns: A dict with information about the current logged in user,
   or None. """
   def current_user(self):
     simulated_user = ProjectHandler.simulated_user
