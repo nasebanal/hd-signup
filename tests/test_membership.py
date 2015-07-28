@@ -6,7 +6,9 @@ import appengine_config
 
 from google.appengine.ext import testbed
 
-from webapp2_extras import auth, security
+from webapp2_extras import auth
+
+from passlib.hash import pbkdf2_sha256
 
 import datetime
 import unittest
@@ -98,7 +100,7 @@ class MembershipTest(BaseTest):
   def test_password_auth(self):
     # Give the user a password.
     password = "notasecret"
-    password_hash = security.generate_password_hash(password)
+    password_hash = pbkdf2_sha256.encrypt(password, rounds=10)
     self.user.password_hash = password_hash
     self.user.put()
 

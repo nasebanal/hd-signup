@@ -9,6 +9,8 @@ from google.appengine.ext import db
 
 from webapp2_extras import auth, security
 
+from passlib.hash import pbkdf2_sha256
+
 from config import Config
 import plans
 
@@ -54,6 +56,19 @@ class UserToken:
   def verify(cls, user, subject, token):
     key = "%s.%s.%s" % (user, subject, token)
     return memcache.get(key)
+
+
+""" Hashes a password using the pbkdf2 algorithm.
+password: The password to hash.
+Returns: The hashed password. """
+def _hash_password(password):
+  # If we are unit testing, decrease the number of rounds so that the tests run
+  # fast.
+  rounds = 29000
+  if Config().is_testing:
+    rounds = 10
+
+  return pbkdf2_sha256.encrypt(password, rounds=rounds)
 
 
 """ A class for managing HackerDojo members. """
@@ -177,7 +192,7 @@ class Membership(db.Model):
   def set_password(self, password):
     logging.debug("Setting password for user %s." % (self.email))
 
-    self.password_hash = security.generate_password_hash(password, length=12)
+    self.password_hash = _hash_password(password)
 
   """ Creates a password reset token for the user.
   Returns: The token that was created. """
@@ -262,7 +277,11 @@ class Membership(db.Model):
     if not user:
       raise auth.InvalidAuthIdError("No user with email '%s'." % (email))
 
-    if not security.check_password_hash(password, user.password_hash):
+    try:
+      valid = pbkdf2_sha256.verify(password, user.password_hash)
+    except TypeError:
+      raise auth.InvalidPasswordError("Bad password for user '%s'." % (email))
+    if not valid:
       raise auth.InvalidPasswordError("Bad password for user '%s'." % (email))
 
     return user
@@ -303,7 +322,7 @@ class Membership(db.Model):
     logging.info("Creating user with email '%s', other properties: %s." % \
                  (email, other_properties))
 
-    password_hash = security.generate_password_hash(password, length=12)
+    password_hash = _hash_password(password)
     member = cls(email=email, password_hash=password_hash, **other_properties)
     member.put()
 

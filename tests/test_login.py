@@ -161,23 +161,6 @@ class ForgottenPasswordHandlerTest(BaseTest):
     self.assertIn(token, body)
     self.assertIn(str(member.hash), body)
 
-  """ Tests that it uses the same token if we tell it to reset the password
-  multiple times. """
-  def test_reused_token(self):
-    response = self.test_app.post("/forgot_password", self.params)
-    self.assertEqual(200, response.status_int)
-
-    member = Membership.get_by_id(self.member.key().id())
-    token = pickle.loads(str(member.password_reset_token)).token
-
-    response = self.test_app.post("/forgot_password", self.params)
-    self.assertEqual(200, response.status_int)
-
-    member = Membership.get_by_id(self.member.key().id())
-    new_token = pickle.loads(str(member.password_reset_token)).token
-
-    self.assertEqual(token, new_token)
-
 
 class PasswordResetHandlerTest(BaseTest):
   def setUp(self):
