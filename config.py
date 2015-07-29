@@ -69,17 +69,23 @@ class Config:
 
     if Config.is_testing:
       self.SPREEDLY_ACCOUNT = "hackerdojotest"
-      # We can't use the datastore.
-      self.SPREEDLY_APIKEY = "testapikey"
 
       logging.debug("Is testing.")
     elif Config.is_dev:
       self.SPREEDLY_ACCOUNT = "hackerdojotest"
-      self.SPREEDLY_APIKEY = keymaster.get("spreedly:hackerdojotest")
 
       logging.debug("Is dev server.")
     else:
       self.SPREEDLY_ACCOUNT = "hackerdojo"
-      self.SPREEDLY_APIKEY = keymaster.get("spreedly:hackerdojo")
 
       logging.debug("Is production server.")
+
+  """ Returns: the PinPayments API key. """
+  def get_api_key(self):
+    if Config.is_testing:
+      # We can't use the datastore.
+      return "testapikey"
+    elif Config.is_dev:
+      return keymaster.get("spreedly:hackerdojotest")
+    else:
+      return keymaster.get("spreedly:hackerdojo")

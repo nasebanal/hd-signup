@@ -282,7 +282,7 @@ class AccountHandler(ProjectHandler):
             # pinpayments.
             if not Config().is_testing:
               headers = {"Authorization": "Basic %s" % \
-                  base64.b64encode("%s:X" % conf.SPREEDLY_APIKEY),
+                  base64.b64encode("%s:X" % conf.get_api_key()),
                   "Content-Type":"application/xml"}
               # Create subscriber
               data = "<subscriber><customer-id>%s</customer-id><email>%s</email></subscriber>" % (customer_id, membership.email)

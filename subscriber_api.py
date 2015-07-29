@@ -122,7 +122,7 @@ def update_subscriber(member):
     return
 
   conf = Config()
-  api = spreedly.Spreedly(conf.SPREEDLY_ACCOUNT, token=conf.SPREEDLY_APIKEY)
+  api = spreedly.Spreedly(conf.SPREEDLY_ACCOUNT, token=conf.get_api_key())
   subscriber = api.subscriber_details(sub_id=int(member.key().id()))
   logging.debug("subscriber_info: %s" % (subscriber))
 
