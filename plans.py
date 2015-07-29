@@ -213,7 +213,7 @@ newyearly = Plan("newyearly", 25968, 162, "Bills every year instead.",
                  human_name="Yearly")
 newhive = Plan("newhive", 25790, 325, "You get a private desk too!",
                human_name="Premium", member_limit=Config().HIVE_MAX_OCCUPANCY,
-               desk=True)
+               desk=True, selectable=False, admin_only=True)
 
 full = Plan("full", 1987, 125, "The old standard plan.",
             human_name="Old Standard",
