@@ -169,7 +169,7 @@ class Membership(db.Model):
                                       (host, self.hash)})
     url = "https://subs.pinpayments.com/%s/subscribers/%i/subscribe/%s/%s?%s" % \
         (config.SPREEDLY_ACCOUNT, self.key().id(),
-         plans.Plan.get_by_name(plan).plan_id, self.username, query_str)
+         plans.Plan.get_by_name(plan).plan_id, self.email, query_str)
     return str(url)
 
   def force_full_subscribe_url(self):

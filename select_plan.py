@@ -9,14 +9,13 @@ import plans
 
 """ Handles allowing the user to select a plan. """
 class SelectPlanHandler(ProjectHandler):
-  """ member_hash: The hash of the member we are selecting a plan for. """
-  def get(self, member_hash):
+  def get(self):
     # Get the plans to show.
     selectable, unavailable = plans.Plan.get_plans_to_show()
 
     # Put the urls to send people to when they select a plan in there also, in a
     # form that is easy for jinja to understand.
-    base_url = "/account/%s" % (member_hash)
+    base_url = "/account"
     selectable_paired = []
     for plan in selectable:
       item = {}

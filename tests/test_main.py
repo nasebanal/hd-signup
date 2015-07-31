@@ -49,32 +49,42 @@ class MainHandlerTest(BaseTest):
                   "twitter": "ttesterson", "email": "testy.testerson@gmail.com",
                   "referrer": "My mom"}
 
+  def setUp(self):
+    super(MainHandlerTest, self).setUp()
+
+    # The cookie we use for testing post functionality.
+    cookie_values = {"plan": "choose"}
+    self.cookie = json.dumps(cookie_values)
 
   """ Tests that a get request works without error. """
   def test_get(self):
     response = self.test_app.get("/")
 
     self.assertIn("Member Signup", response.body)
-    # Plan input element, should default to choose.
-    self.assertIn("choose", response.body)
+
+    # The plan should be saved to a cookie.
+    signup_progress = self.test_app.cookies.get("signup_progress")
+    self.assertIn("choose", signup_progress)
+    self.assertIn("plan", signup_progress)
 
   """ Tests that a post request works as expected. """
   def test_post(self):
+    self.test_app.set_cookie("signup_progress", self.cookie)
+
     response = self.test_app.post("/", self._TEST_PARAMS)
     self.assertEqual(302, response.status_int)
 
-    # It should have put an entry in the datastore.
-    user = Membership.get_by_email("testy.testerson@gmail.com")
-    self.assertNotEqual(None, user)
-    self.assertEqual("Testy", user.first_name)
-    self.assertEqual("Testerson", user.last_name)
-    self.assertEqual("ttesterson", user.twitter)
-    self.assertEqual("My mom", user.referrer)
-    self.assertNotEqual(None, user.hash)
+    # It should have written more data to the cookie.
+    signup_progress = self.test_app.cookies.get("signup_progress")
+    self.assertIn("Testy", signup_progress)
+    self.assertIn("Testerson", signup_progress)
+    self.assertIn("ttesterson", signup_progress)
+    self.assertIn("My mom", signup_progress)
 
   """ Tests that post fails when we miss a required field but not when we miss a
   non-required one. """
   def test_requirements(self):
+    self.test_app.set_cookie("signup_progress", self.cookie)
     params = self._TEST_PARAMS.copy()
 
     # Required fields.
@@ -109,6 +119,8 @@ class MainHandlerTest(BaseTest):
 
   """ Tests that it handles finding an already existing member correctly. """
   def test_already_existing(self):
+    self.test_app.set_cookie("signup_progress", self.cookie)
+
     # Make a user in the datastore with the same email, but a different name so
     # we can see whether it overrides.
     existing_user = Membership(first_name="Michael", last_name="Scarn",
@@ -147,26 +159,24 @@ class MainHandlerTest(BaseTest):
     response = self.test_app.post("/", self._TEST_PARAMS)
     self.assertEqual(302, response.status_int)
 
-    # User should not stay the same.
-    user = Membership.get_by_email(self._TEST_PARAMS["email"])
-    self.assertEqual(self._TEST_PARAMS["first_name"], user.first_name)
-    self.assertEqual(self._TEST_PARAMS["last_name"], user.last_name)
-
   """ Tests that it passes the plan parameter through when there is one. """
   def test_pass_plan(self):
+    self.test_app.set_cookie("signup_progress", self.cookie)
+
     # If we have no plan, it should send us to the plan selection page.
-    params = self._TEST_PARAMS.copy()
-    params["plan"] = "choose"
-    response = self.test_app.post("/", params)
+    response = self.test_app.post("/", self._TEST_PARAMS)
     self.assertEqual(302, response.status_int)
-    self.assertIn("plan/", response.location)
+    self.assertIn("/plan", response.location)
 
     # If we have a plan, it should skip the plan selection.
-    params["plan"] = "newhive"
-    response = self.test_app.post("/", params)
+    self.test_app.reset()
+    cookie_values = {"plan": "newfull"}
+    self.test_app.set_cookie("signup_progress", json.dumps(cookie_values))
+
+    response = self.test_app.post("/", self._TEST_PARAMS)
     self.assertEqual(302, response.status_int)
     self.assertIn("account/", response.location)
-    self.assertIn("plan=newhive", response.location)
+    self.assertIn("plan=newfull", response.location)
 
   """ Tests that it behaves correctly when someone gives it a bad plan. """
   def test_bad_plan(self):
@@ -174,7 +184,8 @@ class MainHandlerTest(BaseTest):
     query = urllib.urlencode({"plan": "badplan"})
     response = self.test_app.get("/?" + query)
     self.assertEqual(200, response.status_int)
-    self.assertIn("value=\"choose\"", response.body)
+    cookie_values = self.test_app.cookies.get("signup_progress")
+    self.assertIn("choose", cookie_values)
 
     # If we give it a plan that is not available, it should show us an error.
     unavailable_plan = Plan("test_plan", 1, 100, "A test plan.",
@@ -198,28 +209,33 @@ class MainHandlerTest(BaseTest):
   template. """
   def test_pass_plan_on_error(self):
     params = self._TEST_PARAMS.copy()
-    params["plan"] = "newfull"
+    self.test_app.set_cookie("signup_progress", json.dumps({"plan": "newfull"}))
 
     # Remove required parameters one by one.
     del params["first_name"]
     response = self.test_app.post("/", params, expect_errors=True)
-    # Make sure the plan stayed in there.
-    self.assertIn("value=\"newfull\"", response.body)
+    # Make sure the plan stayed in the cookie.
+    cookie_values = self.test_app.cookies.get("signup_progress")
+    self.assertIn("newfull", cookie_values)
     params["first_name"] = self._TEST_PARAMS["first_name"]
 
     del params["last_name"]
     response = self.test_app.post("/", params, expect_errors=True)
-    self.assertIn("value=\"newfull\"", response.body)
+    cookie_values = self.test_app.cookies.get("signup_progress")
+    self.assertIn("newfull", cookie_values)
     params["last_name"] = self._TEST_PARAMS["last_name"]
 
     del params["email"]
     response = self.test_app.post("/", params, expect_errors=True)
-    self.assertIn("value=\"newfull\"", response.body)
+    cookie_values = self.test_app.cookies.get("signup_progress")
+    self.assertIn("newfull", cookie_values)
     params["email"] = self._TEST_PARAMS["email"]
 
   """ Tests that it takes us directly to PinPayments if we've already set up our
   account. """
   def test_skip_if_account(self):
+    self.test_app.set_cookie("signup_progress", self.cookie)
+
     plan = Plan("test", 100, "This is a test plan.")
 
     existing_user = Membership(first_name=self._TEST_PARAMS["first_name"],
@@ -244,21 +260,19 @@ class MainHandlerTest(BaseTest):
 cases. This is a base class that both inherit from. """
 class AccountHandlerBase(BaseTest):
   # Parameters that we use for testing post requests.
-  _TEST_PARAMS = {"username": "testy.testerson",
-                  "password": "notasecret",
-                  "password_confirm": "notasecret",
-                  "plan": "test"}
+  _TEST_PARAMS = {"password": "notasecret",
+                  "password_confirm": "notasecret"}
 
   def setUp(self):
     super(AccountHandlerBase, self).setUp()
 
-    # Start by putting a user in the datastore.
-    user = Membership(first_name="Testy", last_name="Testerson",
-                      email="ttesterson@gmail.com", plan=None,
-                      status=None, hash="anunlikelyhash")
-    user.put()
+    # The fake cookie with all our info up to this point.
+    self.cookie_values = {"first_name": "Testy", "last_name": "Testerson",
+                     "email": "ttesterson@gmail.com", "plan": "test",
+                     "hash": "anunlikelyhash"}
+    self.test_app.set_cookie("signup_progress", json.dumps(self.cookie_values))
 
-    self.user_hash = user.hash
+    self.user_hash = self.cookie_values["hash"]
 
     # Add the plans we need.
     Plan.all_plans = []
@@ -273,47 +287,22 @@ class AccountHandlerBase(BaseTest):
 class AccountHandlerTest(AccountHandlerBase):
   """ Tests that the get request works. """
   def test_get(self):
+    self.test_app.reset()
+    cookie_values = self.cookie_values.copy()
+    cookie_values["plan"] = "choose"
+    self.test_app.set_cookie("signup_progress", json.dumps(cookie_values))
+
     query = urllib.urlencode({"plan": "newhive"})
-    response = self.test_app.get("/account/%s?%s" % (self.user_hash, query))
+    response = self.test_app.get("/account?%s" % (query))
     self.assertEqual(200, response.status_int)
-    # Our username should be templated in.
-    self.assertIn("testy.testerson", response.body)
 
-    user = Membership.get_by_hash(self.user_hash)
-    self.assertEqual("newhive", user.plan)
-
-  """ Tests that it does the right thing when we give it a bad hash. """
-  def test_bad_hash(self):
-    response = self.test_app.get("/account/" + "notahash", expect_errors=True)
-    self.assertEqual(422, response.status_int)
-
-  """ Tests that it handles a duplicate username properly. """
-  def test_duplicate_usernames(self):
-    ProjectHandler.add_username("testy.testerson")
-
-    # It should use the first part of our email.
-    response = self.test_app.get("/account/" + self.user_hash)
-    self.assertEqual(200, response.status_int)
-    self.assertIn("ttesterson", response.body)
-
-    ProjectHandler.add_username("ttesterson")
-
-    # Now it should add a "1" to the end.
-    response = self.test_app.get("/account/" + self.user_hash)
-    self.assertEqual(200, response.status_int)
-    self.assertIn("ttesterson1", response.body)
-
-    ProjectHandler.add_username("ttesterson1")
-
-    # And we can just keep on counting...
-    response = self.test_app.get("/account/" + self.user_hash)
-    self.assertEqual(200, response.status_int)
-    self.assertIn("ttesterson2", response.body)
+    cookie_values = self.test_app.cookies.get("signup_progress")
+    self.assertIn("plan", cookie_values)
+    self.assertIn("newhive", cookie_values)
 
   """ Tests that a post request works correctly. """
   def test_post(self):
-    query = urllib.urlencode(self._TEST_PARAMS)
-    response = self.test_app.post("/account/" + self.user_hash, query)
+    response = self.test_app.post("/account", self._TEST_PARAMS)
     self.assertEqual(302, response.status_int)
 
     user = Membership.get_by_hash(self.user_hash)
@@ -321,16 +310,11 @@ class AccountHandlerTest(AccountHandlerBase):
     # We should be redirected to a personal spreedly page.
     self.assertIn("subs.pinpayments.com", response.location)
     self.assertIn(self.test_plan.plan_id, response.location)
-    self.assertIn(str(user.key().id()), response.location)
-    self.assertIn("testy.testerson", response.location)
+    self.assertIn(str(user.get_id()), response.location)
+    self.assertIn(user.email, response.location)
 
     # The account information should be in the datastore.
-    user = Membership.get_by_hash(self.user_hash)
-    self.assertEqual("testy.testerson", user.username)
-    self.assertEqual("notasecret", user.password)
-
-    # We shouldn't have a domain account yet.
-    self.assertFalse(user.domain_user)
+    self.assertNotEqual(None, user.password_hash)
 
   """ Tests that it fails if the required fields are invalid. """
   def test_requirements(self):
@@ -338,72 +322,53 @@ class AccountHandlerTest(AccountHandlerBase):
     params = self._TEST_PARAMS.copy()
     params["password"] = "notasecret"
     params["password_confirm"] = "stillnotasecret"
-    query = urllib.urlencode(params)
-    response = self.test_app.post("/account/" + self.user_hash, query,
-                                  expect_errors=True)
+    response = self.test_app.post("/account", params, expect_errors=True)
 
     self.assertEqual(422, response.status_int)
     self.assertIn("do not match", response.body)
-    # The plan should be in there correctly.
-    self.assertIn("value=\"test\"", response.body)
 
     # Giving it a password that is too short should also be a problem.
     params = self._TEST_PARAMS.copy()
     params["password"] = "daniel"
     params["password_confirm"] = "daniel"
-    query = urllib.urlencode(params)
-    response = self.test_app.post("/account/" + self.user_hash, query,
-                                  expect_errors=True)
+    response = self.test_app.post("/account", params, expect_errors=True)
 
     self.assertEqual(422, response.status_int)
     self.assertIn("at least 8 characters", response.body)
-    self.assertIn("value=\"test\"", response.body)
-
-    user = Membership.get_by_hash(self.user_hash)
-    user.domain_user = True
-    user.put()
-
-    # If there is already a domain account associated with this user, we should
-    # fail as well.
-    query = urllib.urlencode(self._TEST_PARAMS)
-    response = self.test_app.post("/account/" + self.user_hash, query,
-                                  expect_errors=True)
-
-    self.assertEqual(422, response.status_int)
-    self.assertIn("already have an account", response.body)
-    self.assertIn("value=\"test\"", response.body)
-
-  """ Checks that it redirects correctly if we the user is already active. """
-  def test_already_active(self):
-    user = Membership.get_by_hash(self.user_hash)
-    user.status = "active"
-    user.put()
-
-    query = urllib.urlencode(self._TEST_PARAMS)
-    response = self.test_app.post("/account/" + self.user_hash, query)
-
-    self.assertEqual(302, response.status_int)
-    self.assertIn("success", response.location)
-    self.assertIn(self.user_hash, response.location)
 
   """ Checks that it redirects correctly if the user has already entered their
   account information. """
   def test_already_entered(self):
-    user = Membership.get_by_hash(self.user_hash)
-    user.username = "testy.testerson"
-    user.password = "notasecret"
-    user.spreedly_token = None
-    user.put()
+    user = Membership.create_user("ttesterson@gmail.com", "notasecret",
+        first_name="Testy", last_name="Testerson", spreedly_token=None,
+        plan="test")
 
-    response = self.test_app.get("/account/" + self.user_hash,
-                                 self._TEST_PARAMS)
+    query_str = urllib.urlencode({"plan": "test"})
+    response = self.test_app.get("/account?" + query_str)
 
     # We should be redirected to a personal spreedly page.
     self.assertEqual(302, response.status_int)
     self.assertIn("subs.pinpayments.com", response.location)
     self.assertIn(self.test_plan.plan_id, response.location)
-    self.assertIn(str(user.key().id()), response.location)
-    self.assertIn("testy.testerson", response.location)
+    self.assertIn(str(user.get_id()), response.location)
+    self.assertIn(user.email, response.location)
+
+  """ Checks that it won't let us POST if there is an email conflict. """
+  def test_conflicting_user(self):
+    # Make a user to conflict with.
+    user = Membership.create_user("ttesterson@gmail.com", "notasecret",
+        first_name="Testy", last_name="Testerson")
+    original_properties = user.properties()
+
+    response = self.test_app.post("/account", self._TEST_PARAMS,
+                                  expect_errors=True)
+
+    self.assertEqual(422, response.status_int)
+    self.assertIn("already in use", response.body)
+
+    # Check that the original user didn't change.
+    new_user = Membership.get_by_id(user.get_id())
+    self.assertEqual(original_properties, new_user.properties())
 
 
 """ A special test case for testing the giftcard stuff. """
@@ -427,12 +392,12 @@ class GiftCodeTest(AccountHandlerBase):
     print "Using test gift code: %s" % (gift_code)
 
     # Now try using this code.
-    user = Membership.get_by_hash(self.user_hash)
-    user.referrer = gift_code
-    user.put()
+    self.test_app.reset()
+    cookie_values = self.cookie_values.copy()
+    cookie_values["referrer"] = gift_code
+    self.test_app.set_cookie("signup_progress", json.dumps(cookie_values))
 
-    response = self.test_app.post("/account/" + self.user_hash,
-                                  self._TEST_PARAMS)
+    response = self.test_app.post("/account", self._TEST_PARAMS)
     self.assertEqual(302, response.status_int)
 
     # We should have a record of the used code.
@@ -440,16 +405,17 @@ class GiftCodeTest(AccountHandlerBase):
     for code in codes:
       # We should only have one code in there.
       self.assertEqual(gift_code, code.code)
-      self.assertEqual("ttesterson@gmail.com", code.email)
+      self.assertEqual(cookie_values["email"], code.email)
       self.assertEqual("OK", code.extra)
 
-    user = Membership.get_by_hash(self.user_hash)
-    user.username = None
-    user.put()
+    # Delete the user it created so the email conflict doesn't mess it up.
+    user = Membership.get_by_email(cookie_values["email"])
+    self.assertNotEqual(None, user)
+    db.delete(user)
 
     # Try to use the same code again.
-    response = self.test_app.post("/account/" + self.user_hash,
-                                  self._TEST_PARAMS, expect_errors=True)
+    response = self.test_app.post("/account", self._TEST_PARAMS,
+                                  expect_errors=True)
     self.assertEqual(422, response.status_int)
     self.assertIn("already been used", response.body)
 
@@ -475,12 +441,13 @@ class GiftCodeTest(AccountHandlerBase):
   def test_bad_length_code(self):
     code = "133712345"
 
-    user = Membership.get_by_hash(self.user_hash)
-    user.referrer = code
-    user.put()
+    self.test_app.reset()
+    cookie_values = self.cookie_values.copy()
+    cookie_values["referrer"] = code
+    self.test_app.set_cookie("signup_progress", json.dumps(cookie_values))
 
-    response = self.test_app.post("/account/" + self.user_hash,
-                                  self._TEST_PARAMS, expect_errors=True)
+    response = self.test_app.post("/account", self._TEST_PARAMS,
+                                  expect_errors=True)
     self.assertEqual(422, response.status_int)
     self.assertIn("must be 16 digits", response.body)
 
@@ -488,12 +455,13 @@ class GiftCodeTest(AccountHandlerBase):
   def test_invalid_code(self):
     code = "1337424242424242"
 
-    user = Membership.get_by_hash(self.user_hash)
-    user.referrer = code
-    user.put()
+    self.test_app.reset()
+    cookie_values = self.cookie_values.copy()
+    cookie_values["referrer"] = code
+    self.test_app.set_cookie("signup_progress", json.dumps(cookie_values))
 
-    response = self.test_app.post("/account/" + self.user_hash,
-                                  self._TEST_PARAMS, expect_errors=True)
+    response = self.test_app.post("/account", self._TEST_PARAMS,
+                                  expect_errors=True)
     self.assertEqual(422, response.status_int)
     self.assertIn("code was invalid", response.body)
 
@@ -520,7 +488,7 @@ class PlanSelectionTestBase(BaseTest):
 class SelectPlanHandlerTest(PlanSelectionTestBase):
   """ Tests that the plans end up getting shown correctly. """
   def test_plan_page(self):
-    response = self.test_app.get("/plan/notahash")
+    response = self.test_app.get("/plan")
     self.assertEqual(200, response.status_int)
 
     # It should show the human name, and the link.

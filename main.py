@@ -35,163 +35,131 @@ class BadgeChange(db.Model):
 
 
 class MainHandler(ProjectHandler):
-    def get(self):
-      plan = self.request.get("plan", "choose")
+  """ Goes on to the appropriate next step in the signup process.
+  plan: The plan we are using. """
+  def __continue(self, plan):
+    logging.debug("Using plan: %s" % (plan))
 
-      if plan != "choose":
-        # A plan was specified. Make sure it's valid.
-        valid = plans.Plan.can_subscribe(plan, self.current_user())
-        if valid == None:
-          # Nonexistent plan. Just ignore it.
-          plan = "choose"
-        elif valid == False:
-          # Bad plan. Show error, and give users a chance to authenticate as an
-          # admin.
-          login_url = self.create_login_url(self.request.uri)
-          self.response.out.write(self.render("templates/error.html",
-                                  internal=False,
-                                  message="Plan '%s' is not available for you. \
-                                  <br><a href=%s>Login as someone else.</a>" % \
-                                      (plan, login_url)))
-          self.response.set_status(422)
-          return
+    if plan == "choose":
+      # Have the user select a plan.
+      self.redirect("/plan")
+    else:
+      # A plan was specified for us, so go on to creating the account.
+      logging.info("Got plan '%s', skipping plan selection step." % (plan))
+      query = urllib.urlencode({"plan": plan})
+      self.redirect("/account/?%s" % (query))
 
-      self.response.out.write(self.render("templates/main.html", plan=plan))
+  def get(self):
+    # Whether to ignore an existing session.
+    plan = self.request.get("plan", "choose")
 
-    def post(self):
-      first_name = self.request.get("first_name")
-      last_name = self.request.get("last_name")
-      twitter = self.request.get("twitter").lower().strip().strip("@")
-      email = self.request.get("email").lower().strip()
-      plan = self.request.get("plan")
-
-      if not first_name or not last_name or not email:
-        self.response.out.write(self.render("templates/main.html",
-            message="Sorry, we need name and email address.", plan=plan))
-        self.response.set_status(400)
+    if plan != "choose":
+      # A plan was specified. Make sure it's valid.
+      valid = plans.Plan.can_subscribe(plan, self.current_user())
+      if valid == None:
+        # Nonexistent plan. Just ignore it.
+        plan = "choose"
+      elif valid == False:
+        # Bad plan. Show error, and give users a chance to authenticate as an
+        # admin.
+        login_url = self.create_login_url(self.request.uri)
+        self.response.out.write(self.render("templates/error.html",
+                                internal=False,
+                                message="Plan '%s' is not available for you. \
+                                <br><a href=%s>Login as someone else.</a>" % \
+                                    (plan, login_url)))
+        self.response.set_status(422)
         return
 
-      membership = db.GqlQuery("SELECT * FROM Membership WHERE email = :email",
-                               email=email).get()
+    cookie_values = {"plan": plan}
+    self.response.set_cookie("signup_progress", json.dumps(cookie_values))
 
-      if membership:
-        # A membership object already exists in the datastore.
-        if membership.extra_dnd == True:
-          self.response.out.write("Error #237.  Please contact signupops@hackerdojo.com")
-          self.response.set_status(422)
-          return
-        if membership.status == "suspended":
-          self.response.out.write(self.render("templates/main.html",
-              message="Your account has been suspended." \
-              " <a href=\"/reactivate\">Click here</a> to reactivate.",
-              plan=plan))
-          self.response.set_status(422)
-          return
-        elif membership.status in ("active", "no_visits"):
-          self.response.out.write(self.render("templates/main.html",
-                                  message="Account already exists.",
-                                  plan=plan))
-          self.response.set_status(422)
-          return
-        elif ((membership.username and membership.password and \
-               membership.plan) and not membership.spreedly_token):
-          # They've already filled out everything, but they haven't started a
-          # subscription. Take them to the PinPayments page.
-          logging.info("Taking user %s directly to PinPayments page." %
-                       (membership.username))
-          self.redirect(membership.new_subscribe_url(self.request.host))
-          return
-        else:
-          # Existing membership never got activated. Overwrite it.
-          logging.info("Overwriting existing membership for %s." % (email))
+    self.response.out.write(self.render("templates/main.html"))
 
-          membership.first_name = first_name
-          membership.last_name = last_name
-          membership.email = email
-          membership.twitter = twitter
-      else:
-        # Make a new membership object.
-        membership = Membership(
-            first_name=first_name, last_name=last_name, email=email,
-            twitter=twitter)
+  def post(self):
+    first_name = self.request.get("first_name")
+    last_name = self.request.get("last_name")
+    twitter = self.request.get("twitter").lower().strip().strip("@")
+    email = self.request.get("email").lower().strip()
 
-      if self.request.get("paypal") == "1":
-        membership.status = "paypal"
-      membership.hash = hashlib.md5(membership.email).hexdigest()
-      if "1337" in self.request.get("referrer").upper():
-        membership.referrer = re.sub("[^0-9]", "", self.request.get("referrer").upper())
-      else:
-        membership.referrer = self.request.get("referrer").replace("\n", " ")
-      membership.put()
+    cookie_values = self.request.cookies.get("signup_progress")
+    cookie_values = json.loads(cookie_values)
+    plan = cookie_values["plan"]
 
-      logging.debug("Using plan: %s" % (plan))
-      if plan == "choose":
-        # Have the user select a plan.
-        self.redirect("/plan/%s" % (membership.hash))
-      else:
-        # A plan was specified for us, so go on to creating the account.
-        logging.info("Got plan '%s', skipping plan selection step." % (plan))
-        query = urllib.urlencode({"plan": plan})
-        self.redirect("/account/%s?%s" % (membership.hash, query))
+    if not first_name or not last_name or not email:
+      self.response.out.write(self.render("templates/main.html",
+          message="Sorry, we need name and email address."))
+      self.response.set_status(400)
+      return
 
+    membership = Membership.get_by_email(email)
+
+    if membership:
+      # A membership object already exists in the datastore.
+      if membership.status == "suspended":
+        self.response.out.write(self.render("templates/main.html",
+            message="Your account has been suspended." \
+            " <a href=\"/reactivate\">Click here</a> to reactivate."))
+        self.response.set_status(422)
+        return
+      elif membership.status in ("active", "no_visits"):
+        self.response.out.write(self.render("templates/main.html",
+                                message="Account already exists."))
+        self.response.set_status(422)
+        return
+      elif (membership.plan and not membership.spreedly_token):
+        # They've already filled out everything, but they haven't started a
+        # subscription. Take them to the PinPayments page.
+        logging.info("Taking user %s directly to PinPayments page." %
+                      (membership.email))
+        self.redirect(membership.new_subscribe_url(self.request.host))
+        return
+
+    else:
+      # Save our data.
+      cookie_values["first_name"] = first_name
+      cookie_values["last_name"] = last_name
+      cookie_values["email"] = email
+      cookie_values["twitter"] = twitter
+
+    cookie_values["hash"] = hashlib.md5(email).hexdigest()
+    if "1337" in self.request.get("referrer").upper():
+      cookie_values["referrer"] = re.sub("[^0-9]", "",
+          self.request.get("referrer").upper())
+    else:
+      cookie_values["referrer"] = \
+          self.request.get("referrer").replace("\n", " ")
+
+    self.response.set_cookie("signup_progress", json.dumps(cookie_values))
+    self.__continue(plan)
 
 class AccountHandler(ProjectHandler):
-    def get(self, hash):
-      membership = Membership.get_by_hash(hash)
-      if not membership:
-        self.response.set_status(422)
-        self.response.out.write("Unknown member hash.")
-        logging.error("Could not find member with hash '%s'." % (hash))
-        return
+    def get(self):
+      cookie_values = self.request.cookies.get("signup_progress")
+      cookie_values = json.loads(cookie_values)
 
       # Save the plan they want.
       plan = self.request.get("plan", "newfull")
-      membership.plan = plan
-      membership.put()
+      cookie_values["plan"] = plan
+      self.response.set_cookie("signup_progress", json.dumps(cookie_values))
 
-      if ((membership.username and membership.password) and not \
-          membership.spreedly_token):
-        # We've filled out our account information, but we never started a
-        # subscription. (This could be reached by going back and trying to
-        # change our plan after we were already taken to the PinPayments
-        # page.) In this case, just pass them through to PinPayments.
+      # Check to see if we already created a user. It is a security
+      # risk to allow them to set their password again.
+      membership = Membership.get_by_email(cookie_values["email"])
+      if membership:
+        logging.info("Not allowing password reentry.")
+        # Send them directly to PinPayments.
         self.redirect(membership.new_subscribe_url(self.request.host,
                                                    plan=plan))
-
-      # steal this part to detect if they registered with hacker dojo email above
-      first_part = re.compile(r"[^\w]").sub("", membership.first_name.split(" ")[0]) # First word of first name
-      last_part = re.compile(r"[^\w]").sub("", membership.last_name)
-      if len(first_part)+len(last_part) >= 15:
-          last_part = last_part[0] # Just last initial
-      username = ".".join([first_part, last_part]).lower()
-
-      usernames = self.fetch_usernames()
-      if usernames == None:
-        # Error page is already rendered.
         return
-      if username in usernames:
-        # Duplicate username. Use the first part of the email instead.
-        username = membership.email.split("@")[0].lower()
 
-        user_number = 0
-        base_username = username
-        while username in usernames:
-          # Still a duplicate. Add a number.
-          user_number += 1
-          username = "%s%d" % (base_username, user_number)
-
-      if self.request.get("pick_username"):
-        pick_username = True
-
-      account_url = str("/account/%s" % membership.hash)
       self.response.out.write(self.render("templates/account.html", locals()))
 
-    def post(self, hash):
-        username = self.request.get("username")
+    def post(self):
         password = self.request.get("password")
-        plan = self.request.get("plan")
-        plan_object = plans.Plan.get_by_name(plan)
-        account_url = str("/account/%s" % hash)
+        cookie_values = self.request.cookies.get("signup_progress")
+        cookie_values = json.loads(cookie_values)
+        plan_object = plans.Plan.get_by_name(cookie_values["plan"])
 
         conf = Config()
         if password != self.request.get("password_confirm"):
@@ -205,36 +173,30 @@ class AccountHandler(ProjectHandler):
             self.response.set_status(422)
             return
 
-        membership = Membership.get_by_hash(hash)
+        # Do a final check to make sure we're not overwriting anything.
+        existing_user = Membership.get_by_email(cookie_values["email"])
+        if existing_user:
+          logging.critical("Duplicate user %s detected!" % \
+              (cookie_values["email"]))
 
-        if membership.domain_user:
-            logging.warning(
-                "Duplicate user '%s' should have been caught" \
-                " in first step." % (membership.username))
-            self.response.out.write(self.render("templates/account.html",
-                locals(), message="You already have an account."))
-            self.response.set_status(422)
-            return
+          self.response.delete_cookie("signup_progress")
+          self.response.set_status(422)
+          response = self.render("templates/error.html",
+              message="This email is already in use.")
+          self.response.out.write(response)
+          return
 
-        # Start saving the parameters for new-style accounts now, so that these
-        # people won't have to re-enter anything when we make the transition.
-        membership.set_password(password)
+        # Create the user.
+        logging.info("Creating new user: %s" % (cookie_values))
+        membership = Membership.create_user(cookie_values["email"],
+            password, first_name=cookie_values["first_name"],
+            last_name=cookie_values["last_name"],
+            hash=cookie_values["hash"],
+            plan=cookie_values["plan"],
+            referrer=cookie_values.get("referrer"),
+            twitter=cookie_values.get("twitter"))
 
-        # Set a username and password in the datastore.
-        membership.username = username
-        membership.password = password
-        membership.put()
-
-        if membership.status in ("active", "no_visits"):
-            taskqueue.add(url="/tasks/create_user", method="POST",
-                          params={"hash": membership.hash,
-                                  "username": username,
-                                  "password": password},
-                          countdown=3)
-            self.redirect(str("http://%s/success/%s" % (self.request.host, membership.hash)))
-            return
-
-        customer_id = membership.key().id()
+        customer_id = membership.get_id()
 
         # All our giftcards start out with 1337.
         if (membership.referrer and "1337" in membership.referrer):
@@ -294,25 +256,28 @@ class AccountHandler(ProjectHandler):
               data = "<subscriber><customer-id>%s</customer-id><email>%s</email></subscriber>" % (customer_id, membership.email)
               resp = \
                   urlfetch.fetch("https://subs.pinpayments.com"
-                                "/api/v4/%s/subscribers.xml" % \
-                                (conf.SPREEDLY_ACCOUNT),
-                                method="POST", payload=data,
-                                headers = headers, deadline=5)
+                                 "/api/v4/%s/subscribers.xml" % \
+                                 (conf.SPREEDLY_ACCOUNT),
+                                 method="POST", payload=data,
+                                 headers = headers, deadline=5)
               # Credit
               data = "<credit><amount>95.00</amount></credit>"
               resp = \
                   urlfetch.fetch("https://subs.pinpayments.com/api/v4"
-                                "/%s/subscribers/%s/credits.xml" % \
-                                (conf.SPREEDLY_ACCOUNT, customer_id),
-                                method="POST", payload=data,
-                                headers=headers, deadline=5)
+                                 "/%s/subscribers/%s/credits.xml" % \
+                                 (conf.SPREEDLY_ACCOUNT, customer_id),
+                                 method="POST", payload=data,
+                                 headers=headers, deadline=5)
 
             uc = UsedCode(code=membership.referrer,email=membership.email,extra="OK")
             uc.put()
 
+        # Update the cookie.
+        cookie_values["pin_payments"] = True
+        self.response.set_cookie("signup_progress", json.dumps(cookie_values))
         # Redirect them to the PinPayments page, where they actually pay.
         self.redirect(membership.new_subscribe_url(self.request.host,
-                                                   plan=plan))
+                                                   plan=cookie_values["plan"]))
 
 
 class UnsubscribeHandler(ProjectHandler):
@@ -588,7 +553,7 @@ app = BaseApp([
         ("/profile", ProfileHandler),
         ("/key", KeyHandler),
         ("/genlink/(.+)", GenLinkHandler),
-        ("/account/(.+)", AccountHandler),
+        ("/account", AccountHandler),
         ("/upgrade/needaccount", NeedAccountHandler),
         ("/success/(.+)", SuccessHandler),
         ("/leavereasonlist(.*)", LeaveReasonListHandler),
@@ -597,7 +562,7 @@ app = BaseApp([
         ("/unsubscribe/(.*)", UnsubscribeHandler),
         ("/update", UpdateHandler),
         ("/reactivate", ReactivateHandler),
-        ("/plan/(.+)", SelectPlanHandler),
+        ("/plan", SelectPlanHandler),
         ("/change_plan", ChangePlanHandler),
         ("/reactivate_plan/(.+)", ReactivatePlanHandler),
         ("/login", LoginHandler),
