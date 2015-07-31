@@ -161,18 +161,6 @@ class AccountHandler(ProjectHandler):
         cookie_values = json.loads(cookie_values)
         plan_object = plans.Plan.get_by_name(cookie_values["plan"])
 
-        conf = Config()
-        if password != self.request.get("password_confirm"):
-            self.response.out.write(self.render("templates/account.html",
-                locals(), message="Passwords do not match."))
-            self.response.set_status(422)
-            return
-        elif len(password) < 8:
-            self.response.out.write(self.render("templates/account.html",
-                locals(), message="Password must be at least 8 characters."))
-            self.response.set_status(422)
-            return
-
         # Do a final check to make sure we're not overwriting anything.
         existing_user = Membership.get_by_email(cookie_values["email"])
         if existing_user:
@@ -200,6 +188,7 @@ class AccountHandler(ProjectHandler):
 
         # All our giftcards start out with 1337.
         if (membership.referrer and "1337" in membership.referrer):
+            conf = Config()
 
             if len(membership.referrer) != 16:
                 message = "<p>Error: code must be 16 digits."
@@ -248,7 +237,7 @@ class AccountHandler(ProjectHandler):
 
             # If we're testing, I don't want it doing random things on
             # pinpayments.
-            if not Config().is_testing:
+            if not conf.is_testing:
               headers = {"Authorization": "Basic %s" % \
                   base64.b64encode("%s:X" % conf.get_api_key()),
                   "Content-Type":"application/xml"}

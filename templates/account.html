@@ -13,15 +13,12 @@
 
 <body>
 <div class="centered-horizontal" style="margin-top: 10px;">
-  <form action="/account" method="post">
-  <table style="margin-top: 50px; width: 100%; margin: 0 auto;">
-    {% if message %}<tr><td>&nbsp;</td><td style="color: red; font-size: smaller;">{{ message }}</td></tr>{% endif %}
-    <tr><td style="text-align: right;" class="field-label">Password:</td><td><input type="password" name="password" /></td></tr>
-    <tr><td style="text-align: right;" class="field-label">Confirm:</td><td><input type="password" name="password_confirm" /></td></tr>
-  </table>
-  <div style="font-size: smaller; margin-left: 216px;">
-    <input type="submit" value="Next step &rarr;" style="font-size: large; margin-top: 25px;" /><br />
-    <span style="font-size: 11px">You will be taken to a secure page<br /> at <a href="http://spreedly.com/">Spreedly</a> for payment.</span>
+
+  {% include 'templates/new_password.html' %}
+
+  <div style="font-size: smaller; text-align: center; margin-top: 50px;">
+    <span style="font-size: 11px">You will be taken to a secure page<br /> at
+        <a href="http://pinpayments.com/">Pin Payments</a> for payment.</span>
   <br />
   </div>
   </form>

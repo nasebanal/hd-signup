@@ -316,26 +316,6 @@ class AccountHandlerTest(AccountHandlerBase):
     # The account information should be in the datastore.
     self.assertNotEqual(None, user.password_hash)
 
-  """ Tests that it fails if the required fields are invalid. """
-  def test_requirements(self):
-    # Giving it passwords that don't match should be a problem.
-    params = self._TEST_PARAMS.copy()
-    params["password"] = "notasecret"
-    params["password_confirm"] = "stillnotasecret"
-    response = self.test_app.post("/account", params, expect_errors=True)
-
-    self.assertEqual(422, response.status_int)
-    self.assertIn("do not match", response.body)
-
-    # Giving it a password that is too short should also be a problem.
-    params = self._TEST_PARAMS.copy()
-    params["password"] = "daniel"
-    params["password_confirm"] = "daniel"
-    response = self.test_app.post("/account", params, expect_errors=True)
-
-    self.assertEqual(422, response.status_int)
-    self.assertIn("at least 8 characters", response.body)
-
   """ Checks that it redirects correctly if the user has already entered their
   account information. """
   def test_already_entered(self):
