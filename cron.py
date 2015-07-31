@@ -220,7 +220,7 @@ class ResetSigninHandler(CronHandlerBase):
       if member.status == "no_visits":
         logging.info("Restoring user that ran out of visits: %s" % \
                      (member.username))
-        subscriber_api.restore(member.username)
+        subscriber_api.notify_restore(member.email)
         member.status = "active"
 
       member_future = db.put_async(member)

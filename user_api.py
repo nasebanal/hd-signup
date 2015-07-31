@@ -58,7 +58,7 @@ def _increment_signins(user):
   if remaining == 0:
     # No more visits left. Suspend the user.
     user.status = "no_visits"
-    subscriber_api.suspend(user.username)
+    subscriber_api.notify_suspend(user.email)
 
   user.put()
   return remaining

@@ -7,31 +7,21 @@ from google.appengine.api import mail, urlfetch, taskqueue
 import dateutil.parser
 
 from config import Config
+from membership import Membership
 import keymaster
 import plans
 import spreedly
 
-""" Suspend the requested user.
-username: The username of the user to suspend. """
-def suspend(username):
-  conf = Config()
-  if conf.is_testing:
+
+""" Notifies the events app of the requested user's suspension.
+email: The email of the user to suspend. """
+def notify_suspend(email):
+  if Config().is_testing:
     # Don't do this if we're testing.
     return
 
-  resp = urlfetch.fetch("http://%s/suspend/%s" % \
-      (conf.DOMAIN_HOST, username),
-      method="POST", deadline=10,
-      payload=urllib.urlencode({"secret": keymaster.get("api")}),
-      follow_redirects=False)
-
-  if resp.status_code != 200:
-    # The domain app will handle retrying for us, so we don't block the queue.
-    logging.error("User suspension failed with status %d." % \
-                  (resp.status_code))
-
   # Alert the events app that the user's status has changed.
-  query = {"username": username, "status": "suspended"}
+  query = {"email": email, "status": "suspended"}
   response = urlfetch.fetch("http://%s/api/v1/status_change" % \
                             (conf.EVENTS_HOST), method="POST",
                             payload=urllib.urlencode(query),
@@ -40,27 +30,15 @@ def suspend(username):
   if response.status_code != 200:
     logging.warning("Notifying events app failed.")
 
-""" Restore the requested user.
-username: The username of the user to restore. """
-def restore(username):
-  conf = Config()
-  if conf.is_testing:
+""" Notifies the events app of the requested user's restoration.
+email: The email of the user to restore. """
+def notify_restore(email):
+  if Config().is_testing:
     # Don't do this if we're testing.
     return
 
-  resp = urlfetch.fetch("http://%s/restore/%s" % \
-      (conf.DOMAIN_HOST, username),
-      method="POST", deadline=10,
-      payload=urllib.urlencode({"secret": keymaster.get("api")}),
-      follow_redirects=False)
-
-  if resp.status_code != 200:
-    # The domain app will handle retrying for us, so we don't block the queue.
-    logging.error("User restoration failed with status %d." % \
-                  (resp.status_code))
-
   # Alert the events app that the user's status has changed.
-  query = {"username": username, "status": "active"}
+  query = {"email": email, "status": "active"}
   response = urlfetch.fetch("http://%s/api/v1/status_change" % \
                             (conf.EVENTS_HOST), method="POST",
                             payload=urllib.urlencode(query),
@@ -132,25 +110,13 @@ def update_subscriber(member):
     subject="Please cancel PayPal subscription for %s" % member.full_name(),
     body=member.email)
 
+  # Save their old status.
+  old_status = member.status
+
   update_plan(subscriber, member)
 
-  if (member.status in ("active", "no_visits") and not member.domain_user):
-    if not member.password:
-      # In this case, it pulled an old datastore entry and updated the schema,
-      # which defaulted the password value. In this case, there is nothing we can
-      # really do besides exiting gracefully, because we have permanently lost the
-      # username and password values.
-      logging.warning("Cannot handle old member with expired login info: %s." % \
-                      (member.email))
-      # Set domain_user so that it stops bothering us.
-      member.domain_user = True
-
-    else:
-      taskqueue.add(url="/tasks/create_user", method="POST",
-                    params={"hash": member.hash,
-                            "username": member.username,
-                            "password": member.password},
-                    countdown=3)
+  # TODO (daniep): Deal with people who haven't yet migrated to new-style
+  # accounts here.
 
   if member.status in ("active", "no_visits") and member.unsubscribe_reason:
     member.unsubscribe_reason = None
@@ -160,14 +126,12 @@ def update_subscriber(member):
 
   member.put()
 
-  # TODO: After a few months (now() = 06.13.2011), only suspend/restore if
-  # status CHANGED. As of right now, we can't trust previous status, so lets
-  # take action on each call to /update
-  if member.status == "active" and member.domain_user:
-    logging.info("Restoring User: %s" % (member.username))
-    restore(member.username)
-  if member.status == "suspended" and member.domain_user:
-    logging.info("Suspending User: %s" % (member.username))
-    suspend(member.username)
+  if member.status != old_status:
+    if member.status == "active":
+      logging.info("Restoring User: %s" % (member.username))
+      notify_restore(member.email)
+    if member.status == "suspended" and member.domain_user:
+      logging.info("Suspending User: %s" % (member.username))
+      notify_suspend(member.email)
 
   return ((member.status in ("active", "no_visits")), member.plan)

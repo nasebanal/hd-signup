@@ -42,108 +42,6 @@ class QueueHandlerBase(ProjectHandler):
     return wrapper
 
 
-""" A handler for creating GoogleApps domain users. Basically gets run once for
-everybody who signs up. """
-class CreateUserTask(QueueHandlerBase):
-  """ Create domain user.
-  Parameters:
-  hash: The hash of the user we are creating a domain account for.
-  username: The username we want the domain account to have.
-  password: The password we want the domain account to have. """
-  @QueueHandlerBase.taskqueue_only
-  def post(self):
-    """ Report a failure of this task. """
-    def fail(exception):
-      logging.error("CreateUserTask failed: %s" % exception)
-      mail.send_mail(sender=Config().EMAIL_FROM,
-          to=Config().INTERNAL_DEV_EMAIL,
-          subject="[%s] CreateUserTask failure" % Config().APP_NAME,
-          body=str(exception))
-
-      self.response.set_status(500)
-
-    """ Retry this task.
-    countdown: How long to wait before running it again. """
-    def retry(countdown=3):
-      retries = int(self.request.get("retries", 0)) + 1
-      if retries <= 5:
-        taskqueue.add(url="/tasks/create_user", method="POST",
-                      countdown=countdown,
-            params={"hash": self.request.get("hash"),
-                    "username": self.request.get("username"),
-                    "password": self.request.get("password"),
-                    "retries": retries})
-      else:
-        logging.error("Too many retries for %s" % self.request.get("hash"))
-        # We don't want it to retry again.
-        self.response.set_status(200)
-
-    user_hash = self.request.get("hash")
-    membership = Membership.get_by_hash(user_hash)
-
-    if membership is None:
-      logging.error("Got nonexistent hash: %s" % (user_hash))
-      self.response.set_status(422)
-      return
-    if membership.domain_user:
-      logging.warning(
-          "Not creating domain account for already-existing user '%s'." \
-          % (membership.username))
-      # Don't set another status here, because we don't want the
-      # PinPayments system to keep retrying the call.
-      return
-
-    if not membership.spreedly_token:
-      logging.warn("CreateUserTask: No spreedly token yet, retrying")
-      return retry(300)
-
-    username = self.request.get("username")
-    password = self.request.get("password")
-
-    try:
-      url = "http://%s/users" % Config().DOMAIN_HOST
-      payload = urllib.urlencode({
-          "username": username,
-          "password": password,
-          "first_name": membership.first_name,
-          "last_name": membership.last_name,
-      })
-      logging.info("CreateUserTask: About to create user: "+username)
-      logging.info("CreateUserTask: URL: "+url)
-      logging.info("CreateUserTask: Payload: "+payload)
-
-      if not Config().is_testing:
-        resp = urlfetch.fetch(url, method="POST", payload=payload,
-                              deadline=120, follow_redirects=False)
-        if resp.status_code == 200:
-          logging.info("I think that worked.")
-        else:
-          logging.error("I think that failed: HTTP %d" % (resp.status_code))
-          return retry()
-
-      else:
-        # I want to see what query string it would have used.
-        self.response.out.write(payload)
-
-      # Invalidate the current cached usernames, since we added a new one.
-      self.invalidate_cached_usernames()
-
-      membership.domain_user = True
-      # We'll never use the password again, and there's no sense in
-      # leaving this sensitive information sitting in the datastore, so we
-      # might as well get rid of it.
-      membership.password = None
-      membership.put()
-
-      # Send the welcome email.
-      SuccessHandler.send_email(self, membership)
-    except urlfetch.DownloadError, e:
-      logging.error("Domain app response error or timeout, retrying")
-      return retry()
-    except Exception, e:
-      return fail(e)
-
-
 """ Sends a reminder email to suspended users. """
 class AreYouStillThereMail(QueueHandlerBase):
   """ Send the reminder email to a specific user.
@@ -225,7 +123,6 @@ class CleanupTask(QueueHandlerBase):
 
 
 app = BaseApp([
-    ("/tasks/create_user", CreateUserTask),
     ("/tasks/clean_row", CleanupTask),
     ("/tasks/areyoustillthere_mail", AreYouStillThereMail),
     ], debug=True)
