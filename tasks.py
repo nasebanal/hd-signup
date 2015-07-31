@@ -70,7 +70,7 @@ class AreYouStillThereMail(QueueHandlerBase):
     to = "%s <%s>" % (user.full_name(), user.email)
     bcc = "%s <%s>" % ("Billing System", "robot@hackerdojo.com")
     if user.username:
-      cc="%s <%s@hackerdojo.com>" % (user.full_name(), user.username),
+      cc="%s <%s>" % (user.full_name(), user.email),
       mail.send_mail(sender=Config().EMAIL_FROM_AYST, to=to,
                      subject=subject, body=body, bcc=bcc, cc=cc)
     else:

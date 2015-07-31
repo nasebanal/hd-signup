@@ -71,13 +71,6 @@ class CronHandlerBase(ProjectHandler):
     return wrapper
 
 
-""" Periodically refreshes the list of cached domain users. """
-class CacheUsersHandler(CronHandlerBase):
-  @CronHandlerBase.cron_only
-  def get(self):
-    self.fetch_usernames(use_cache=False)
-
-
 """ Datastore model to keep track of DataSync information. """
 class SyncRunInfo(db.Model):
   run_times = db.IntegerProperty(default = 0)
@@ -256,8 +249,8 @@ class AreYouStillThereHandler(CronHandlerBase):
           membership.extra_dnd != True):
         # One e-mail every 90 seconds = 960 e-mails a day.
         countdown += 90
-        self.response.out.write("Are you still there %s ?<br/>" % \
-                                (membership.email))
+        self.response.out.write("Are you still there, %s?<br/>" % \
+                                (membership.first_name))
         taskqueue.add(url="/tasks/areyoustillthere_mail",
             params={"user": membership.key().id()}, countdown=countdown)
 
@@ -265,7 +258,6 @@ class AreYouStillThereHandler(CronHandlerBase):
 app = BaseApp([
     ("/cron/datasync", DataSyncHandler),
     ("/cron/reset_signins", ResetSigninHandler),
-    ("/cron/cache_users", CacheUsersHandler),
     ("/cron/cleanup", CleanupHandler),
     ("/cron/areyoustillthere", AreYouStillThereHandler)],
     debug=True)

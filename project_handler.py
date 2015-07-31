@@ -20,30 +20,8 @@ JINJA_ENVIRONMENT = jinja2.Environment(
 
 """ A generic superclass for all handlers. """
 class ProjectHandler(webapp2.RequestHandler):
-  # Usernames to return for testing purposes.
-  testing_usernames = []
   # A user to use for simulating logins during unit testing.
   simulated_user = None
-
-  """ Allows the user to set which usernames it returns in testing mode. If
-  someone tries to run this on a production app, it throws an exception.
-  username: The username to add. """
-  @classmethod
-  def add_username(cls, username):
-    if Config().is_prod:
-      logging.critical("Can't fake usernames on a production app.")
-      raise ValueError("Can't fake usernames on a production app.")
-
-    ProjectHandler.testing_usernames.append(username)
-
-  """ Clears all the fake usernames. """
-  @classmethod
-  def clear_usernames(cls):
-    if Config().is_prod:
-      logging.critical("Can't clear fake usernames on a production app.")
-      raise ValueError("Can't clear fake usernames on a production app.")
-
-    ProjectHandler.testing_usernames = []
 
   """ Checks if the current user is an admin and displays an error message if
   they aren't. Also prompts them to log in if they are not. This is meant to be
@@ -169,44 +147,6 @@ class ProjectHandler(webapp2.RequestHandler):
 
     template = JINJA_ENVIRONMENT.get_template(path)
     return template.render(template_vars)
-
-  """ Fetches all the usernames in the datastore.
-  use_cache: Whether or not to use a cached version of the usernames.
-  Returns: A list of the usernames, or None upon failure. """
-  def fetch_usernames(self, use_cache=True):
-    conf = Config()
-
-    if conf.is_testing:
-      logging.info("Using fake usernames: %s" % (self.testing_usernames))
-      return self.testing_usernames
-
-    usernames = memcache.get("usernames")
-    if usernames and use_cache:
-      return usernames
-    else:
-      resp = urlfetch.fetch("http://%s/users" % conf.DOMAIN_HOST, deadline=10,
-                            follow_redirects=False)
-      if resp.status_code == 200:
-          usernames = [m.lower() for m in json.loads(resp.content)]
-          if not memcache.set("usernames", usernames, 60*60*24):
-              logging.error("Memcache set failed.")
-          return usernames
-      else:
-        logging.critical("Failed to fetch list of users. (%d)" %
-            (resp.status_code))
-
-      # Render error page.
-      error_page = self.render("templates/error.html",
-          message="/users returned non-OK status.",
-          internal=True)
-      self.response.out.write(error_page)
-      return None
-
-  """ Marks the cached list of usernames as stale. """
-  def invalidate_cached_usernames(self):
-    # It doesn't throw an exception if the item does not exist.
-    logging.debug("Cached usernames are now stale.")
-    memcache.delete("usernames")
 
   """ Shortcut to access the auth instance as a property. """
   @webapp2.cached_property

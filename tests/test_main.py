@@ -279,9 +279,6 @@ class AccountHandlerBase(BaseTest):
     Plan.legacy_pairs = set()
     self.test_plan = Plan("test", 0, 100, "A test plan.")
 
-    # Clear fake usernames between tests.
-    ProjectHandler.clear_usernames()
-
 
 """ Tests that AccountHandler works. """
 class AccountHandlerTest(AccountHandlerBase):
