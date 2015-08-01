@@ -219,7 +219,7 @@ class BaseApp(webapp2.WSGIApplication):
       "webapp2_extras.auth": {
         "user_model": "membership.Membership",
         "user_attributes": ["first_name", "last_name", "email", "hash",
-                            "is_admin"]
+                            "is_admin", "status"]
       },
       "webapp2_extras.sessions": {
         "secret_key": secret

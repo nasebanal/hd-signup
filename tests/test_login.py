@@ -8,6 +8,7 @@ import json
 import time
 import unittest
 import urllib
+import urlparse
 
 from google.appengine.api import memcache
 from google.appengine.ext import testbed
@@ -116,6 +117,7 @@ class LoginHandlerTest(BaseTest):
     response = self.test_app.post("/login", params)
     self.assertEqual(302, response.status_int)
     self.assertIn("token=", response.location)
+    self.assertIn("user=", response.location)
 
     # There should be two tokens in memcache.
     items = memcache.get_stats()["items"]
@@ -250,7 +252,9 @@ class ValidateTokenHandlerTest(BaseTest):
     # Log in the user and create a token.
     response = self.test_app.post("/login", params)
     self.assertEqual(302, response.status_int)
-    self.token = response.location.split("=").pop()
+    query_str = urlparse.urlparse(response.location)
+    query = urlparse.parse_qs(query_str.query)
+    self.token = query["token"]
 
   """ Tests that it can detect a valid token. """
   def test_valid_token(self):

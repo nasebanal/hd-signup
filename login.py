@@ -25,7 +25,8 @@ class LoginHandler(ProjectHandler):
   """ Parameters:
   app_id: The Appengine ID of the application making the request. If this is not
   included with a url parameter, it will be assumed that the current app is
-  making the request and no token will be included in the redirect request.
+  making the request and no token will be included in the redirect request, as
+  well as the unique ID of the user that was logged in.
   Otherwise, a token will be included that will allow the app specified to
   confirm that the logged in user is still logged in using /validate_token.
   url: A URL to send the user to after they have successfully logged in.
@@ -59,7 +60,6 @@ class LoginHandler(ProjectHandler):
       remember = not app_id
       user_info = \
           self.auth.get_user_by_password(email, password, remember=remember)
-      user = Membership.get_by_hash(user_info["hash"])
 
     except auth.InvalidAuthIdError as e:
       logging.warning("Unknown user: %s." % (email))
@@ -71,10 +71,10 @@ class LoginHandler(ProjectHandler):
       return
 
     # Check that the user can log in.
-    if not user.status:
+    if not user_info["status"]:
       self.__show_error("You have not finished signing up.", keep_email=False)
       return
-    elif user.status == "suspended":
+    elif user_info["status"] == "suspended":
       link = "/reactivate"
       self.__show_error(
           message="You are suspended. <a href=\"%s\">Click here</a>" \
@@ -87,9 +87,10 @@ class LoginHandler(ProjectHandler):
 
       # Generate a new token that we can use to verify that this user is logged
       # in.
-      token = UserToken(user.get_id(), app_id)
+      token = UserToken(user_info["user_id"], app_id)
       token.save()
-      query_str = urllib.urlencode({"token": token.token})
+      query_str = urllib.urlencode({"token": token.token,
+                                    "user": user_info["user_id"]})
       return_url = "%s?%s" % (return_url, query_str)
 
     self.redirect(str(return_url))
