@@ -199,7 +199,7 @@ class MainHandlerTest(BaseTest):
     # If we're logged in as an admin, though, it should let us.
     user = Membership.create_user(self._TEST_PARAMS["email"], "notasecret",
                                   first_name="Testy", last_name="Testerson",
-                                  is_admin=True)
+                                  groups=["admin"])
     ProjectHandler.simulate_logged_in_user(user)
     query = urllib.urlencode({"plan": unavailable_plan.name})
     response = self.test_app.get("/?" + query)
@@ -588,7 +588,7 @@ class MemberListHandlerTest(BaseTest):
     # right off the bat.
     user = Membership.create_user("ttesterson@gmail.com", "notasecret",
                                   first_name="Admin", last_name="Testerson",
-                                  spreedly_token="notatoken", is_admin=True,
+                                  spreedly_token="notatoken", groups=["admin"],
                                   status="active")
     ProjectHandler.simulate_logged_in_user(user)
 

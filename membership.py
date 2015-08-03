@@ -84,8 +84,8 @@ class Membership(db.Model):
   twitter = db.StringProperty(required=False)
   plan  = db.StringProperty(required=False)
   status  = db.StringProperty() # None, active, suspended
-  # Whether the user is an admin.
-  is_admin = db.BooleanProperty(default=False)
+  # The names of any groups that the user belongs to.
+  groups = db.StringListProperty(default=[])
   referuserid = db.StringProperty()
   referrer  = db.StringProperty()
   rfid_tag = db.StringProperty()
@@ -128,6 +128,13 @@ class Membership(db.Model):
       self.updated = datetime.datetime.now()
 
     super(Membership, self).put(*args, **kwargs)
+
+  """ Whether the user is an admin. Being an admin is implemented as being part
+  of the 'admin' group.
+  Returns: True or False, depending on whether the user is an admin or not. """
+  @property
+  def is_admin(self):
+    return "admin" in self.groups
 
   def icon(self):
     return str("http://www.gravatar.com/avatar/" + hashlib.md5(self.email.lower()).hexdigest())

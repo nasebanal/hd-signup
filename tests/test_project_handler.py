@@ -77,14 +77,14 @@ class ProjectHandlerTests(unittest.TestCase):
     # Simulate a logged-in admin.
     user = Membership.create_user("testy.testerson@gmail.com", "notasecret",
                                   first_name="Testy", last_name="Testerson",
-                                  hash="notahash", is_admin=True,
+                                  hash="notahash", groups=["admin"],
                                   status="active")
     project_handler.ProjectHandler.simulate_logged_in_user(user)
     # It should work.
     self.assertTrue(test_restricted_function(self.ProxyHandler()))
 
     # Simulate a logged-in user that is not an admin.
-    user.is_admin = False
+    user.groups = []
     user.put()
     project_handler.ProjectHandler.simulate_logged_in_user(user)
     self.assertEqual(None, test_restricted_function(self.ProxyHandler()))
@@ -112,7 +112,7 @@ class ProjectHandlerTests(unittest.TestCase):
     self.assertTrue(test_restricted_function(self.ProxyHandler()))
 
     # Simulate a logged-in user that is not an admin.
-    user.is_admin = False
+    user.groups.append("admin")
     user.put()
     project_handler.ProjectHandler.simulate_logged_in_user(user)
     self.assertTrue(test_restricted_function(self.ProxyHandler()))
