@@ -92,6 +92,7 @@ class LoginHandler(ProjectHandler):
       query_str = urllib.urlencode({"token": token.token,
                                     "user": user_info["user_id"]})
       return_url = "%s?%s" % (return_url, query_str)
+    logging.debug("Return URL: %s" % (return_url))
 
     self.redirect(str(return_url))
 
@@ -157,6 +158,13 @@ class ForgottenPasswordHandler(ProjectHandler):
       return
 
     member = Membership.get_by_email(email)
+    if not member:
+      logging.warning("Could not find user with email: %s" % (email))
+
+      # Don't send the email and fail silently. (If we show a message, it gives
+      # a potential attacker an easy way to validate emails.)
+      return
+
     token = member.create_password_reset_token()
 
     # Create the reset URL.
