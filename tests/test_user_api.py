@@ -91,7 +91,7 @@ class UserHandlerTest(ApiTest):
 
     self.assertEqual(422, response.status_int)
     self.assertEqual("InvalidParametersException", result["type"])
-    self.assertIn("email", result["message"])
+    self.assertIn("no user", result["message"])
 
   """ Tests that it fails when we give it bad parameters. """
   def test_bad_parameters(self):
@@ -135,6 +135,15 @@ class UserHandlerTest(ApiTest):
     self.assertEqual(200, response.status_int)
     got_created = pickle.loads(str(result["created"]))
     self.assertEqual(self.user.created, got_created)
+
+  """ Tests that we can get by the datastore id as well. """
+  def test_get_by_id(self):
+    query = urllib.urlencode({"id": self.user.get_id(), "properties[]": ""})
+    response = self.test_app.get("/api/v1/user?" + query)
+    result = json.loads(response.body)
+
+    self.assertEqual(200, response.status_int)
+    self.assertEqual({}, result)
 
 
 """ Tests that the signin handler works properly. """

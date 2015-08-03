@@ -139,11 +139,20 @@ class ApiHandlerBase(webapp2.RequestHandler):
       return values[0]
     return values
 
+  """ Overrided dispatch function that automatically sets Content-Type to JSON.
+  """
+  def dispatch(self):
+    self.response.headers["Content-Type"] = "application/json"
+
+    webapp2.RequestHandler.dispatch(self)
+
 
 """ Handler for getting data for a particular user. """
 class UserHandler(ApiHandlerBase):
   """ Properties for this request:
-  email: The email for which we are getting data.
+  id: The datastore ID for which we are getting data.
+  email: The email for which we are getting data. Will be overriden by ID if
+  present.
   properties: a x-www-form-urlencoded formatted list of property names we want
   for this user. I like it this way because we don't need to send really
   sensitive data unless someone requests it explicitly.
@@ -151,21 +160,31 @@ class UserHandler(ApiHandlerBase):
   user. Note that all datetime types will be transmitted in a pickled format. """
   @ApiHandlerBase.restricted
   def get(self):
-    email, properties = self._get_parameters("email", "properties")
+    properties = self._get_parameters("properties")
     if type(properties) is unicode:
       # A singleton property.
       properties = [properties]
 
-    if not email:
+
+    user_id = self.request.get("id")
+    email = self.request.get("email")
+    if (not (email or user_id)):
+      self._rest_error("InvalidParameters", "Need 'id' or 'email' parameter.",
+                       400)
       return
-    logging.info("Fetching properties for user '%s'." % (email))
+
+    use_for_log = user_id if user_id else email
+    logging.info("Fetching properties for user '%s'." % (use_for_log))
 
     # Get the user data.
-    found_user = Membership.get_by_email(email)
+    if user_id:
+      found_user = Membership.get_by_id(int(user_id))
+    else:
+      found_user = Membership.get_by_email(email)
     if not found_user:
-      logging.error("Found no user with email '%s'." % (email))
+      logging.error("Found no user '%s'." % (use_for_log))
       self._rest_error("InvalidParameters",
-          "Found no user with that email.", 422)
+          "Found no user with specified parameters.", 422)
       return
 
     all_properties = {}
