@@ -67,7 +67,7 @@ def _increment_signins(user):
 """ Generic superclass for all API Handlers. """
 class ApiHandlerBase(webapp2.RequestHandler):
   # Apps that can use this API.
-  _AUTHORIZED_APPS = ("hd-events-hrd", "hd-signin-hrd")
+  _AUTHORIZED_APPS = ("hd-events-hrd", "hd-signin-hrd", "hd-wifi-1034")
 
   """ A function meant to be used as a decorator. It ensures that an authorized
   app is making the request before running the function.
