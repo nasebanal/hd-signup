@@ -1,16 +1,18 @@
-{% include 'templates/base.html' %}
+{% extends 'templates/base.html' %}
+{% block content %}
 
 <script type="text/javascript" src="static/js/login.js"></script>
 
 <div class="centered-horizontal">
-  <div class="rounded shadowed" style="max-width: 400px; margin-top: 50px;">
+  <div class="rounded shadowed" style="max-width: 400px; margin-top: 50px;
+                                       width: 70%;">
     <form style="max-width: 650px; margin-left: 10px; margin-right: 10px;"
         method="post" id="login-form">
       <h4 style="text-align: center;">
           Please login to your HackerDojo account:</h4>
       <span style="color: #B23030; margin-left: 10px;">{{ message|safe }}
           {% if forgot_password %}
-          <a href="#" id="reset-password">Forgot Password</a>
+          <a href="#" id="reset-password">Reset Password</a>
           {% endif %}
       </span>
 
@@ -50,3 +52,48 @@
   </div>
 
 </div>
+
+{% if show_modal %}
+<script type="text/javascript" src="static/js/new-accounts-modal.js"></script>
+{% endif %}
+
+<div id="new-accounts-modal" class="modal fade in" role="dialog">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <button type="button" class="close"
+            data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">New Accounts</h4>
+      </div>
+
+      <div class="modal-body">
+        <p>HackerDojo is moving away from Google Apps accounts. This means
+        that you will no longer be authenticating with your @hackerdojo.com
+        email address, in fact, this address is now deprecated. Instead, we
+        are rolling out a new authentication system that uses the normal
+        email that you signed up with.</p>
+        <p>There is just one problem:</p>
+        <p>For technical and privacy reasons, we are unable to transfer over
+        the password you used with your @hackerdojo.com email address. This
+        means that we need you to enter a new password. After you do this,
+        you will be able to log in to any HackerDojo web applications using
+        the email you signed up with and this password.</p>
+        <p>Clicking on the "Reset Password" button will cause an email to be
+        sent to you with further instructions on resetting your
+        password.</p>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger"
+            data-dismiss="modal" id="modal-password-reset">
+            Reset Password</button>
+        <button type="button" class="btn btn-default"
+            data-dismiss="modal">Cancel</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}

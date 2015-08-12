@@ -53,6 +53,14 @@ class LoginHandler(ProjectHandler):
     # we see it still there again, we know we should limit the client.
     memcache.set(key, True, time=1)
 
+    # Check that we have a password hash.
+    user = Membership.get_by_email(email)
+    if (user and not user.password_hash):
+      # If we don't, show the modal with information about new-style accounts.
+      response = self.render("templates/login.html", show_modal=True)
+      self.response.out.write(response)
+      return
+
     # Check the password.
     try:
       # If we are getting a request from outside the domain, we shouldn't bother
@@ -169,7 +177,7 @@ class ForgottenPasswordHandler(ProjectHandler):
 
     # Create the reset URL.
     url_parts = urlparse(self.request.url)
-    query_str = urllib.urlencode({"user": member.hash, "token": token})
+    query_str = urllib.urlencode({"user": member.get_id(), "token": token})
     reset_url = "%s://%s/reset_password?%s" % \
         (url_parts.scheme, url_parts.netloc, query_str)
     logging.debug("Created password reset URL %s for user %s." % \
@@ -188,21 +196,21 @@ class ForgottenPasswordHandler(ProjectHandler):
 password reset email. """
 class PasswordResetHandler(ProjectHandler):
   def get(self):
-    user_hash = self.request.get("user")
+    user_id = self.request.get("user")
     token = self.request.get("token")
 
     error_response = self.render("templates/error.html",
         message="Invalid password reset link.")
 
-    if (not user_hash or not token):
-      logging.error("Missing hash or token.")
+    if (not user_id or not token):
+      logging.error("Missing id or token.")
       self.response.out.write(error_response)
       self.response.set_status(400)
       return
 
-    member = Membership.get_by_hash(user_hash)
+    member = Membership.get_by_id(int(user_id))
     if not member:
-      logging.error("Could not find member with hash '%s'." % (user_hash))
+      logging.error("Could not find member with id '%s'." % (user_id))
       self.response.out.write(error_response)
       self.response.set_status(422)
       return
@@ -220,11 +228,11 @@ class PasswordResetHandler(ProjectHandler):
 
   def post(self):
     password = self.request.get("password")
-    user_hash = self.request.get("user")
+    user_id = self.request.get("user")
     token = self.request.get("token")
 
     # Check that we still have a valid token.
-    user = Membership.get_by_hash(user_hash)
+    user = Membership.get_by_id(int(user_id))
     if not user.verify_password_reset_token(token):
       self.abort(401)
       return

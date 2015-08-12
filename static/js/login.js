@@ -25,6 +25,9 @@ login.loginBox = function() {
 
       outer_this.handleForgottenPassword_();
     });
+    $('#modal-password-reset').click(function(event) {
+      outer_this.handleForgottenPassword_();
+    });
     $('#return-button').click(function() {
       outer_this.showLogin_();
     });
@@ -119,6 +122,9 @@ login.loginBox = function() {
     $('#forgot-password').fadeOut(function() {
       $('#login-form').fadeIn();
     });
+
+    // Clear the password field.
+    $('#password').val('');
   };
 
   this.registerHandlers_();

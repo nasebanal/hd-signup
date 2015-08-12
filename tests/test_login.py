@@ -176,7 +176,7 @@ class ForgottenPasswordHandlerTest(BaseTest):
     body = str(messages[0].body)
     token = pickle.loads(str(member.password_reset_token)).token
     self.assertIn(token, body)
-    self.assertIn(str(member.hash), body)
+    self.assertIn(str(member.get_id()), body)
 
 
 class PasswordResetHandlerTest(BaseTest):
@@ -185,7 +185,7 @@ class PasswordResetHandlerTest(BaseTest):
 
     self.token = self.member.create_password_reset_token()
 
-    params = {"user": self.member.hash, "token": self.token}
+    params = {"user": self.member.get_id(), "token": self.token}
     self.query_str = urllib.urlencode(params)
     self.params = {"password": "notasecret", "verify": "notasecret"}
 
@@ -218,13 +218,13 @@ class PasswordResetHandlerTest(BaseTest):
     self.assertEqual(400, response.status_int)
 
     # Try with a bad user.
-    query_str = urllib.urlencode({"user": "baduser", "token": self.token})
+    query_str = urllib.urlencode({"user": 1337, "token": self.token})
     response = self.test_app.get("/reset_password?" + query_str,
                                  expect_errors=True)
     self.assertEqual(422, response.status_int)
 
     # Try with a bad token.
-    query_str = urllib.urlencode({"user": self.member.hash,
+    query_str = urllib.urlencode({"user": self.member.get_id(),
                                   "token": "badtoken"})
     response = self.test_app.get("/reset_password?" + query_str,
                                  expect_errors=True)
@@ -233,7 +233,7 @@ class PasswordResetHandlerTest(BaseTest):
   """ Tests that it shows an error if it gets a post request with an invalid
   token. """
   def test_post_invalid_token(self):
-    query_str = urllib.urlencode({"user": self.member.hash,
+    query_str = urllib.urlencode({"user": self.member.get_id(),
                                   "token": "badtoken"})
     response = self.test_app.post("/reset_password?" + query_str, self.params,
                                   expect_errors=True)
