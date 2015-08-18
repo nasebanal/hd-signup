@@ -57,7 +57,8 @@ class LoginHandler(ProjectHandler):
     user = Membership.get_by_email(email)
     if (user and not user.password_hash):
       # If we don't, show the modal with information about new-style accounts.
-      response = self.render("templates/login.html", show_modal=True)
+      response = self.render("templates/login.html", show_modal=True,
+                             email=email)
       self.response.out.write(response)
       return
 
