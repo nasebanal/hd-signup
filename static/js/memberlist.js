@@ -30,12 +30,18 @@ memberlist.paginatedTable = function() {
     $.get('/memberlist/total_pages', function(data) {
       outer_this.totalPages_ = Number(data);
 
-      // Make the pagination thingy.
-      for (var i = 1; i <= outer_this.totalPages_; ++i) {
-        var pageMarker = $('<li><a>' + String(i) + '</a></li>');
-        $('#pages').append(pageMarker);
+      // Only show up to the first 11 page markers.
+      var showPages = outer_this.totalPages_;
+      if (showPages > 11) {
+        $('#more-right').show();
+        showPages = 11;
+      }
 
-        // Set the initial active page.
+      // Make the pagination thingy.
+      for (var i = 1; i <= showPages; ++i) {
+        var pageMarker = $('<li><a>' + String(i) + '</a></li>');
+        $('#more-right').before(pageMarker);
+
         if (i == 1) {
           outer_this.activePage_ = pageMarker;
           pageMarker.addClass('active');
@@ -50,12 +56,9 @@ memberlist.paginatedTable = function() {
             return;
           }
 
-          marker.addClass('active');
-          outer_this.activePage_.removeClass('active');
-          outer_this.activePage_ = marker
-
           // Figure out what page we clicked on.
           var page = Number($(event.target).text());
+          outer_this.showPageMarkers_(page);
           outer_this.renderPage(page);
         });
       }
@@ -153,6 +156,69 @@ memberlist.paginatedTable = function() {
     };
 
     loaderFunction();
+  };
+
+  /** Recalculates which page markers to show, since we only show 10 at any
+   * given time.
+   * @private
+   * @param {Number} page: The page number that we are switching to.
+   */
+  this.showPageMarkers_ = function(page) {
+    if (this.totalPages_ <= 11) {
+      // We don't have to bother with this, because we have few enough pages.
+      return;
+    }
+
+    // We want our page to be in the middle.
+    var firstPage = page - 5;
+    var lastPage = page + 5;
+
+    // Cap it at either end.
+    if (firstPage < 1) {
+      lastPage += 1 - firstPage;
+      firstPage = 1;
+    } else if (lastPage > this.totalPages_) {
+      firstPage -= lastPage - this.totalPages_;
+      lastPage = this.totalPages_;
+    }
+
+    // Show the overflow indicators.
+    if (firstPage > 1) {
+      $('#more-left').show();
+    } else {
+      $('#more-left').hide();
+    }
+    if (lastPage < this.totalPages_) {
+      $('#more-right').show();
+    } else {
+      $('#more-right').hide();
+    }
+
+    // Display the proper page markers. Instead of making new ones, we can just
+    // change the text on the ones already being displayed.
+    var currentPage = firstPage;
+    var outer_this = this;
+    $('#pages').children('li').each(function() {
+      if (this.id.indexOf('more-') > -1) {
+        // Skip the indicators on the left and right.
+        return;
+      }
+
+      var textElement = $(this).children('a').first();
+      $(textElement).text(currentPage);
+
+      // Ensure that the proper one is active.
+      if (currentPage == page) {
+        // This one should be active.
+        $(this).addClass('active');
+        outer_this.activePage_ = $(this);
+      } else {
+        // This one shouldn't be active.
+        $(this).removeClass('active');
+      }
+
+      ++currentPage;
+    });
   };
 
   this.renderFirstPage_();
