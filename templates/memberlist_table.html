@@ -1,0 +1,19 @@
+<table class="table-striped table-condensed table-bordered"
+    width="100%" cellspacing="0" cellpadding="0" border="0">
+<thead>
+  <tr>
+    <th>Name</th>
+    <th>Email</th>
+    <th>Twitter</th>
+  </tr>
+</thead>
+<tbody>
+{% for u in signup_users %}
+  <tr>
+    <td>{{ u.last_name }}, {{ u.first_name }}</td>
+    <td>{{ u.email }}</td>
+    <td><a href="http://twitter.com/{{u.twitter}}">{{u.twitter}}</a></td>
+  </tr>
+{% endfor %}
+</tbody>
+</table>

@@ -5,6 +5,7 @@
 import appengine_config
 
 import hashlib
+import json
 import re
 import unittest
 import urllib
@@ -599,3 +600,62 @@ class ChangePlanHandlerTest(PlanSelectionTestBase):
     response = self.test_app.get("/change_plan", expect_errors=True)
     self.assertEqual(422, response.status_int)
     self.assertIn("your email", response.body)
+
+""" Tests that the MemberListHandler works as expected. """
+class MemberListHandlerTest(BaseTest):
+  def setUp(self):
+    super(MemberListHandlerTest, self).setUp()
+
+    # This handler requires admin access all the time, so give ourselves that
+    # right off the bat.
+    self.testbed.setup_env(user_email="ttesterson@gmail.com", user_is_admin="1",
+                           overwrite=True)
+
+    # Make exactly two pages worth of users.
+    for i in range(0, 50):
+       email = "ttesterson%d@gmail.com" % (i)
+       first_name = "Testy%d" % (i)
+       user = Membership.create_user(email, "notasecret",
+                                     first_name=first_name,
+                                     last_name="Testerson",
+                                     status="active")
+
+  """ Tests that a standard request gives us the shell template. """
+  def test_get(self):
+    response = self.test_app.get("/memberlist")
+    self.assertEqual(200, response.status_int)
+
+    # There should be no table in there.
+    self.assertNotIn("</table>", response.body)
+
+  """ Tests that we can successfully get a count of all the pages. """
+  def test_count(self):
+    response = self.test_app.get("/memberlist/total_pages")
+    self.assertEqual(200, response.status_int)
+
+    self.assertEqual(2, int(response.body))
+
+  """ Tests that we can fetch pages with cursors. """
+  def test_pagination(self):
+    # Fetch the initial page.
+    query_str = urllib.urlencode({"page": "start"})
+    response = self.test_app.get("/memberlist?" + query_str)
+    self.assertEqual(200, response.status_int)
+
+    response = json.loads(response.body)
+    self.assertIn("nextPage", response.keys())
+    self.assertIn("html", response.keys())
+    self.assertIn("</table>", response["html"])
+
+    # Fetch the next page.
+    query_str = urllib.urlencode({"page": response["nextPage"]})
+    new_response = self.test_app.get("/memberlist?" + query_str)
+    self.assertEqual(200, new_response.status_int)
+
+    new_response = json.loads(new_response.body)
+    self.assertIn("nextPage", new_response.keys())
+    self.assertIn("html", new_response.keys())
+    self.assertIn("</table>", new_response["html"])
+
+    self.assertNotEqual(response["nextPage"], new_response["nextPage"])
+    self.assertNotEqual(response["html"], new_response["html"])

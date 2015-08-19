@@ -1,7 +1,7 @@
 {% extends 'templates/base.html' %}
 {% block content %}
 
-
+<script type="text/javascript" src="/static/js/memberlist.js"></script>
 
 <h2>Active Member List</h2>
 
@@ -14,22 +14,18 @@ h3 {margin-top:3em}
 #header h2 {display:none;}
 </style>
 
-<table class="log" width="100%" cellspacing="0" cellpadding="0" border="0">
-<tr class="header">
-  <td>Name</td>
-  <td>Username</td>
-  <td>Twitter</td>
-</tr>
+<ul class="pagination" id="pages">
+</ul>
 
-{% for u in signup_users %}
-{% if u.spreedly_token %}
-  <tr>
-    <td>{{ u.last_name }}, {{ u.first_name }}</td>
-    <td>{{ u.username }}</td>
-    <td><a href="http://twitter.com/{{u.twitter}}">{{u.twitter}}</a></td>
-  </tr>
-{% endif %}
-{% endfor %}
-</table>
+<!-- Loading bar. -->
+<div class="progress" id="loading-bar">
+  <div class="progress-bar progress-bar-striped active" role="progressbar"
+      aria-valuenow="100" aria-valuemax="100" style="width: 100%">
+      Loading...
+  </div>
+</div>
+
+<div id="page-content">
+</div>
 
 {% endblock %}

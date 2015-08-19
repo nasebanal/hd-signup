@@ -1,5 +1,6 @@
 from cgi import escape
 import base64
+import json
 import sys
 
 import datetime, hashlib, urllib, re
@@ -389,11 +390,46 @@ class UpdateHandler(ProjectHandler):
 
 class MemberListHandler(ProjectHandler):
     @ProjectHandler.admin_only
-    def get(self):
-      signup_users = db.GqlQuery("SELECT * FROM Membership WHERE" \
-                                 " status = 'active' ORDER BY last_name") \
-                                 .fetch(10000);
-      self.response.out.write(self.render("templates/memberlist.html", locals()))
+    def get(self, *args):
+      if self.request.uri.endswith("/total_pages"):
+        # Get the total number of pages.
+        users_query = db.GqlQuery("SELECT * FROM Membership WHERE" \
+                                  " status = 'active'")
+
+        users = users_query.count()
+        pages = users / 25
+        if users % 25:
+          pages += 1
+
+        self.response.out.write(pages)
+        return
+
+      elif self.request.get("page"):
+        # A request for the next page.
+        cursor = self.request.get("page")
+        logging.debug("Got cursor: %s" % (cursor))
+
+        users_query = db.GqlQuery("SELECT * FROM Membership" \
+                                  " WHERE status = 'active' ORDER BY" \
+                                  " last_name ASC")
+
+        if cursor != "start":
+          # Start fetching from where we left off.
+          users_query.with_cursor(start_cursor=cursor)
+
+        fetched_users = users_query.fetch(25)
+
+        next_cursor = users_query.cursor()
+        logging.debug("Next cursor: %s" % (cursor))
+
+        # Render out the HTML.
+        user_table = self.render("templates/memberlist_table.html",
+                                 signup_users=fetched_users)
+        response = json.dumps({"nextPage": next_cursor, "html": user_table})
+        self.response.out.write(response)
+        return
+
+      self.response.out.write(self.render("templates/memberlist.html"))
 
 
 class LeaveReasonListHandler(ProjectHandler):
@@ -629,7 +665,7 @@ app = BaseApp([
         ("/joinreasonlist", JoinReasonListHandler),
         ("/leavereasonlist", LeaveReasonListHandler),
         ("/hardshiplist", HardshipHandler),
-        ("/memberlist", MemberListHandler),
+        ("/memberlist(.*)", MemberListHandler),
         ("/unsubscribe/(.*)", UnsubscribeHandler),
         ("/update", UpdateHandler),
         ("/reactivate", ReactivateHandler),
