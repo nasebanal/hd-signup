@@ -389,13 +389,6 @@ class UpdateHandler(ProjectHandler):
         self.response.out.write("ok")
 
 
-class JoinReasonListHandler(ProjectHandler):
-    @ProjectHandler.admin_only
-    def get(self):
-      all_users = Membership.all().order("created").fetch(10000)
-      self.response.out.write(self.render("templates/joinreasonlist.html", locals()))
-
-
 class SuspendedHandler(ProjectHandler):
     @ProjectHandler.admin_only
     def get(self):
@@ -612,7 +605,6 @@ app = BaseApp([
         ("/account/(.+)", AccountHandler),
         ("/upgrade/needaccount", NeedAccountHandler),
         ("/success/(.+)", SuccessHandler),
-        ("/joinreasonlist", JoinReasonListHandler),
         ("/leavereasonlist(.*)", LeaveReasonListHandler),
         ("/hardshiplist", HardshipHandler),
         ("/memberlist(.*)", MemberListHandler),

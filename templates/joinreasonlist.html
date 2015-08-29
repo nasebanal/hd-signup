@@ -24,7 +24,8 @@ h3 {margin-top:3em}
 {% for u in all_users %}  
   <tr>
     <td><nobr>{{ u.created|date }}</nobr></td>
-    <td><nobr><a href="https://appengine.google.com/datastore/edit?app_id=hd-signup&key={{u.key}}">{{ u.last_name }}, {{ u.first_name }}</a></nobr></td>
+    <td><nobr><a
+        href="https://appengine.google.com/datastore/edit?app_id=hd-signup&key={{u.key()}}">{{ u.last_name }}, {{ u.first_name }}</a></nobr></td>
     <td><nobr>{{ u.status }}</nobr></td>
     <td>{{ u.referrer}}</td>
   </tr>
