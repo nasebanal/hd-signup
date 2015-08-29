@@ -8,6 +8,7 @@ from google.appengine.api import urlfetch, mail, users, taskqueue
 from google.appengine.ext import db
 
 from config import Config
+from list_pages import *
 from membership import Membership
 from project_handler import ProjectHandler, BaseApp
 from select_plan import SelectPlanHandler, ChangePlanHandler
@@ -388,57 +389,6 @@ class UpdateHandler(ProjectHandler):
         self.response.out.write("ok")
 
 
-class MemberListHandler(ProjectHandler):
-    @ProjectHandler.admin_only
-    def get(self, *args):
-      if self.request.uri.endswith("/total_pages"):
-        # Get the total number of pages.
-        users_query = db.GqlQuery("SELECT * FROM Membership WHERE" \
-                                  " status = 'active'")
-
-        users = users_query.count()
-        pages = users / 25
-        if users % 25:
-          pages += 1
-
-        self.response.out.write(pages)
-        return
-
-      elif self.request.get("page"):
-        # A request for the next page.
-        cursor = self.request.get("page")
-        logging.debug("Got cursor: %s" % (cursor))
-
-        users_query = db.GqlQuery("SELECT * FROM Membership" \
-                                  " WHERE status = 'active' ORDER BY" \
-                                  " last_name ASC")
-
-        if cursor != "start":
-          # Start fetching from where we left off.
-          users_query.with_cursor(start_cursor=cursor)
-
-        fetched_users = users_query.fetch(25)
-
-        next_cursor = users_query.cursor()
-        logging.debug("Next cursor: %s" % (cursor))
-
-        # Render out the HTML.
-        user_table = self.render("templates/memberlist_table.html",
-                                 signup_users=fetched_users)
-        response = json.dumps({"nextPage": next_cursor, "html": user_table})
-        self.response.out.write(response)
-        return
-
-      self.response.out.write(self.render("templates/memberlist.html"))
-
-
-class LeaveReasonListHandler(ProjectHandler):
-    @ProjectHandler.admin_only
-    def get(self):
-      all_users = Membership.all().order("-updated").fetch(10000)
-      self.response.out.write(self.render("templates/leavereasonlist.html", locals()))
-
-
 class JoinReasonListHandler(ProjectHandler):
     @ProjectHandler.admin_only
     def get(self):
@@ -663,7 +613,7 @@ app = BaseApp([
         ("/upgrade/needaccount", NeedAccountHandler),
         ("/success/(.+)", SuccessHandler),
         ("/joinreasonlist", JoinReasonListHandler),
-        ("/leavereasonlist", LeaveReasonListHandler),
+        ("/leavereasonlist(.*)", LeaveReasonListHandler),
         ("/hardshiplist", HardshipHandler),
         ("/memberlist(.*)", MemberListHandler),
         ("/unsubscribe/(.*)", UnsubscribeHandler),

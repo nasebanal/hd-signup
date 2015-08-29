@@ -1,9 +1,12 @@
 {% extends 'templates/base.html' %}
 {% block content %}
 
-<script type="text/javascript" src="/static/js/memberlist.js"></script>
+<script type="text/javascript" src="/static/js/paginated-table.js"></script>
 
-<h2>Active Member List</h2>
+<!-- Make sure it uses the right endpoint for all page requests. -->
+<script>pagination.setBaseUri('{{ endpoint }}');</script>
+
+<h2>{{ title }}</h2>
 
 <style>
 .log td {border-bottom:1px solid #ccc; border-right:1px solid #ccc; font-size:12px; padding:2px}

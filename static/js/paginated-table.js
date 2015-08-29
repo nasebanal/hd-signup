@@ -1,12 +1,24 @@
-/** Code for managing the memberlist page. */
+/** Code for managing pagination. */
 
 
 /** Pseudo-namespace for everything in this file. */
-var memberlist = {};
+var pagination = {};
 
 
-/** Class for managing large tables to be split up into multiple pages. */
-memberlist.paginatedTable = function() {
+/** Sets the base URI that will be used for all page requests.
+ @param {String} baseUri: The base URI to use.
+ */
+pagination.setBaseUri = function(baseUri) {
+  pagination.baseUri = baseUri;
+}
+
+
+/** Class for managing large tables to be split up into multiple pages.
+ * @param {String} baseUri: The base URI that all the page requests will be
+ * built off of.
+ */
+pagination.paginatedTable = function(baseUri) {
+  this.baseUri = baseUri;
   // An array containing page data that we have loaded, in order. (We always
   // load each page in order, because that makes the datastore happy.)
   this.loadedPages_ = [];
@@ -27,7 +39,7 @@ memberlist.paginatedTable = function() {
     var outer_this = this;
 
     // Perform AJAX request.
-    $.get('/memberlist/total_pages', function(data) {
+    $.get(this.baseUri + '/total_pages', function(data) {
       outer_this.totalPages_ = Number(data);
 
       // Only show up to the first 11 page markers.
@@ -114,7 +126,7 @@ memberlist.paginatedTable = function() {
       outer_this.isLoading_ = true;
 
       // Perform an AJAX request to get the page content.
-      $.get('/memberlist', {'page': outer_this.pageCursor_}, function(data) {
+      $.get(this.baseUri, {'page': outer_this.pageCursor_}, function(data) {
         // Save the page data.
         var pageData = JSON.parse(data);
         outer_this.pageCursor_ = pageData['nextPage'];
@@ -164,22 +176,23 @@ memberlist.paginatedTable = function() {
    * @param {Number} page: The page number that we are switching to.
    */
   this.showPageMarkers_ = function(page) {
-    if (this.totalPages_ <= 11) {
-      // We don't have to bother with this, because we have few enough pages.
-      return;
-    }
-
     // We want our page to be in the middle.
     var firstPage = page - 5;
     var lastPage = page + 5;
 
-    // Cap it at either end.
-    if (firstPage < 1) {
-      lastPage += 1 - firstPage;
+    if (this.totalPages_ <= 11) {
+      // We don't have to bother with this, because we have few enough pages.
       firstPage = 1;
-    } else if (lastPage > this.totalPages_) {
-      firstPage -= lastPage - this.totalPages_;
       lastPage = this.totalPages_;
+    } else {
+      // Cap it at either end.
+      if (firstPage < 1) {
+        lastPage += 1 - firstPage;
+        firstPage = 1;
+      } else if (lastPage > this.totalPages_) {
+        firstPage -= lastPage - this.totalPages_;
+        lastPage = this.totalPages_;
+      }
     }
 
     // Show the overflow indicators.
@@ -226,5 +239,5 @@ memberlist.paginatedTable = function() {
 
 
 $(document).ready(function() {
-  var pages = memberlist.paginatedTable();
+  var pages = pagination.paginatedTable(pagination.baseUri);
 });

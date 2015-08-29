@@ -1,0 +1,21 @@
+<table class="table-striped table-condensed table-bordered"
+    width="100%" cellspacing="0" cellpadding="0" border="0">
+<thead>
+  <tr>
+    <td>Date</td>
+    <td>Name</td>
+    <td>email</td>
+    <td>Leave Reason</td>
+  </tr>
+</thead>
+<tbody>
+{% for u in signup_users %}
+  <tr>
+    <td><nobr>{{ u.updated.date() }}</nobr></td>
+    <td><nobr><a href="https://appengine.google.com/datastore/edit?app_id=hd-signup&key={{u.key}}">{{ u.last_name }}, {{ u.first_name }}</a></nobr></td>
+    <td><nobr>{{ u.email }}</nobr></td>
+    <td>{{ u.unsubscribe_reason}}</td>
+  </tr>
+{% endfor %}
+</tbody>
+</table>

@@ -601,7 +601,11 @@ class ChangePlanHandlerTest(PlanSelectionTestBase):
     self.assertEqual(422, response.status_int)
     self.assertIn("your email", response.body)
 
-""" Tests that the MemberListHandler works as expected. """
+""" Tests that the MemberListHandler works as expected. All the other list
+handlers work in an identical way, in fact, they share almost all their code.
+That, combined with the fact that these tests take awhile to run, mean that we
+only test the Memberlist version and assume that everything else will work the
+same way. """
 class MemberListHandlerTest(BaseTest):
   def setUp(self):
     super(MemberListHandlerTest, self).setUp()

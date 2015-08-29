@@ -49,4 +49,20 @@ indexes:
 - kind: Membership
   properties:
   - name: status
+  - name: updated
+
+- kind: Membership
+  properties:
+  - name: status
+  - name: updated
+    direction: desc
+
+- kind: Membership
+  properties:
+  - name: status
   - name: username
+
+- kind: Membership
+  properties:
+  - name: unsubscribe_reason
+  - name: updated
