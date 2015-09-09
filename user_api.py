@@ -232,7 +232,7 @@ class RfidHandler(ApiHandlerBase):
 
     # Sign in a member.
     member = db.GqlQuery("SELECT * FROM Membership WHERE rfid_tag = :1" \
-                          " AND status IN ('active', 'no_visits')", rfid).get()
+                         " AND status IN ('active', 'no_visits')", rfid).get()
     if not member:
       self._rest_error("InvalidKey",
                         "This key does not exist, or is suspended.", 422)
