@@ -14,6 +14,7 @@ import webtest
 from google.appengine.ext import db
 from google.appengine.ext import testbed
 
+from config import Config
 from keymaster import Keymaster
 from membership import Membership
 from plans import Plan
@@ -33,7 +34,8 @@ class ApiTest(unittest.TestCase):
 
     # Create a new plan for testing.
     Plan.all_plans = []
-    self.test_plan = Plan("test", 1, 100, "A test plan.", signin_limit=10)
+    self.test_plan = Plan("test", 1, 100, "A test plan.",
+                          signin_limit=Config().LITE_VISITS)
 
     # Add a user to the datastore.
     self.user = Membership(first_name="Daniel", last_name="Petti",
@@ -150,7 +152,7 @@ class SigninHandlerTest(ApiTest):
     response = self.test_app.post("/api/v1/signin", params)
     result = json.loads(response.body)
 
-    self.assertEqual(9, result["visits_remaining"])
+    self.assertEqual(Config().LITE_VISITS - 1, result["visits_remaining"])
 
     # Check that our user signing in got recorded.
     user = Membership.get_by_email("djpetti@gmail.com")
@@ -192,7 +194,7 @@ class SigninHandlerTest(ApiTest):
   def test_user_suspending(self):
     user = Membership.get_by_email("djpetti@gmail.com")
     # The next one should suspend us.
-    user.signins = 9
+    user.signins = Config().LITE_VISITS - 1
     user.put()
 
     params = {"email": "djpetti@gmail.com"}
@@ -203,8 +205,24 @@ class SigninHandlerTest(ApiTest):
     self.assertEqual(0, result["visits_remaining"])
 
     user = Membership.get_by_email("djpetti@gmail.com")
-    self.assertEqual(10, user.signins)
+    self.assertEqual(Config().LITE_VISITS, user.signins)
     self.assertEqual("no_visits", user.status)
+
+  """ Tests that it doesn't count new signins that occur on the same day. """
+  def test_one_signin_per_day(self):
+    params = {"email": "djpetti@gmail.com"}
+    response = self.test_app.post("/api/v1/signin", params)
+    result = json.loads(response.body)
+
+    self.assertEqual(200, response.status_int)
+    self.assertEqual(Config().LITE_VISITS - 1, result["visits_remaining"])
+
+    # Try it again and make sure it doesn't get counted.
+    response = self.test_app.post("/api/v1/signin", params)
+    result = json.loads(response.body)
+
+    self.assertEqual(200, response.status_int)
+    self.assertEqual(Config().LITE_VISITS - 1, result["visits_remaining"])
 
 
 """ Tests that the RFID handler works properly. """
@@ -227,7 +245,7 @@ class RfidHandlerTest(ApiTest):
     self.assertEqual(200, response.status_int)
 
     self.assertIn("gravatar", result.keys())
-    self.assertEqual(9, result["visits_remaining"])
+    self.assertEqual(Config().LITE_VISITS - 1, result["visits_remaining"])
     self.assertEqual(self.user.auto_signin, result["auto_signin"])
     self.assertEqual("%s %s" % (self.user.first_name, self.user.last_name),
                      result["name"])

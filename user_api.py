@@ -2,6 +2,7 @@
 """
 
 
+import cPickle as pickle
 import datetime
 import hashlib
 import json
@@ -15,7 +16,6 @@ import pytz
 
 from config import Config
 from membership import Membership
-import cPickle as pickle
 import keymaster
 import plans
 import subscriber_api
@@ -41,8 +41,15 @@ def _increment_signins(user):
       logging.info("Not incrementing signin counter because it is after-hours.")
       return plans.Plan.signins_remaining(user)
 
+  # Don't increment it if they already signed in today.
+  if (user.last_signin and \
+      datetime.datetime.now().day == user.last_signin.day):
+    logging.info("This is not their first signin today.")
+    return plans.Plan.signins_remaining(user)
+
   # Increment signins.
   user.signins += 1
+  user.last_signin = datetime.datetime.now()
 
   remaining = plans.Plan.signins_remaining(user)
   logging.info("Visits remaining for %s: %s" % \

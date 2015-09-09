@@ -86,6 +86,8 @@ class Membership(db.Model):
 
   # How many times the user has signed in this month.
   signins = db.IntegerProperty(default=0)
+  # When the last time they signed in was.
+  last_signin = db.DateTimeProperty()
 
   # The following are legacy parameters.
   # TODO(danielp): Remove these after we complete the migration away from
