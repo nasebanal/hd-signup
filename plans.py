@@ -244,7 +244,7 @@ hive = Plan("Hive", 19616, 275, "Old premium plan.",
             human_name="Old Premium", member_limit=Config().HIVE_MAX_OCCUPANCY,
             aliases=["thielcomp"],
             legacy=newhive, desk=True)
-lite = Plan("lite", 25791, 125, "A limited but cheaper plan.",
+lite = Plan("lite", 25791, 100, "A limited but cheaper plan.",
             signin_limit=Config().LITE_VISITS)
 cleaners = Plan("cleaners", 0, 0,
                 "A special plan to allow the cleaners access to the dojo.",

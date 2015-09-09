@@ -210,7 +210,7 @@ class ResetSigninHandler(CronHandlerBase):
       # Signins should role over to the next month if they are not used. The way
       # this is implemented is by making signins negative to start if the user
       # has signins rolling over from last month.
-      rollovers = max(0, 8 - member.signins)
+      rollovers = max(0, Config().LITE_VISITS - member.signins)
       logging.info("Rolling over %d signins." % (rollovers))
 
       member.signins = 0 - rollovers

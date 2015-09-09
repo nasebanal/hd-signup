@@ -56,8 +56,7 @@ class Config:
     self.GOOGLE_ANALYTICS_ID = "UA-11332872-2"
 
     # How many visits per month we allow on the lite membership.
-    #TODO(danielp): Figure out the real number here.
-    self.LITE_VISITS = 8
+    self.LITE_VISITS = 5
     # How many people can have desks in the hive at any one time.
     self.HIVE_MAX_OCCUPANCY = 14
     # How long someone can be suspended in days before we stop counting them
