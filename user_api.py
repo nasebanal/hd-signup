@@ -276,7 +276,7 @@ class MaglockHandler(ApiHandlerBase):
 
     # Our key is valid. Give it the list.
     query = db.GqlQuery("SELECT * FROM Membership WHERE rfid_tag != NULL" \
-                        " AND status = 'active'")
+                        " AND status IN ('active', 'no_visits')")
 
     response = []
     for member in query.run():
