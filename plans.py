@@ -21,7 +21,7 @@ class Plan:
   def __init__(self, name, plan_id, price_per_month, description,
                human_name=None, aliases=[], signin_limit=None,
                member_limit=None, legacy=None, selectable=True, full=False,
-               admin_only=False, desk=False):
+               admin_only=False, desk=False, create_events=True):
     """ The name of the plan in PinPayments. """
     self.name = name
     """ The user-facing name of this plan. """
@@ -47,6 +47,8 @@ class Plan:
     self.selectable = False if (self.legacy or self.admin_only) else selectable
     """ Whether this plan is currently full. """
     self.full = full
+    """ Whether a user on this plan can create new events. """
+    self.create_events = create_events
 
     """ The monthly price of this plan. """
     self.price_per_month = price_per_month
@@ -222,7 +224,8 @@ student = Plan("student", 2537, 50, "Old version of the student plan.",
                 human_name="Old Student", aliases=["hardship"],
                 legacy=newstudent)
 supporter = Plan("supporter", 1988, 10, "A monthly donation to the dojo.",
-                 human_name="Monthly Donation", signin_limit=0)
+                 human_name="Monthly Donation", signin_limit=0,
+                 create_events=False)
 family = Plan("family", 3659, 50, "Get a family discount.",
               human_name="Family",
               selectable=False, admin_only=True)
@@ -245,7 +248,7 @@ hive = Plan("Hive", 19616, 275, "Old premium plan.",
             aliases=["thielcomp"],
             legacy=newhive, desk=True)
 lite = Plan("lite", 25791, 100, "A limited but cheaper plan.",
-            signin_limit=Config().LITE_VISITS)
+            signin_limit=Config().LITE_VISITS, create_events=False)
 cleaners = Plan("cleaners", 0, 0,
                 "A special plan to allow the cleaners access to the dojo.",
                 selectable=False, admin_only=True)
