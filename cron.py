@@ -1,6 +1,7 @@
 """ Contains handlers that are run periodically as cron jobs. """
 
 
+import cPickle as pickle
 import datetime
 import json
 import logging
@@ -89,7 +90,6 @@ class SyncRunInfo(db.Model):
 """ Handler for syncing data between dev and production apps. """
 class DataSyncHandler(CronHandlerBase):
   dev_url = "http://signup-dev.appspot.com/cron/datasync"
-  time_format = "%Y %B %d %H %M %S"
   # The size of a batch for __batch_loop.
   batch_size = 10
 
@@ -151,10 +151,10 @@ class DataSyncHandler(CronHandlerBase):
   member: The member whose data we are posting. """
   def __post_member(self, member):
     data = db.to_dict(member)
-    # Convert datetimes to strings.
+    # Pickle datetimes for easy transmission.
     for key in data.keys():
-      if hasattr(data[key], "strftime"):
-        data[key] = data[key].strftime(self.time_format)
+      if type(data[key]) == datetime.datetime:
+        data[key] = pickle.dumps(data[key])
     data = json.dumps(data)
 
     logging.debug("Posting entry: " + data)
@@ -183,7 +183,10 @@ class DataSyncHandler(CronHandlerBase):
       # Change formatted date back into datetime.
       for key in entry.keys():
         if type(getattr(Membership, key)) == db.DateTimeProperty:
-          entry[key] = datetime.datetime.strptime(entry[key], self.time_format)
+          if not entry[key]:
+            # It could be None as well.
+            continue
+          entry[key] = pickle.loads(str(entry[key]))
       # entry should have everything nicely in a dict...
       member = Membership(**entry)
 
