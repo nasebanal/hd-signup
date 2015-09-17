@@ -1,48 +1,109 @@
 Now that you are a member of the HackerDojo, here are some helpful links and information to help you start using the Dojo today.  It's important to remember, that the Dojo is a member run institution.  The first person you should ask fro help from is yourself.  How can you get things done?
 
-To help you, help yourself, here are some useful links and guides:
-
-Hours:  The Dojo is open for members 24 hours per day, 7 days per week.  Come any time you like.
-
 <b>Account: {{member.username}}@hackerdojo.com</b>
 All the Dojo software, and services are run by Google, and are associated with your HackerDojo email account, hosted by Google.
 
-<b>Wifi / Internet:</b>  To get on the internet, you will use a Wifi Connection.  The Dojo has THREE Wifi access points:  HD-Members, HD-Guests and HD-Day Pass.  As a member, you want to use the "HD-Members" connection.  To connect, there are TWO steps:  1.) Connect to the Wifi AP,  2.) Authenticate your with Dojo email account.   To connect to the AP (Access Point) you should be prompted for a password.  That password is: hackerdojo
-
+<b>Wifi / Internet:</b>  To get on the internet, you will use a Wifi Connection. The members wifi is : HD-Members password: hackerdojo
 Next, you should be prompted for your Google+ (Gmail) account.  Enter your hacker dojo account name: {{member.username}}@hackerdojo.com, then the password you used when setting up your account during membership enrollment.
 
 <b>New Member Guide:</b>
+New member orientation is Friday's at 4:00PM right before Happy Hour & Lightning Talks
+Details: http://www.meetup.com/HackerDojo/
 
-1.) How to Dojo: www.hackerdojo.com/HowToDojo This is a 'How To'  on many common things at the Dojo.
+1.) The Dojo Dashboard: http://dashboard.hackerdojo.com/ The dashboard, is your portal to the applications and automated services for the Dojo.  Here you can get your RFID key setup, reserve the meeting room, schedule your OWN event in one of the Dojo rooms and plenty more!
 
-2.) The Dojo Dashboard: dashboard.hackerdojo.com/ The dashboard, is your portal to the applications and automated services for the Dojo.  Here you can get your RFID key setup, reserve the meeting room, schedule your OWN event in one of the Dojo rooms and plenty more!
+2.) How to Dojo: http://hackerdojo.com/HowToDojo This is a 'How To' on many common things at the Dojo.
 
-3.) The Wiki: wiki.hackerdojo.com  The Wiki is a member updated website, where anyone can read, write or update content.  Plenty of hidden gems reside in the wiki.  You can browse, or search for pages that have great content.  For example, here is a link on the wiki on how to run an awesome event:  How to throw a successful event
+3.) The Wiki: http:// wiki.hackerdojo.com  The Wiki is a member updated website, where anyone can read, write or update content.  Plenty of hidden gems reside in the wiki.  You can browse, or search for pages that have great content.  For example, here is a link on the wiki on how to run an awesome event:  How to throw a successful event
 
-4.) Events:  As a member YOU can reserve one of the rooms at the Dojo to have an event.  Events typically have five or more people attending.  To request a room for your event, visit: events.hackerdojo.com  Also, you should checkout events.hackerdojo.com to see any events you might like to attend.  Note: There is no charge to reserve the room, however, you CAN change money for your event if you like.   Also, if you need to reserve a room, for just you and a few other people for a meeting, visit: hackerdojo-room.appspot.com
-
-5.) Happy Hour and Members meeting:  The Dojo has several key social events, that you should try to come to.  These events are a good time, to meet and socialize with other Dojo members.  We are all so busy working on our projects, we rarely get the time to meet other people, so come to one of these events and meet your fellow Dojo'ers.
-
-6.) FAQ: Common questions you might have: Dojo FAQ
-
-7.) Get Social:  The Dojo has several Social Network sites you should connect with.    Members
+7.) Get Social:  The Dojo has several Social Network sites you should connect with. Members
 can use these networks to communicate with each other, and  all Dojo members:
 
-Fans of HackerDojo on Facebook: Fans of HackerDojo (moderated, all members are joined)
-HackerDojo on Facebook: Official HackerDojo (Mostly announcements)
-LinkedIn: HackerDojo on LinkedIn (make some business connections!)
-Meetup: Official Dojo Meetup announcements (Ask to get your meetup announced here too!)
-
-8.) Find a member:  Here is a list of members.  Some are current, some are not.  Generally, you can always email a member at: firstname.lastname@hackerdojo.com
-
-8.) Want to know more?  Here are some past media coverage about the Dojo: http://wiki.hackerdojo.com/w/page/25455/MediaCoverage
-
-9.) Asking for help...
+Official Hacker Dojo Facebook Page : https://www.facebook.com/hackerdojo
+Fans of HackerDojo on Facebook : Fans of HackerDojo https://www.facebook.com/groups/hackerdojo/
+Slack Channel : https://hackerdojo.slack.com
 
 If none of these resource are helpful, you can always ask another Dojo member for help.  Usually, hanging around the kitchen, or front lobby you will run into people you can ask.
 
-There are also e-mail addresses you can ask for help as well... keep in mind, these addresses can take some time to get a response.  Most people who can respond are volunteers, so it can take a few hours to a few days to hear back... Help
-
 10.) Policies:  If you have made it this far, good for you!  Here are the list of Dojo Policies that makes all our lives easier.
+Updated Policies will be at : http://wiki.hackerdojo.com/w/page/28458468/Full%20Policies
 
-11.) Tour of the Dojo:  Here is a video of a personal tour of the Dojo.  This video is for the Old Dojo building, HOWEVER, much of "What the Dojo is about " is covered in the video: https://youtu.be/l9wz8I4S5FQ
+1. Be excellent to each other.
+ 
+Facilities
+
+Sign-in.  All members and guests must sign-in when they arrive at the Dojo each day. Those that do not sign-in or do not accept our policies may not stay.
+
+100% Communal.  You  may not store personal belongings. All space is communal space: first-come first-serve. Any equipment left at the Dojo is done at your own risk and may be used by others. Donated or loaned items may be damaged or removed, and the Dojo is not liable. 
+
+Sleeping.  No sleeping is allowed at Hacker Dojo unless it is done in conjunction with an approved event. Naps are OK.
+Keep the Place Nice.  Please clean up any mess you make.  We have cleaning supplies in the kitchen closet.
+
+Animals.  Pets are not permitted indoors at Hacker Dojo. Service animals as required by ADA or other applicable laws are the only non-human animals allowed. All other animals must be kept outdoors.
+
+Breaking Things.  If you break parts of the Dojo, you are financially responsible for replacing them.
+
+Donations.  Before you bring in a donation, please work with the directors to be sure an item will be useful to the membership.  Some things are always welcome such as LCD monitors.
+
+Hold Harmless.  Visitors, members, and other participants at Hacker Dojo, Inc. hereby release, discharge and agree to hold harmless the Hacker Dojo, Inc. and its directors, members and volunteers from and against any liability as a result of any harm, damage, loss suffered to said visitors, their work, equipment used, personal property or personal injury suffered during the participation  or attendance at Hacker Dojo.
+
+Dangerous and Otherwise Awesome Science. No science which requires a fume hood and no pathogen-related research. Please always be considerate of the safety of other people at the dojo.  No science where food is stored for eating.
+Refrigerator. The fridge is for members use only.  Food should not be left inside for more than a day.
+Parking.  With limited parking available, the Dojo is not a campground nor a car storage facility.  No vehicle may remain in the Dojo parking lot for more than 48 hours or it is liable to be towed.  No sleeping in vehicles is allowed.  Note that due to Mountain View City Code Sec 19.71, vehicles cannot be left overnight in front of Hacker Dojo, and may be cited or towed by the city after one hour of parking between 2AM and 6AM.
+
+Lockers. Members may rent lockers for an additional $15 per month. Unauthorized occupancy of lockers will have the locks cut & contents thrown out or donated to charity. 
+
+Access points / Wifi hotspots.  Operating routers, personal access points, or creating wifi hotspots is not allowed without prior approval from staff.
+ 
+Membership
+
+Membership. Membership costs $195/mo with discounts for available hardship cases and family plans (as approved by treasurer@).
+Keys. Members get a key to the Dojo immediately after becoming member.
+Accounts.  Accounts are associated with an individual person.  Sharing of login is not allowed.
+ 
+Visitors/Drop-Ins
+
+Guests.  Guests are welcome at Hacker Dojo, and are encouraged to donate $10/day.
+Drop in Privileges. Guests do not get accounts, rights to attend events for free, access to the member's wifi, or voting rights.
+
+Children. It is okay to bring children  to the Dojo, just as you would any other guest, so long as you assume full responsibility for them and ensure they don't detract from members' experience of the Dojo.
+
+Not a Public Facility.  Non-members are only allowed in the Dojo between the hours of 10am - 9pm unless they are the guest of an active member or are attending an event reserving space past those hours. Regardless of these hours, non-members are guests of the 
+
+Dojo and can be asked to leave any time without a needed reason.
+
+If you are working out of the Dojo for more than 2 days, you’ll have to become a member or get a day pass. 
+ 
+Sponsorships
+
+Sponsorship Rights. Unless given a special exemption by a director, sponsors do not receive special privileges within the Dojo, for example being able to reserve rooms, or being whitelisted for events (sponsors must apply to hold events like everyone else, and must receive the usual member buy-in).
+ 
+Harassment
+Hacker Dojo is committed to providing a safe and welcoming place for everyone. See our Harassment Policy for more on how we enforce this.
+ 
+Events
+Before the Event:
+Approval. The event must be approved by events@ (a member run group). Please do not advertise your event externally until it has been approved.
+Set up.  It is up to you to locate the location of projectors or other supplies you may need to run your event. Additionally, if you want the room arranged in a specific way that is something you need to do yourself. If you need a large chunk of set up time, it is suggested that you create a separate event to do so.
+RSVP. Members can RSVP to an event host at least up to 48 hours in advance to reserve space to attend. If an event has space left after considering RSVPs, members can be in it with or without a reservation.
+Cancellation. If you need to cancel your event for whatever reason, it is your responsibility to do so both in the Hacker Dojo event system, as well as any external event systems.
+Dojo Branding. Any event with the name “Hacker Dojo” in the title must be approved by the board of directors.
+NDAs. Events may not require an NDA to attend. 
+ 
+During the Event:
+Parking. We have strict parking rules that you need to convey to your guests. If your event is large enough you may need a staff member to direct parking.
+Sign-in. All event attendees are required to sign in at the front desk for liability reasons.
+Presence. You must be present during your entire event.
+Right to Charge. Event hosts may charge for events and materials provided, provided they understand that Dojo members may sit in without paying.
+Member Rights. No portion of the Dojo is ever closed to members, and they have the right to attend your event for free. This does not mean that they are entitled to tangible resources such as food, class supplies, etc.
+ 
+After the Event:
+Cleanup. You must leave Hacker Dojo in the condition you found it in. This includes hauling away excess garbage that does not fit in the dumpster. South Bay Haul Away (408-661-1743) is a company event hosts have enjoyed working with in the the past.
+Damages. You are held responsible for any damages to Dojo facilities during your event.
+Supplies. Please refill supplies consumed, especially if yours is a large event as your guests will be using shared resources such as toilet paper, paper towels, and more.
+Structured Layout Rooms. A structured layout room is a room where the furniture is a) recommended not be moved and b) the layout of the room (furniture and similar) must be returned to how it was after use. These rooms include the Electronics Lab & Maker Space.
+Policy Process
+No Reimbursements.  Hacker Dojo does not reimburse members for purchases without prior approval by directors. 
+Do-ocracy. If you have a change you want to see happen, lead the way.  If you want a knitting circle, start one.  If you want a book circle, lead one.  If you want to build a winning robot, start designing. 
+New Policies.  Members are welcome to give staff suggestions and feedback on policy.
+Board of Directors Discretion.  Board of Directors have discretionary review for all policies, and may change policies at will.  For example, board of directors may override rules incompatible with state laws, our lease, or incompatible with Hacker Dojo's vision.  
