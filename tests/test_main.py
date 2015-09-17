@@ -36,7 +36,6 @@ class BaseTest(unittest.TestCase):
     self.testbed.init_datastore_v3_stub()
     self.testbed.init_memcache_stub()
     self.testbed.init_taskqueue_stub()
-    self.testbed.init_mail_stub()
 
   def tearDown(self):
     self.testbed.deactivate()

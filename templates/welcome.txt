@@ -72,7 +72,7 @@ Not a Public Facility.  Non-members are only allowed in the Dojo between the hou
 
 Dojo and can be asked to leave any time without a needed reason.
 
-If you are working out of the Dojo for more than 2 days, you’ll have to become a member or get a day pass. 
+If you are working out of the Dojo for more than 2 days, you'll have to become a member or get a day pass. 
  
 Sponsorships
 
@@ -87,7 +87,7 @@ Approval. The event must be approved by events@ (a member run group). Please do 
 Set up.  It is up to you to locate the location of projectors or other supplies you may need to run your event. Additionally, if you want the room arranged in a specific way that is something you need to do yourself. If you need a large chunk of set up time, it is suggested that you create a separate event to do so.
 RSVP. Members can RSVP to an event host at least up to 48 hours in advance to reserve space to attend. If an event has space left after considering RSVPs, members can be in it with or without a reservation.
 Cancellation. If you need to cancel your event for whatever reason, it is your responsibility to do so both in the Hacker Dojo event system, as well as any external event systems.
-Dojo Branding. Any event with the name “Hacker Dojo” in the title must be approved by the board of directors.
+Dojo Branding. Any event with the name "Hacker Dojo" in the title must be approved by the board of directors.
 NDAs. Events may not require an NDA to attend. 
  
 During the Event:
