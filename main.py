@@ -475,7 +475,7 @@ class ProfileHandler(ProjectHandler):
           self.redirect(users.create_login_url("/profile"))
           return
       else:
-          account = Membership.all().filter("username =", user.nickname().split("@")[0]).get()
+          account = Membership.get_by_email(user.email())
           email = "%s@%s" % (account.username, Config().APPS_DOMAIN)
           gravatar_url = "http://www.gravatar.com/avatar/" + \
               hashlib.md5(email.lower()).hexdigest()
@@ -491,7 +491,7 @@ class KeyHandler(ProjectHandler):
             self.redirect(users.create_login_url("/key"))
             return
         else:
-            account = Membership.all().filter("username =", user.nickname().split("@")[0]).get()
+            account = Membership.get_by_email(user.email())
             if not account or not account.spreedly_token:
                 message = """<p>It appears that you have an account on @%(domain)s, but you do not have a corresponding account in the signup application.</p>
                 <p>How to remedy:</p>

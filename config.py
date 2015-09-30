@@ -65,6 +65,8 @@ class Config:
 
     # Hours that the Dojo is open, in 24-hour time. (start, end)
     self.DOJO_HOURS = (10, 21)
+    # We count visits only during a subset of these hours.
+    self.COUNT_VISITS = (10, 17)
 
     if Config.is_testing:
       self.SPREEDLY_ACCOUNT = "hackerdojotest"
