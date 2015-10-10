@@ -37,7 +37,7 @@ def _increment_signins(user):
       return plans.Plan.signins_remaining(user)
     hour = now.hour
     logging.debug("Hour: %d" % (hour))
-    if (hour < Config().COUNT_VISITS[0] or hour > Config().COUNT_VISITS[1]):
+    if (hour < Config().COUNT_VISITS[0] or hour >= Config().COUNT_VISITS[1]):
       logging.info("Not incrementing signin counter because it is after-hours.")
       return plans.Plan.signins_remaining(user)
 
