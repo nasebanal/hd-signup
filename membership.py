@@ -114,7 +114,7 @@ class Membership(db.Model):
     return str("http://www.gravatar.com/avatar/" + hashlib.md5(self.email.lower()).hexdigest())
 
   def full_name(self):
-    return str('%s %s' % (self.first_name, self.last_name))
+    return '%s %s' % (self.first_name, self.last_name)
 
   def spreedly_url(self):
     config = Config()
