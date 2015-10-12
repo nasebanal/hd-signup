@@ -600,6 +600,32 @@ class ChangePlanHandlerTest(PlanSelectionTestBase):
     self.assertEqual(422, response.status_int)
     self.assertIn("your email", response.body)
 
+
+""" The ReactivatePlan handler is very closely related to the ChangePlan one,
+however, there are some key differences which are worth testing. """
+class ReactivatePlanHandlerTest(PlanSelectionTestBase):
+  def setUp(self):
+    super(ReactivatePlanHandlerTest, self).setUp()
+
+    # Add a user to test with.
+    self.user = Membership(first_name="Testy", last_name="Testerson",
+                           email="ttesterson@gmail.com", plan="plan1",
+                           spreedly_token="notatoken", hash="notahash",
+                           username="testy.testerson")
+    self.user.put()
+
+  """ Tests that the page works properly when we give it the right things. """
+  def test_get(self):
+    response = self.test_app.get("/reactivate_plan/%s" % (self.user.hash))
+    self.assertEqual(200, response.status_int)
+
+  """ Tests that it fails when we give it a bad hash. """
+  def test_bad_hash(self):
+    response = self.test_app.get("/reactivate_plan/badhash", expect_errors=True)
+    self.assertEqual(422, response.status_int)
+    self.assertIn("Invalid reactivation link", response.body)
+
+
 """ Tests that the MemberListHandler works as expected. All the other list
 handlers work in an identical way, in fact, they share almost all their code.
 That, combined with the fact that these tests take awhile to run, mean that we

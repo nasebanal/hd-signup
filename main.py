@@ -11,7 +11,7 @@ from config import Config
 from list_pages import *
 from membership import Membership
 from project_handler import ProjectHandler, BaseApp
-from select_plan import SelectPlanHandler, ChangePlanHandler
+from select_plan import *
 import keymaster
 import logging
 import plans
@@ -446,7 +446,6 @@ class ReactivateHandler(ProjectHandler):
             email=email).get()
         if existing_member:
             membership = existing_member
-            subscriber_api.update_subscriber(membership)
 
             if membership.status == "active":
               self.redirect("%s?message=You are still an active member." % \
@@ -456,7 +455,8 @@ class ReactivateHandler(ProjectHandler):
                             " upgrade it." % (self.request.path))
             else:
               subject = "Reactivate your Hacker Dojo Membership"
-              subscribe_url = membership.subscribe_url()
+              reactivate_url = "%s/reactivate_plan/%s" % (self.request.host_url,
+                                                          membership.hash)
               body = self.render("templates/reactivate.txt", locals())
               to = "%s <%s>" % (membership.full_name(), membership.email)
               bcc = "%s <%s>" % ("Billing System", "robot@hackerdojo.com")
@@ -613,4 +613,5 @@ app = BaseApp([
         ("/reactivate", ReactivateHandler),
         ("/plan/(.+)", SelectPlanHandler),
         ("/change_plan", ChangePlanHandler),
+        ("/reactivate_plan/(.+)", ReactivatePlanHandler),
         ], debug=True)

@@ -2,7 +2,7 @@ Hi {{ membership.first_name }},
 
 This is the link to reactivate your Hacker Dojo account:
 
-{{ subscribe_url }}
+{{ reactivate_url }}
 
 Your Hacker Dojo username is: {{ membership.username }}
 

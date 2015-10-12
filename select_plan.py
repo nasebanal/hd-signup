@@ -32,34 +32,12 @@ class SelectPlanHandler(ProjectHandler):
                             unavailable=unavailable))
 
 
-""" Allows the user to change their plan. """
-class ChangePlanHandler(ProjectHandler):
-  def get(self):
-    user = users.get_current_user()
-    if not user:
-      logging.debug("Need to login.")
-      self.redirect(users.create_login_url(self.request.uri))
-      return
-
-    member = None
-    if "@hackerdojo.com" in user.email():
-      # Use the HackerDojo email account.
-      username = user.email().replace("@hackerdojo.com", "")
-      member = Membership.get_by_username(username)
-    else:
-      # Use the normal email account.
-      member = Membership.get_by_email(user.email())
-
-    if not member:
-      # This member doesn't exist.
-      logging.error("No member with email '%s'." % (user.email()))
-      logout_url = users.create_logout_url(self.request.uri)
-      error = self.render("templates/error.html",
-                          message="No member with your email was found.<br>" \
-                          "<a href=%s>Try Again</a>" % (logout_url))
-      self.response.out.write(error)
-      self.response.set_status(422)
-      return
+""" Base class for changing plans. """
+class _PlanChangerBase(ProjectHandler):
+  """ Renders a page allowing a user to change their plan.
+  Args:
+    member: The Membership object representing the user. """
+  def _plan_switch_page(self, member):
     if not member.spreedly_token:
       # This member hasn't signed up for an account initially.
       logging.warning("%s must have a plan before we can change it." %
@@ -86,3 +64,47 @@ class ChangePlanHandler(ProjectHandler):
     self.response.out.write(self.render("templates/select_plan.html",
                             selectable=selectable_paired,
                             unavailable=unavailable))
+
+
+""" Allows the user to change their plan. """
+class ChangePlanHandler(_PlanChangerBase):
+  def get(self):
+    user = users.get_current_user()
+    if not user:
+      logging.debug("Need to login.")
+      self.redirect(users.create_login_url(self.request.uri))
+      return
+
+    member = Membership.get_by_email(user.email())
+
+    if not member:
+      # This member doesn't exist.
+      logging.error("No member with email '%s'." % (user.email()))
+      logout_url = users.create_logout_url(self.request.uri)
+      error = self.render("templates/error.html",
+                          message="No member with your email was found.<br>" \
+                          "<a href=%s>Try Again</a>" % (logout_url))
+      self.response.out.write(error)
+      self.response.set_status(422)
+      return
+
+    self._plan_switch_page(member)
+
+
+""" Allows the user to change their plan when reactivating. """
+class ReactivatePlanHandler(_PlanChangerBase):
+  """ Args:
+    user_hash: The hash of the user we are changing the plan of. """
+  def get(self, user_hash):
+    member = Membership.get_by_hash(user_hash)
+
+    if not member:
+      # Hash is invalid.
+      logging.error("Invalid hash '%s'." % (user_hash))
+      error = self.render("templates/error.html",
+                          message="Invalid reactivation link.")
+      self.response.out.write(error)
+      self.response.set_status(422)
+      return
+
+    self._plan_switch_page(member)
