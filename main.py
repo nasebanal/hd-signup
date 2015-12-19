@@ -556,6 +556,10 @@ class KeyHandler(ProjectHandler):
           self.response.out.write(self.render("templates/error.html", locals()))
           return
         account.parking_pass = pass_to_add
+
+        logging.debug("Setting parking pass for %s to %s." % \
+                      (account.full_name(), account.parking_pass))
+
         db.put(account)
         self.response.out.write(self.render("templates/pass_ok.html", locals())) #outputs the parking number
       else:
@@ -573,6 +577,10 @@ class KeyHandler(ProjectHandler):
             self.response.out.write(self.render("templates/error.html", locals()))
             return
           account.rfid_tag = rfid_tag
+
+          logging.debug("Setting RFID for %s to %s." % (account.full_name(),
+                                                        account.rfid_tag))
+
           account.put()
           bc = BadgeChange(rfid_tag = rfid_tag, username=account.username, description=description)
           bc.put()
