@@ -44,11 +44,14 @@ class MainHandler(ProjectHandler):
           # Nonexistent plan. Just ignore it.
           plan = "choose"
         elif valid == False:
-          # Bad plan. Show error.
+          # Bad plan. Show error, and give users a chance to authenticate as an
+          # admin.
+          login_url = users.create_login_url(self.request.uri)
           self.response.out.write(self.render("templates/error.html",
                                   internal=False,
-                                  message="Plan '%s' is not available." % \
-                                      (plan)))
+                                  message="Plan '%s' is not available for you. \
+                                  <br><a href=%s>Login as someone else.</a>" % \
+                                      (plan, login_url)))
           self.response.set_status(422)
           return
 

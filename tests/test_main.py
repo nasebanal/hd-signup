@@ -36,6 +36,7 @@ class BaseTest(unittest.TestCase):
     self.testbed.init_datastore_v3_stub()
     self.testbed.init_memcache_stub()
     self.testbed.init_taskqueue_stub()
+    self.testbed.init_user_stub()
 
   def tearDown(self):
     self.testbed.deactivate()
@@ -183,6 +184,13 @@ class MainHandlerTest(BaseTest):
     self.assertEqual(422, response.status_int)
     self.assertIn(unavailable_plan.name, response.body)
     self.assertIn("is not available", response.body)
+
+    # If we're logged in as an admin, though, it should let us.
+    self.testbed.setup_env(user_email=self._TEST_PARAMS["email"],
+                           user_is_admin="1", overwrite=True)
+    query = urllib.urlencode({"plan": unavailable_plan.name})
+    response = self.test_app.get("/?" + query)
+    self.assertEqual(200, response.status_int)
 
   """ Tests that the plan gets written through even when we rerender the
   template. """
