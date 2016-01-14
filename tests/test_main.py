@@ -218,7 +218,7 @@ class MainHandlerTest(BaseTest):
   """ Tests that it takes us directly to PinPayments if we've already set up our
   account. """
   def test_skip_if_account(self):
-    plan = Plan("test", 0, 100, "This is a test plan.")
+    plan = Plan("test", 100, "This is a test plan.")
 
     existing_user = Membership(first_name=self._TEST_PARAMS["first_name"],
                                last_name=self._TEST_PARAMS["last_name"],
@@ -505,12 +505,12 @@ class PlanSelectionTestBase(BaseTest):
     Plan.all_plans = []
 
     # Make a couple of plans to test with.
-    self.plan1 = Plan("plan1", 1, 101, "", human_name="First Plan")
-    self.plan2 = Plan("plan2", 2, 102, "", human_name="Second Plan")
-    self.plan3 = Plan("plan3", 3, 103, "", selectable=False,
+    self.plan1 = Plan("plan1", 101, "", human_name="First Plan")
+    self.plan2 = Plan("plan2", 102, "", human_name="Second Plan")
+    self.plan3 = Plan("plan3", 103, "", selectable=False,
                       human_name="Third Plan")
     # Will always be full.
-    self.plan4 = Plan("plan4", 4, 104, "", member_limit=0,
+    self.plan4 = Plan("plan4", 104, "", member_limit=0,
                       human_name="Fourth Plan")
 
 

@@ -8,6 +8,7 @@ from google.appengine.api import users
 from google.appengine.ext import db
 
 from config import Config
+import keymaster
 import membership
 
 
@@ -18,7 +19,7 @@ class Plan:
   # A list of pairs of plans and their legacy plans.
   legacy_pairs = set()
 
-  def __init__(self, name, plan_id, price_per_month, description,
+  def __init__(self, name, price_per_month, description,
                human_name=None, aliases=[], signin_limit=None,
                member_limit=None, legacy=None, selectable=True, full=False,
                admin_only=False, desk=False, create_events=True):
@@ -30,7 +31,12 @@ class Plan:
     else:
       self.human_name = self.name.capitalize()
     """ The ID of the plan in PinPayments. """
-    self.plan_id = str(plan_id)
+    if not Config().is_testing:
+      self.plan_id = str(keymaster.get("plan.%s" % (self.name,)))
+    else:
+      # Just use the name as the ID for testing.
+      self.plan_id = self.name
+    logging.debug("Using plan_id for %s: %s" % (self.name, self.plan_id))
     """ A description of the plan. """
     self.description = description
     """ Any other names that this plan could be referred to by. """
@@ -206,48 +212,48 @@ class Plan:
 
 
 # Plans
-newfull = Plan("newfull", 25716, 195, "The standard plan.",
+newfull = Plan("newfull", 195, "The standard plan.",
                human_name="Standard")
-newstudent = Plan("newstudent", 25967, 60, "A cheap plan for students.",
+newstudent = Plan("newstudent", 60, "A cheap plan for students.",
                   human_name="Student",
                   selectable=False)
-newyearly = Plan("newyearly", 25968, 162, "Bills every year instead.",
+newyearly = Plan("newyearly", 162, "Bills every year instead.",
                  human_name="Yearly")
-newhive = Plan("newhive", 25790, 325, "You get a private desk too!",
+newhive = Plan("newhive", 325, "You get a private desk too!",
                human_name="Premium", member_limit=Config().HIVE_MAX_OCCUPANCY,
                desk=True, selectable=False, admin_only=True)
 
-full = Plan("full", 1987, 125, "The old standard plan.",
+full = Plan("full", 125, "The old standard plan.",
             human_name="Old Standard",
             legacy=newfull)
-student = Plan("student", 2537, 50, "Old version of the student plan.",
+student = Plan("student", 50, "Old version of the student plan.",
                 human_name="Old Student", aliases=["hardship"],
                 legacy=newstudent)
-supporter = Plan("supporter", 1988, 10, "A monthly donation to the dojo.",
+supporter = Plan("supporter", 10, "A monthly donation to the dojo.",
                  human_name="Monthly Donation", signin_limit=0,
                  create_events=False)
-family = Plan("family", 3659, 50, "Get a family discount.",
+family = Plan("family", 50, "Get a family discount.",
               human_name="Family",
               selectable=False, admin_only=True)
-worktrade = Plan("worktrade", 6608, 0, "Free until we cancel it.",
+worktrade = Plan("worktrade", 0, "Free until we cancel it.",
                  human_name="Free Ride",
                  selectable=False, admin_only=True)
-comped = Plan("comped", 15451, 0, "One year free.",
+comped = Plan("comped", 0, "One year free.",
               human_name="Free Year",
               selectable=False, admin_only=True)
-threecomp = Plan("threecomp", 18158, 0, "Three months free.",
+threecomp = Plan("threecomp", 0, "Three months free.",
                  human_name="Free Three Months",
                  selectable=False, admin_only=True)
-yearly = Plan("yearly", 18552, 125, "Old yearly plan.",
+yearly = Plan("yearly", 125, "Old yearly plan.",
               human_name="Old Yearly",
               legacy=newyearly)
-fiveyear = Plan("fiveyear", 18853, 83.33, "Pay for five years now.",
+fiveyear = Plan("fiveyear", 83.33, "Pay for five years now.",
                 human_name="Five Years")
-hive = Plan("Hive", 19616, 275, "Old premium plan.",
+hive = Plan("Hive", 275, "Old premium plan.",
             human_name="Old Premium", member_limit=Config().HIVE_MAX_OCCUPANCY,
             aliases=["thielcomp"],
             legacy=newhive, desk=True)
-lite = Plan("lite", 25791, 100, "A limited but cheaper plan.",
+lite = Plan("lite", 100, "A limited but cheaper plan.",
             signin_limit=Config().LITE_VISITS, create_events=False)
 cleaners = Plan("cleaners", 0, 0,
                 "A special plan to allow the cleaners access to the dojo.",

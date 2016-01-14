@@ -25,14 +25,14 @@ class PlanTests(unittest.TestCase):
     Plan.legacy_pairs.clear()
 
     # Make some test plans.
-    self.plan1 = Plan("plan1", 1, 25, "Test plan 1")
-    self.plan2 = Plan("plan2", 2, 50, "Test plan 2",
+    self.plan1 = Plan("plan1", 25, "Test plan 1")
+    self.plan2 = Plan("plan2", 50, "Test plan 2",
                       selectable=False)
-    self.plan3 = Plan("plan3", 3, 100, "Test plan 3",
+    self.plan3 = Plan("plan3", 100, "Test plan 3",
                       full=True)
-    self.plan4 = Plan("plan4", 4, 75, "Test plan 4",
+    self.plan4 = Plan("plan4", 75, "Test plan 4",
                       legacy=self.plan1)
-    self.plan5 = Plan("plan5", 5, 100, "Test plan 5",
+    self.plan5 = Plan("plan5", 100, "Test plan 5",
                       admin_only=True)
 
   """ Cleanup for every test. """
@@ -171,5 +171,6 @@ class PlanTests(unittest.TestCase):
   """ Tests that we can get all the plan ids as expected. """
   def test_get_all_plan_ids(self):
     ids = Plan.get_all_plan_ids()
-    self.assertEqual([("plan1", "1"), ("plan2", "2"), ("plan3", "3"),
-                      ("plan4", "4"), ("plan5", "5")], ids)
+    self.assertEqual([("plan1", "plan1"), ("plan2", "plan2"),
+                      ("plan3", "plan3"), ("plan4", "plan4"),
+                      ("plan5", "plan5")], ids)
