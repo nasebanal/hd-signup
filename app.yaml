@@ -1,5 +1,5 @@
 # Use this one if deploying to production.
-application: hd-signup-hrd
+application: hdj-signup
 # Use this one if deploying to dev.
 #application: signup-dev
 version: 4

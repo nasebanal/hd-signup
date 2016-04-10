@@ -15,20 +15,28 @@ Step.1) Download the source code
  $ git clone https://github.com/nasebanal/hd-signup.git
 
 
-Step.2) If you want to have local translation, prepare translation file in translate directory.
+Step.2) Test-run the software in your local environment.
 
-Step.3) Test-run the software in your local environment.
+ $ git rm shared
+ $ git submodule add <Shared repository path> shared
 
- $ dev_appserver.py .
+Step.3) Launch the service on local.
+
+ $ python deploy.py dev-server
+
+Step.4) Register secret key to datastorage for encryption.
+You can access console window from http://localhost:8080/_kh/key login as admin
+
+ spreedly:hackerdojotest = e0cbfb79cc82ba9b5ff21ec2441feee92f535b7e
 
 Then you can access this software through http://localhost:8080.
-If you are using virtual machine technology, and want to forward the request and get response, you can use the following command instead.
+If you are using virtual machine technology, and want to forward the request and get response, you can use the following command instead of deploy.py.
 
  $ dev_appserver.py --host=0.0.0.0 .
 
-Step.4) Create a new project in Google App Console window (https://appengine.google.com/). Determine Application ID which is unique in Google App Engine, and put the same id in application id of app.yaml.
+Step.5) Create a new project in Google App Console window (https://appengine.google.com/). Determine Application ID which is unique in Google App Engine, and put the same id in application id of app.yaml.
 
-Step.5) Deploy the souce code with the following command. Then you can access your web site from http://<application ID>.appspot.com.
+Step.6) Deploy the souce code with the following command. Then you can access your web site from http://<application ID>.appspot.com.
 
  $ appcfg.py update .
 
